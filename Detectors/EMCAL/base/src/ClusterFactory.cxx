@@ -242,7 +242,7 @@ void ClusterFactory<InputType>::evalLocalPosition(gsl::span<const int> inputsInd
     }
   }
 
-  clusterAnalysis.setLocalPosition(Point3D<float>(clXYZ[0], clXYZ[1], clXYZ[2]));
+  clusterAnalysis.setLocalPosition(math_utils::Point3D<float>(clXYZ[0], clXYZ[1], clXYZ[2]));
 }
 
 ///
@@ -311,7 +311,7 @@ void ClusterFactory<InputType>::evalGlobalPosition(gsl::span<const int> inputsIn
     }
   }
 
-  clusterAnalysis.setGlobalPosition(Point3D<float>(clXYZ[0], clXYZ[1], clXYZ[2]));
+  clusterAnalysis.setGlobalPosition(math_utils::Point3D<float>(clXYZ[0], clXYZ[1], clXYZ[2]));
 }
 
 ///
@@ -384,7 +384,7 @@ void ClusterFactory<InputType>::evalLocalPositionFit(double deff, double mLogWei
     clXYZ[1] = ycorr;
   }
 
-  clusterAnalysis.setLocalPosition(Point3D<float>(clXYZ[0], clXYZ[1], clXYZ[2]));
+  clusterAnalysis.setLocalPosition(math_utils::Point3D<float>(clXYZ[0], clXYZ[1], clXYZ[2]));
 }
 
 ///
