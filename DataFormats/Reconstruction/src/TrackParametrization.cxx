@@ -59,7 +59,7 @@ TrackParametrization<value_T>::TrackParametrization(const dim3_t& xyz, const dim
     alp = atan2f(xyz[1], xyz[0]);
   }
   if (sectorAlpha) {
-    alp = math_utils::Angle2Alpha(alp);
+    alp = math_utils::angle2Alpha(alp);
   }
   //
   value_t sn, cs;
@@ -85,8 +85,8 @@ TrackParametrization<value_T>::TrackParametrization(const dim3_t& xyz, const dim
   dim3_t mom{pxpypz[0], pxpypz[1], pxpypz[2]};
   //
   // Rotate to the local coordinate system
-  math_utils::RotateZ(ver, -alp);
-  math_utils::RotateZ(mom, -alp);
+  math_utils::rotateZ<value_t>(ver, -alp);
+  math_utils::rotateZ<value_t>(mom, -alp);
   //
   value_t ptI = 1.f / sqrt(mom[0] * mom[0] + mom[1] * mom[1]);
   mX = ver[0];
@@ -158,7 +158,7 @@ bool TrackParametrization<value_T>::rotateParam(value_t alpha)
     return false;
   }
   //
-  math_utils::BringToPMPi(alpha);
+  math_utils::bringToPMPi(alpha);
   //
   value_t ca = 0, sa = 0;
   math_utils::sincos(alpha - getAlpha(), sa, ca);
@@ -453,7 +453,7 @@ void TrackParametrization<value_T>::invertParam()
   // Transform this track to the local coord. system rotated by 180 deg.
   mX = -mX;
   mAlpha += constants::math::PI;
-  math_utils::BringToPMPi(mAlpha);
+  math_utils::bringToPMPi(mAlpha);
   //
   mP[0] = -mP[0];
   mP[3] = -mP[3];

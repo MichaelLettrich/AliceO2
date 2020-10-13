@@ -167,7 +167,7 @@ bool TrackParametrizationWithError<value_T>::rotate(value_t alpha)
     return false;
   }
   //
-  math_utils::BringToPMPi(alpha);
+  math_utils::bringToPMPi(alpha);
   //
   value_t ca = 0, sa = 0;
   math_utils::sincos(alpha - this->getAlpha(), sa, ca);
@@ -276,7 +276,7 @@ TrackParametrizationWithError<value_T>::TrackParametrizationWithError(const dim3
     alp = std::atan2(xyz[1], xyz[0]);
   }
   if (sectorAlpha) {
-    alp = math_utils::Angle2Alpha(alp);
+    alp = math_utils::angle2Alpha(alp);
   }
   //
   value_t sn, cs;
@@ -302,10 +302,10 @@ TrackParametrizationWithError<value_T>::TrackParametrizationWithError(const dim3
   dim3_t mom{pxpypz[0], pxpypz[1], pxpypz[2]};
   //
   // Rotate to the local coordinate system
-  math_utils::RotateZ(ver, -alp);
-  math_utils::RotateZ(mom, -alp);
+  math_utils::rotateZ<value_t>(ver, -alp);
+  math_utils::rotateZ<value_t>(mom, -alp);
   //
-  value_t pt = sqrt(mom[0] * mom[0] + mom[1] * mom[1]);
+  value_t pt = std::sqrt(mom[0] * mom[0] + mom[1] * mom[1]);
   value_t ptI = 1.f / pt;
   this->setX(ver[0]);
   this->setAlpha(alp);

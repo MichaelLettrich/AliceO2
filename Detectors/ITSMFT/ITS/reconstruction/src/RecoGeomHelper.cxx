@@ -39,9 +39,9 @@ void RecoGeomHelper::RecoLadder::updateLimits(const o2::math_utils::Point3D<floa
 {
   // update limits from the point in Global frame
   float phi = pntGlo.phi();    // -pi:pi range
-  o2::math_utils::BringTo02Pi(phi); // temporary bring to 0:2pi range
-  o2::math_utils::BringTo02Pi(phiRange.getMin());
-  o2::math_utils::BringTo02Pi(phiRange.getMax());
+  o2::math_utils::bringTo02Pif(phi); // temporary bring to 0:2pi range
+  o2::math_utils::bringTo02Pif(phiRange.getMin());
+  o2::math_utils::bringTo02Pif(phiRange.getMax());
   phiRange.update(phi);
   phiMean = phiRange.mean();
   dphiH = 0.5 * phiRange.delta();
@@ -50,9 +50,9 @@ void RecoGeomHelper::RecoLadder::updateLimits(const o2::math_utils::Point3D<floa
     phiMean -= o2::constants::math::PI;
     dphiH = o2::constants::math::PI - dphiH;
   }
-  o2::math_utils::BringToPMPi(phiRange.getMin()); // -pi:pi range
-  o2::math_utils::BringToPMPi(phiRange.getMax());
-  o2::math_utils::BringToPMPi(phiMean);
+  o2::math_utils::bringToPMPif(phiRange.getMin()); // -pi:pi range
+  o2::math_utils::bringToPMPif(phiRange.getMax());
+  o2::math_utils::bringToPMPif(phiMean);
   //
   zRange.update(pntGlo.Z());
 }
@@ -136,8 +136,8 @@ void RecoGeomHelper::RecoLayer::init()
   // sort according to mean phi (in -pi:pi range!!!)
   std::sort(ladders.begin(), ladders.end(), [](auto& a, auto& b) {
     float pha = a.phiMean, phb = b.phiMean;
-    o2::math_utils::BringTo02Pi(pha);
-    o2::math_utils::BringTo02Pi(phb);
+    o2::math_utils::bringTo02Pif(pha);
+    o2::math_utils::bringTo02Pif(phb);
     return pha < phb;
   });
 
@@ -166,16 +166,16 @@ void RecoGeomHelper::RecoLayer::init()
     // find the radius of the edge at low phi
     float phi0 = std::atan2(lad.xyEdges.getY0(), lad.xyEdges.getX0());
     float phi1 = std::atan2(lad.xyEdges.getY1(), lad.xyEdges.getX1());
-    o2::math_utils::BringTo02Pi(phi0); // we don't know a priori if edge0/1 corresponds to low/high phi or vice versa
-    o2::math_utils::BringTo02Pi(phi1);
+    o2::math_utils::bringTo02Pif(phi0); // we don't know a priori if edge0/1 corresponds to low/high phi or vice versa
+    o2::math_utils::bringTo02Pif(phi1);
     float r2This = (phi0 < phi1 && phi1 - phi0 < o2::constants::math::PI) ? // pick R of lowest angle
                      lad.xyEdges.getX0() * lad.xyEdges.getX0() + lad.xyEdges.getY0() * lad.xyEdges.getY0()
                                                                           : lad.xyEdges.getX1() * lad.xyEdges.getX1() + lad.xyEdges.getY1() * lad.xyEdges.getY1();
     //
     phi0 = std::atan2(plad.xyEdges.getY0(), plad.xyEdges.getX0());
     phi1 = std::atan2(plad.xyEdges.getY1(), plad.xyEdges.getX1());
-    o2::math_utils::BringTo02Pi(phi0); // we don't know a priori if edge0/1 corresponds to low/high phi or vice versa
-    o2::math_utils::BringTo02Pi(phi1);
+    o2::math_utils::bringTo02Pif(phi0); // we don't know a priori if edge0/1 corresponds to low/high phi or vice versa
+    o2::math_utils::bringTo02Pif(phi1);
     float r2Prev = (phi0 < phi1 && phi1 - phi0 < o2::constants::math::PI) ? // pick R of highest angle
                      plad.xyEdges.getX1() * plad.xyEdges.getX1() + plad.xyEdges.getY1() * plad.xyEdges.getY1()
                                                                           : plad.xyEdges.getX0() * plad.xyEdges.getX0() + plad.xyEdges.getY0() * plad.xyEdges.getY0();
@@ -189,7 +189,7 @@ void RecoGeomHelper::RecoLayer::init()
   int laddId = 0;
   for (int i = 0; i < ndiv; i++) {
     float phi = (0.5 + i) * dphi;
-    o2::math_utils::BringToPMPi(phi);
+    o2::math_utils::bringToPMPif(phi);
     while (laddId < nLadders) {
       const auto& lad = ladders[laddId];
       auto rel = lad.isPhiOutside(phi);
