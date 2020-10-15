@@ -174,7 +174,7 @@ void Digitizer::mergeDigits()
 {
   std::vector<int> indices(mDigits.size());
   std::iota(begin(indices), end(indices), 0);
-  std::sort(indices.begin(), indices.end(), [&digits = this->mDigits, this](int a, int b) {
+  std::sort(indices.begin(), indices.end(), [& digits = this->mDigits, this](int a, int b) {
     return (getGlobalDigit(digits[a].getDetID(), digits[a].getPadID()) < getGlobalDigit(digits[b].getDetID(), digits[b].getPadID()));
   });
 

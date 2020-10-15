@@ -99,8 +99,7 @@ void run_trac_ca_its(std::string path = "./",
 
   auto gman = o2::its::GeometryTGeo::Instance();
   gman->fillMatrixCache(o2::math_utils::bit2Mask(o2::math_utils::TransformType::T2L, o2::math_utils::TransformType::T2GRot,
-                                            o2::math_utils::TransformType::L2G)); // request cached transforms
-
+                                                 o2::math_utils::TransformType::L2G)); // request cached transforms
 
   //>>>---------- attach input data --------------->>>
   TChain itsClusters("o2sim");
