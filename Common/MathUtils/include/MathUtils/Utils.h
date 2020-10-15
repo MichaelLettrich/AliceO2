@@ -10,7 +10,7 @@
 
 /// \file Utils.h
 /// \brief General auxilliary methods
-/// \author ruben.shahoyan@cern.ch
+/// \author ruben.shahoyan@cern.ch michael.lettrich@cern.ch
 
 #ifndef ALICEO2_COMMON_MATH_UTILS_
 #define ALICEO2_COMMON_MATH_UTILS_
