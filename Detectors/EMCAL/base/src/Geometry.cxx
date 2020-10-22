@@ -1423,7 +1423,7 @@ void Geometry::ImpactOnEmcal(const math_utils::Point3D<double>& vtx, Double_t th
   Double_t glob4[3] = {};
   math_utils::Vector3D<double> dir = {a, b, c};
   math_utils::Point3D<double> point = {glob[0], glob[1], glob[2]};
-  if (point.Dot(dir) < 0){
+  if (point.Dot(dir) < 0) {
     dist *= -1;
   }
   glob4[0] = glob[0] - dist * a / norm;
