@@ -280,7 +280,7 @@ GPUdi() unsigned int GPUCommonMath::Clz(unsigned int x)
 GPUdi() unsigned int GPUCommonMath::Popcount(unsigned int x)
 {
 #if (defined(__GNUC__) || defined(__clang__) || defined(__CUDACC__) || defined(__HIPCC__)) && (!defined(__OPENCL__) /*|| defined(__OPENCLCPP__)*/) // TODO: remove OPENCLCPP workaround when reported SPIR-V bug is fixed
-  return CHOICE(__builtin_popcount(x), __popc(x), __builtin_popcount(x)); // use builtin if available
+  return CHOICE(__builtin_popcount(x), __popc(x), __builtin_popcount(x));                                                                          // use builtin if available
 #else
   unsigned int retVal = 0;
   for (int i = 0; i < 32; i++) {
