@@ -107,14 +107,14 @@ inline void bringToPMPiGen(T& phi)
   phi = toPMPiGen<T>(phi);
 }
 
-GPUdi() void sincos(float ang, float& s, float& c)
+template <typename T>
+GPUdi() void sincos(T ang, T& s, T& c)
 {
-  o2::gpu::GPUCommonMath::SinCos(ang, s, c);
-}
-
-GPUdi() void sincos(double ang, double& s, double& c)
-{
-  o2::gpu::GPUCommonMath::SinCos(ang, s, c);
+  if constexpr (std::is_same_v<T, float>) {
+    o2::gpu::GPUCommonMath::SinCos(ang, s, c);
+  } else {
+    o2::gpu::GPUCommonMath::SinCosd(ang, s, c);
+  }
 }
 
 #ifndef GPUCA_GPUCODE_DEVICE
@@ -124,7 +124,7 @@ GPUhdi() std::tuple<T, T> sincos(T ang)
 {
   T sin = 0;
   T cos = 0;
-  o2::gpu::GPUCommonMath::SinCos(ang, sin, cos);
+  sincos<T>(ang, sin, cos);
   return std::make_tuple(sin, cos);
 }
 
@@ -195,6 +195,18 @@ inline T angle2Alpha(T phi)
 }
 
 template <typename T>
+GPUhdi() T copysign(T x, T y)
+{
+  T res = 0;
+  if constexpr (std::is_same_v<T, float>) {
+    res = o2::gpu::GPUCommonMath::Copysign(x, y);
+  } else {
+    res = o2::gpu::GPUCommonMath::Copysignd(x, y);
+  }
+  return res;
+}
+
+template <typename T>
 GPUhdi() T fastATan2(T y, T x)
 {
   // Fast atan2(y,x) for any angle [-Pi,Pi]
@@ -233,7 +245,7 @@ GPUhdi() T fastATan2(T y, T x)
   };
 
   // fast atan2(y,x) for any angle [-Pi,Pi]
-  return o2::gpu::GPUCommonMath::Copysign(atan2P(o2::gpu::GPUCommonMath::Abs(y), x), y);
+  return copysign<T>(atan2P(o2::gpu::GPUCommonMath::Abs(y), x), y);
 }
 
 } // namespace detail
