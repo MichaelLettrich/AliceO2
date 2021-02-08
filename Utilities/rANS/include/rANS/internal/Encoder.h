@@ -22,9 +22,9 @@
 #include <type_traits>
 #include <tuple>
 
-#include "DecoderSymbol.h"
-#include "EncoderSymbol.h"
-#include "helper.h"
+#include "rANS/internal/DecoderSymbol.h"
+#include "rANS/internal/EncoderSymbol.h"
+#include "rANS/internal/helper.h"
 
 namespace o2
 {

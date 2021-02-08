@@ -16,8 +16,6 @@
 #ifndef RANS_LITERAL_ENCODER_H
 #define RANS_LITERAL_ENCODER_H
 
-#include "Encoder.h"
-
 #include <memory>
 #include <algorithm>
 #include <iomanip>
@@ -25,9 +23,10 @@
 #include <fairlogger/Logger.h>
 #include <stdexcept>
 
-#include "internal/EncoderSymbol.h"
-#include "internal/helper.h"
-#include "internal/SymbolTable.h"
+#include "rANS/internal/EncoderBase.h"
+#include "rANS/internal/EncoderSymbol.h"
+#include "rANS/internal/helper.h"
+#include "rANS/internal/SymbolTable.h"
 
 namespace o2
 {
@@ -35,15 +34,19 @@ namespace rans
 {
 
 template <typename coder_T, typename stream_T, typename source_T>
-class LiteralEncoder : public Encoder<coder_T, stream_T, source_T>
+class LiteralEncoder : public internal::EncoderBase<coder_T, stream_T, source_T>
 {
-  //inherit constructors;
-  using Encoder<coder_T, stream_T, source_T>::Encoder;
 
  public:
+  //inherit constructors;
+  using internal::EncoderBase<coder_T, stream_T, source_T>::EncoderBase;
+
   template <typename stream_IT, typename source_IT, std::enable_if_t<internal::isCompatibleIter_v<stream_T, stream_IT> && internal::isCompatibleIter_v<source_T, source_IT>, bool> = true>
   const stream_IT process(const stream_IT outputBegin, const stream_IT outputEnd,
                           const source_IT inputBegin, source_IT inputEnd, std::vector<source_T>& literals) const;
+
+ private:
+  using ransCoder_t = typename internal::EncoderBase<coder_T, stream_T, source_T>::ransCoder_t;
 };
 
 template <typename coder_T, typename stream_T, typename source_T>
@@ -51,13 +54,9 @@ template <typename stream_IT, typename source_IT, std::enable_if_t<internal::isC
 const stream_IT LiteralEncoder<coder_T, stream_T, source_T>::process(const stream_IT outputBegin, const stream_IT outputEnd, const source_IT inputBegin, const source_IT inputEnd, std::vector<source_T>& literals) const
 {
   using namespace internal;
-  using ransCoder = internal::Encoder<coder_T, stream_T>;
   LOG(trace) << "start encoding";
   RANSTimer t;
   t.start();
-
-  static_assert(std::is_same<typename std::iterator_traits<source_IT>::value_type, source_T>::value);
-  static_assert(std::is_same<typename std::iterator_traits<stream_IT>::value_type, stream_T>::value);
 
   if (inputBegin == inputEnd) {
     LOG(warning) << "passed empty message to encoder, skip encoding";
@@ -70,14 +69,14 @@ const stream_IT LiteralEncoder<coder_T, stream_T, source_T>::process(const strea
     throw std::runtime_error(errorMessage);
   }
 
-  ransCoder rans0, rans1;
+  ransCoder_t rans0, rans1;
 
   stream_IT outputIter = outputBegin;
   source_IT inputIT = inputEnd;
 
   const auto inputBufferSize = std::distance(inputBegin, inputEnd);
 
-  auto encode = [&literals, this](source_IT symbolIter, stream_IT outputIter, ransCoder& coder) {
+  auto encode = [&literals, this](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder) {
     const source_T symbol = *symbolIter;
     const auto& encoderSymbol = (this->mSymbolTable)[symbol];
     if (this->mSymbolTable.isRareSymbol(symbol)) {

@@ -19,7 +19,7 @@
 #include <cstdint>
 #include <cassert>
 
-#include "helper.h"
+#include "rANS/internal/helper.h"
 
 namespace o2
 {

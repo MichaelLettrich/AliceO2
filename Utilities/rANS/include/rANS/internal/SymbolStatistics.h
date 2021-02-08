@@ -27,7 +27,7 @@
 
 #include <fairlogger/Logger.h>
 
-#include "helper.h"
+#include "rANS/internal/helper.h"
 #include "rANS/FrequencyTable.h"
 
 namespace o2

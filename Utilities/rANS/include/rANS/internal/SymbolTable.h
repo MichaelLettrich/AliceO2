@@ -21,7 +21,7 @@
 #include <cmath>
 #include <fairlogger/Logger.h>
 
-#include "SymbolStatistics.h"
+#include "rANS/internal/SymbolStatistics.h"
 
 namespace o2
 {

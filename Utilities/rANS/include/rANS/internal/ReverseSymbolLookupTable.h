@@ -20,8 +20,8 @@
 #include <type_traits>
 #include <fairlogger/Logger.h>
 
-#include "helper.h"
-#include "SymbolStatistics.h"
+#include "rANS/internal/helper.h"
+#include "rANS/internal/SymbolStatistics.h"
 
 namespace o2
 {
