@@ -79,8 +79,8 @@ const stream_IT LiteralEncoder<coder_T, stream_T, source_T>::process(const strea
 
   auto encode = [&literals, this](source_IT symbolIter, stream_IT outputIter, ransCoder& coder) {
     const source_T symbol = *symbolIter;
-    const auto& encoderSymbol = (*this->mSymbolTable)[symbol];
-    if (this->mSymbolTable->isRareSymbol(symbol)) {
+    const auto& encoderSymbol = (this->mSymbolTable)[symbol];
+    if (this->mSymbolTable.isRareSymbol(symbol)) {
       literals.push_back(symbol);
     }
     return std::tuple(symbolIter, coder.putSymbol(outputIter, encoderSymbol, this->mProbabilityBits));

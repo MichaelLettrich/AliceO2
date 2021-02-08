@@ -47,9 +47,9 @@ class SymbolStatistics
   class Iterator
   {
    public:
-    Iterator(size_t index, const SymbolStatistics& stats) : mIndex(index), mStats(stats){};
+    Iterator(size_t index, const SymbolStatistics& stats) : mIndex{index}, mStats{stats} {};
 
-    using difference_type = int64_t;
+    using difference_type = int;
     using value_type = std::tuple<uint32_t, uint32_t>;
     using pointer = const std::tuple<uint32_t, uint32_t>*;
     using reference = const std::tuple<uint32_t, uint32_t>&;
@@ -70,7 +70,7 @@ class SymbolStatistics
     bool operator!=(const Iterator& other) const;
 
    private:
-    size_t mIndex;
+    size_t mIndex{};
     const SymbolStatistics& mStats;
   };
 
@@ -78,9 +78,9 @@ class SymbolStatistics
   SymbolStatistics(const FrequencyTable& frequencyTable, size_t scaleBits = 0);
 
   template <typename Source_IT>
-  SymbolStatistics(const Source_IT begin, const Source_IT end, int64_t min, int64_t max, size_t scaleBits, size_t nUsedAlphabetSymbols);
+  SymbolStatistics(const Source_IT begin, const Source_IT end, int min, int max, size_t scaleBits, size_t nUsedAlphabetSymbols);
 
-  std::tuple<uint32_t, uint32_t> operator[](int64_t index) const;
+  std::tuple<uint32_t, uint32_t> operator[](int index) const;
   std::tuple<uint32_t, uint32_t> at(size_t pos) const;
 
   Iterator begin() const;
@@ -90,8 +90,8 @@ class SymbolStatistics
 
   size_t size() const;
 
-  int64_t getMinSymbol() const;
-  int64_t getMaxSymbol() const;
+  int getMinSymbol() const;
+  int getMaxSymbol() const;
 
   size_t getNUsedAlphabetSymbols() const;
 
@@ -102,19 +102,19 @@ class SymbolStatistics
 
   void rescale();
 
-  int64_t mMin;
-  int64_t mMax;
-  size_t mScaleBits;
-  size_t mNUsedAlphabetSymbols;
+  int mMin{0};
+  int mMax{0};
+  size_t mScaleBits{0};
+  size_t mNUsedAlphabetSymbols{0};
 
-  std::vector<uint32_t> mFrequencyTable;
-  std::vector<uint32_t> mCumulativeFrequencyTable;
+  std::vector<uint32_t> mFrequencyTable{};
+  std::vector<uint32_t> mCumulativeFrequencyTable{};
 
   static constexpr size_t MAX_RANGE = 26;
 };
 
 template <typename Source_IT>
-SymbolStatistics::SymbolStatistics(const Source_IT begin, const Source_IT end, int64_t min, int64_t max, size_t scaleBits, size_t nUsedAlphabetSymbols) : mMin(min), mMax(max), mScaleBits(scaleBits), mFrequencyTable(), mNUsedAlphabetSymbols(nUsedAlphabetSymbols), mCumulativeFrequencyTable()
+SymbolStatistics::SymbolStatistics(const Source_IT begin, const Source_IT end, int min, int max, size_t scaleBits, size_t nUsedAlphabetSymbols) : mMin{min}, mMax{max}, mScaleBits{scaleBits}, mNUsedAlphabetSymbols{nUsedAlphabetSymbols}
 {
 
   using namespace internal;
@@ -176,12 +176,12 @@ SymbolStatistics::SymbolStatistics(const Source_IT begin, const Source_IT end, i
   LOG(trace) << "done building symbol statistics";
 }
 
-inline int64_t SymbolStatistics::getMinSymbol() const
+inline int SymbolStatistics::getMinSymbol() const
 {
   return mMin;
 }
 
-inline int64_t SymbolStatistics::getMaxSymbol() const
+inline int SymbolStatistics::getMaxSymbol() const
 {
   return mMax;
 }
@@ -196,7 +196,7 @@ inline size_t SymbolStatistics::getSymbolTablePrecision() const
   return mScaleBits;
 }
 
-inline std::tuple<uint32_t, uint32_t> SymbolStatistics::operator[](int64_t index) const
+inline std::tuple<uint32_t, uint32_t> SymbolStatistics::operator[](int index) const
 {
   assert(index - mMin < mFrequencyTable.size());
   return {mFrequencyTable[index], mCumulativeFrequencyTable[index]};

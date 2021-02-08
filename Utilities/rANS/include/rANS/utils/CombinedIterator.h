@@ -86,7 +86,7 @@ class CombinedOutputIterator
     Proxy& operator=(input_T value);
 
    private:
-    CombinedOutputIterator* mIter;
+    CombinedOutputIterator* mIter{};
   };
 
  public:
@@ -135,7 +135,7 @@ struct CombinedOutputIteratorFactory {
 };
 
 template <class iterA_T, class iterB_T, class F>
-CombinedInputIterator<iterA_T, iterB_T, F>::CombinedInputIterator(iterA_T iterA, iterB_T iterB, F functor) : mIterA(iterA), mIterB(iterB), mFunctor(functor)
+CombinedInputIterator<iterA_T, iterB_T, F>::CombinedInputIterator(iterA_T iterA, iterB_T iterB, F functor) : mIterA{iterA}, mIterB{iterB}, mFunctor{functor}
 {
 }
 
@@ -198,7 +198,7 @@ inline auto CombinedInputIterator<iterA_T, iterB_T, F>::operator*() const
 }
 
 template <typename input_T, class iterA_T, class iterB_T, class F>
-CombinedOutputIterator<input_T, iterA_T, iterB_T, F>::CombinedOutputIterator(iterA_T iterA, iterB_T iterB, F functor) : mIterA(iterA), mIterB(iterB), mFunctor(functor)
+CombinedOutputIterator<input_T, iterA_T, iterB_T, F>::CombinedOutputIterator(iterA_T iterA, iterB_T iterB, F functor) : mIterA{iterA}, mIterB{iterB}, mFunctor{functor}
 {
 }
 
@@ -234,7 +234,7 @@ inline auto CombinedOutputIterator<input_T, iterA_T, iterB_T, F>::operator*() ->
 }
 
 template <typename input_T, class iterA_T, class iterB_T, class F>
-CombinedOutputIterator<input_T, iterA_T, iterB_T, F>::Proxy::Proxy(CombinedOutputIterator& iter) : mIter(&iter)
+CombinedOutputIterator<input_T, iterA_T, iterB_T, F>::Proxy::Proxy(CombinedOutputIterator& iter) : mIter{&iter}
 {
 }
 

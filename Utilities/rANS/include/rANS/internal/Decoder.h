@@ -60,7 +60,7 @@ class Decoder
   Stream_IT advanceSymbol(Stream_IT iter, const DecoderSymbol& sym, uint32_t scale_bits);
 
  private:
-  State_T mState;
+  State_T mState{0};
 
   // Renormalize.
   template <typename Stream_IT, std::enable_if_t<isCompatibleIter_v<Stream_T, Stream_IT>, bool> = true>
@@ -76,7 +76,7 @@ class Decoder
 };
 
 template <typename State_T, typename Stream_T>
-Decoder<State_T, Stream_T>::Decoder() : mState(0){};
+Decoder<State_T, Stream_T>::Decoder(){};
 
 template <typename State_T, typename Stream_T>
 template <typename Stream_IT, std::enable_if_t<isCompatibleIter_v<Stream_T, Stream_IT>, bool>>

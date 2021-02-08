@@ -84,7 +84,7 @@ const stream_IT DedupEncoder<coder_T, stream_T, source_T>::process(const stream_
 
   auto encode = [&inputBegin, &duplicates, this](source_IT symbolIter, stream_IT outputIter, ransCoder& coder) {
     const source_T symbol = *symbolIter;
-    const auto& encoderSymbol = (*this->mSymbolTable)[symbol];
+    const auto& encoderSymbol = (this->mSymbolTable)[symbol];
 
     // dedup step:
     auto dedupIT = symbolIter;

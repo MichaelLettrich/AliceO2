@@ -33,8 +33,10 @@ namespace internal
 class ReverseSymbolLookupTable
 {
  public:
+  ReverseSymbolLookupTable(){};
+
   ReverseSymbolLookupTable(size_t probabilityBits,
-                           const SymbolStatistics& stats) : mLut()
+                           const SymbolStatistics& stats)
   {
     LOG(trace) << "start building reverse symbol lookup table";
 
@@ -78,7 +80,7 @@ class ReverseSymbolLookupTable
   };
 
  private:
-  std::vector<int32_t> mLut;
+  std::vector<int32_t> mLut{};
 };
 
 } // namespace internal

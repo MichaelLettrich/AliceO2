@@ -42,15 +42,7 @@ class Encoder
   using encoderSymbolTable_t = internal::SymbolTable<internal::EncoderSymbol<coder_T>>;
 
  public:
-  Encoder() = delete;
-  ~Encoder() = default;
-  Encoder(Encoder&& e) = default;
-  Encoder(const Encoder& e);
-  Encoder<coder_T, stream_T, source_T>& operator=(const Encoder& e);
-  Encoder<coder_T, stream_T, source_T>& operator=(Encoder&& e) = default;
-
-  Encoder(const encoderSymbolTable_t& e, size_t probabilityBits);
-  Encoder(encoderSymbolTable_t&& e, size_t probabilityBits);
+  Encoder(encoderSymbolTable_t e, size_t probabilityBits);
   Encoder(const FrequencyTable& frequencies, size_t probabilityBits);
 
   template <typename stream_IT, typename source_IT, std::enable_if_t<internal::isCompatibleIter_v<stream_T, stream_IT> && internal::isCompatibleIter_v<source_T, source_IT>, bool> = true>
@@ -58,56 +50,36 @@ class Encoder
                           const source_IT inputBegin, const source_IT inputEnd) const;
 
   size_t getProbabilityBits() const { return mProbabilityBits; }
-  size_t getAlphabetRangeBits() const { return mSymbolTable->getAlphabetRangeBits(); }
-  int getMinSymbol() const { return mSymbolTable->getMinSymbol(); }
-  int getMaxSymbol() const { return mSymbolTable->getMaxSymbol(); }
+  size_t getAlphabetRangeBits() const { return mSymbolTable.getAlphabetRangeBits(); }
+  int getMinSymbol() const { return mSymbolTable.getMinSymbol(); }
+  int getMaxSymbol() const { return mSymbolTable.getMaxSymbol(); }
 
   using coder_t = coder_T;
   using stream_t = stream_T;
   using source_t = source_T;
 
  protected:
-  std::unique_ptr<encoderSymbolTable_t> mSymbolTable;
-  size_t mProbabilityBits;
+  encoderSymbolTable_t mSymbolTable{};
+  size_t mProbabilityBits{0};
 
   using ransCoder = internal::Encoder<coder_T, stream_T>;
 };
 
 template <typename coder_T, typename stream_T, typename source_T>
-Encoder<coder_T, stream_T, source_T>::Encoder(const Encoder& e) : mSymbolTable(nullptr), mProbabilityBits(e.mProbabilityBits)
-{
-  mSymbolTable = std::make_unique<encoderSymbolTable_t>(*e.mSymbolTable);
-};
-
-template <typename coder_T, typename stream_T, typename source_T>
-Encoder<coder_T, stream_T, source_T>& Encoder<coder_T, stream_T, source_T>::operator=(const Encoder& e)
-{
-  mProbabilityBits = e.mProbabilityBits;
-  mSymbolTable = std::make_unique<encoderSymbolTable_t>(*e.mSymbolTable);
-  return *this;
-};
-
-template <typename coder_T, typename stream_T, typename source_T>
-Encoder<coder_T, stream_T, source_T>::Encoder(const encoderSymbolTable_t& e, size_t probabilityBits) : mSymbolTable(nullptr), mProbabilityBits(probabilityBits)
-{
-  mSymbolTable = std::make_unique<encoderSymbolTable_t>(e);
-};
-
-template <typename coder_T, typename stream_T, typename source_T>
-Encoder<coder_T, stream_T, source_T>::Encoder(encoderSymbolTable_t&& e, size_t probabilityBits) : mSymbolTable(std::move(e.mSymbolTable)), mProbabilityBits(probabilityBits){};
+Encoder<coder_T, stream_T, source_T>::Encoder(encoderSymbolTable_t e, size_t probabilityBits) : mSymbolTable{std::move(e)}, mProbabilityBits{probabilityBits} {};
 
 template <typename coder_T, typename stream_T, typename source_T>
 Encoder<coder_T, stream_T, source_T>::Encoder(const FrequencyTable& frequencies,
-                                              size_t probabilityBits) : mSymbolTable(nullptr), mProbabilityBits(probabilityBits)
+                                              size_t probabilityBits) : mProbabilityBits{probabilityBits}
 {
   using namespace internal;
 
-  SymbolStatistics stats(frequencies, mProbabilityBits);
+  SymbolStatistics stats{frequencies, mProbabilityBits};
   mProbabilityBits = stats.getSymbolTablePrecision();
 
   RANSTimer t;
   t.start();
-  mSymbolTable = std::make_unique<encoderSymbolTable_t>(stats);
+  mSymbolTable = encoderSymbolTable_t{stats};
   t.stop();
   LOG(debug1) << "Encoder SymbolTable inclusive time (ms): " << t.getDurationMS();
 }
@@ -144,7 +116,7 @@ const stream_IT Encoder<coder_T, stream_T, source_T>::Encoder::process(const str
 
   auto encode = [this](source_IT symbolIter, stream_IT outputIter, ransCoder& coder) {
     const source_T symbol = *symbolIter;
-    const auto& encoderSymbol = (*this->mSymbolTable)[symbol];
+    const auto& encoderSymbol = (this->mSymbolTable)[symbol];
     return std::tuple(symbolIter, coder.putSymbol(outputIter, encoderSymbol, this->mProbabilityBits));
   };
 

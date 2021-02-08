@@ -75,7 +75,7 @@ void DedupDecoder<coder_T, stream_T, source_T>::process(const source_IT outputBe
   inputIter = rans.init(inputIter);
 
   for (size_t i = 0; i < (messageLength); i++) {
-    const auto s = (*this->mReverseLUT)[rans.get(this->mProbabilityBits)];
+    const auto s = (this->mReverseLUT)[rans.get(this->mProbabilityBits)];
 
     // deduplication
     auto duplicatesIter = duplicates.find(i);
@@ -87,7 +87,7 @@ void DedupDecoder<coder_T, stream_T, source_T>::process(const source_IT outputBe
       }
     }
     *it++ = s;
-    inputIter = rans.advanceSymbol(inputIter, (*this->mSymbolTable)[s], this->mProbabilityBits);
+    inputIter = rans.advanceSymbol(inputIter, (this->mSymbolTable)[s], this->mProbabilityBits);
   }
 
   t.stop();

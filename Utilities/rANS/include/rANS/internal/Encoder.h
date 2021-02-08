@@ -70,7 +70,7 @@ class Encoder
   Stream_IT putSymbol(Stream_IT iter, const EncoderSymbol<State_T>& sym, uint32_t scale_bits);
 
  private:
-  State_T mState;
+  State_T mState{LOWER_BOUND};
 
   // Renormalize the encoder.
   template <typename Stream_IT, std::enable_if_t<isCompatibleIter_v<Stream_T, Stream_IT>, bool> = true>
@@ -86,7 +86,7 @@ class Encoder
 };
 
 template <typename State_T, typename Stream_T>
-Encoder<State_T, Stream_T>::Encoder() : mState(LOWER_BOUND){};
+Encoder<State_T, Stream_T>::Encoder(){};
 
 template <typename State_T, typename Stream_T>
 template <typename Stream_IT, std::enable_if_t<isCompatibleIter_v<Stream_T, Stream_IT>, bool>>

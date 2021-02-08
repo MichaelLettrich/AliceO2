@@ -35,7 +35,9 @@ class SymbolTable
 {
 
  public:
-  SymbolTable(const SymbolStatistics& symbolStats);
+  SymbolTable();
+
+  explicit SymbolTable(const SymbolStatistics& symbolStats);
 
   const T& operator[](int64_t index) const;
 
@@ -48,15 +50,18 @@ class SymbolTable
   int getMaxSymbol() const { return mMax; }
 
  private:
-  int mMin;
-  int mMax;
-  std::vector<T*> mIndex;
-  std::vector<T> mSymbols;
-  std::unique_ptr<T> mEscapeSymbol;
+  std::vector<T*> mIndex{};
+  std::vector<T> mSymbols{};
+  std::unique_ptr<T> mEscapeSymbol{nullptr};
+  int mMin{0};
+  int mMax{0};
 };
 
 template <typename T>
-SymbolTable<T>::SymbolTable(const SymbolStatistics& symbolStats) : mMin(symbolStats.getMinSymbol()), mMax(symbolStats.getMaxSymbol()), mIndex(), mSymbols(), mEscapeSymbol(nullptr)
+SymbolTable<T>::SymbolTable(){};
+
+template <typename T>
+SymbolTable<T>::SymbolTable(const SymbolStatistics& symbolStats) : mMin{symbolStats.getMinSymbol()}, mMax{symbolStats.getMaxSymbol()}
 {
   LOG(trace) << "start building symbol table";
 

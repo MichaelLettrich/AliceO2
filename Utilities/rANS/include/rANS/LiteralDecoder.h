@@ -68,14 +68,14 @@ void LiteralDecoder<coder_T, stream_T, source_T>::process(const source_IT output
 
   auto decode = [&, this](ransDecoder& decoder) {
     auto cumul = decoder.get(this->mProbabilityBits);
-    const auto streamSymbol = (*this->mReverseLUT)[cumul];
+    const auto streamSymbol = (this->mReverseLUT)[cumul];
     source_T symbol = streamSymbol;
-    if (this->mSymbolTable->isRareSymbol(streamSymbol)) {
+    if (this->mSymbolTable.isRareSymbol(streamSymbol)) {
       symbol = literals.back();
       literals.pop_back();
     }
 
-    return std::make_tuple(symbol, decoder.advanceSymbol(inputIter, (*this->mSymbolTable)[streamSymbol], this->mProbabilityBits));
+    return std::make_tuple(symbol, decoder.advanceSymbol(inputIter, (this->mSymbolTable)[streamSymbol], this->mProbabilityBits));
   };
 
   // make Iter point to the last last element

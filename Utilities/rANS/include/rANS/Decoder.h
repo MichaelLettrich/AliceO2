@@ -48,48 +48,27 @@ class Decoder
   using ransDecoder = internal::Decoder<coder_T, stream_T>;
 
  public:
-  Decoder(const Decoder& d);
-  Decoder(Decoder&& d) = default;
-  Decoder<coder_T, stream_T, source_T>& operator=(const Decoder& d);
-  Decoder<coder_T, stream_T, source_T>& operator=(Decoder&& d) = default;
-  ~Decoder() = default;
   Decoder(const FrequencyTable& stats, size_t probabilityBits);
 
   template <typename stream_IT, typename source_IT, std::enable_if_t<internal::isCompatibleIter_v<stream_T, stream_IT> && internal::isCompatibleIter_v<source_T, source_IT>, bool> = true>
   void process(const source_IT outputBegin, const stream_IT inputEnd, size_t messageLength) const;
 
-  size_t getAlphabetRangeBits() const { return mSymbolTable->getAlphabetRangeBits(); }
-  int getMinSymbol() const { return mSymbolTable->getMinSymbol(); }
-  int getMaxSymbol() const { return mSymbolTable->getMaxSymbol(); }
+  inline size_t getAlphabetRangeBits() const { return mSymbolTable.getAlphabetRangeBits(); }
+  inline int getMinSymbol() const { return mSymbolTable.getMinSymbol(); }
+  inline int getMaxSymbol() const { return mSymbolTable.getMaxSymbol(); }
 
   using coder_t = coder_T;
   using stream_t = stream_T;
   using source_t = source_T;
 
  protected:
-  std::unique_ptr<decoderSymbolTable_t> mSymbolTable;
-  std::unique_ptr<reverseSymbolLookupTable_t> mReverseLUT;
-  size_t mProbabilityBits;
+  size_t mProbabilityBits{0};
+  decoderSymbolTable_t mSymbolTable{};
+  reverseSymbolLookupTable_t mReverseLUT{};
 };
 
 template <typename coder_T, typename stream_T, typename source_T>
-Decoder<coder_T, stream_T, source_T>::Decoder(const Decoder& d) : mSymbolTable(nullptr), mReverseLUT(nullptr), mProbabilityBits(d.mProbabilityBits)
-{
-  mSymbolTable = std::make_unique<decoderSymbolTable_t>(*d.mSymbolTable);
-  mReverseLUT = std::make_unique<reverseSymbolLookupTable_t>(*d.mReverseLUT);
-}
-
-template <typename coder_T, typename stream_T, typename source_T>
-Decoder<coder_T, stream_T, source_T>& Decoder<coder_T, stream_T, source_T>::operator=(const Decoder& d)
-{
-  mSymbolTable = std::make_unique<decoderSymbolTable_t>(*d.mSymbolTable);
-  mReverseLUT = std::make_unique<reverseSymbolLookupTable_t>(*d.mReverseLUT);
-  mProbabilityBits = d.mProbabilityBits;
-  return *this;
-}
-
-template <typename coder_T, typename stream_T, typename source_T>
-Decoder<coder_T, stream_T, source_T>::Decoder(const FrequencyTable& frequencies, size_t probabilityBits) : mSymbolTable(nullptr), mReverseLUT(nullptr), mProbabilityBits(probabilityBits)
+Decoder<coder_T, stream_T, source_T>::Decoder(const FrequencyTable& frequencies, size_t probabilityBits) : mProbabilityBits{probabilityBits}
 {
   using namespace internal;
 
@@ -98,11 +77,11 @@ Decoder<coder_T, stream_T, source_T>::Decoder(const FrequencyTable& frequencies,
 
   RANSTimer t;
   t.start();
-  mSymbolTable = std::make_unique<decoderSymbolTable_t>(stats);
+  mSymbolTable = decoderSymbolTable_t{stats};
   t.stop();
   LOG(debug1) << "Decoder SymbolTable inclusive time (ms): " << t.getDurationMS();
   t.start();
-  mReverseLUT = std::make_unique<reverseSymbolLookupTable_t>(mProbabilityBits, stats);
+  mReverseLUT = reverseSymbolLookupTable_t{mProbabilityBits, stats};
   t.stop();
   LOG(debug1) << "ReverseSymbolLookupTable inclusive time (ms): " << t.getDurationMS();
 };
@@ -132,19 +111,19 @@ void Decoder<coder_T, stream_T, source_T>::process(const source_IT outputBegin, 
   inputIter = rans1.init(inputIter);
 
   for (size_t i = 0; i < (messageLength & ~1); i += 2) {
-    const int64_t s0 = (*mReverseLUT)[rans0.get(mProbabilityBits)];
-    const int64_t s1 = (*mReverseLUT)[rans1.get(mProbabilityBits)];
+    const int64_t s0 = mReverseLUT[rans0.get(mProbabilityBits)];
+    const int64_t s1 = mReverseLUT[rans1.get(mProbabilityBits)];
     *it++ = s0;
     *it++ = s1;
-    inputIter = rans0.advanceSymbol(inputIter, (*mSymbolTable)[s0], mProbabilityBits);
-    inputIter = rans1.advanceSymbol(inputIter, (*mSymbolTable)[s1], mProbabilityBits);
+    inputIter = rans0.advanceSymbol(inputIter, mSymbolTable[s0], mProbabilityBits);
+    inputIter = rans1.advanceSymbol(inputIter, mSymbolTable[s1], mProbabilityBits);
   }
 
   // last byte, if message length was odd
   if (messageLength & 1) {
-    const int64_t s0 = (*mReverseLUT)[rans0.get(mProbabilityBits)];
+    const int64_t s0 = mReverseLUT[rans0.get(mProbabilityBits)];
     *it = s0;
-    inputIter = rans0.advanceSymbol(inputIter, (*mSymbolTable)[s0], mProbabilityBits);
+    inputIter = rans0.advanceSymbol(inputIter, mSymbolTable[s0], mProbabilityBits);
   }
   t.stop();
   LOG(debug1) << "Decoder::" << __func__ << " { DecodedSymbols: " << messageLength << ","
