@@ -149,7 +149,6 @@ AliAlgVol::AliAlgVol(const char* symname, int iid) : TNamed(symname, ""), fVarFr
                                                      fMatDeltaRefGlo()
 {
   // def c-tor
-  SetVolID(0);   // volumes have no VID, unless it is sensor
   if (symname) { // real volumes have at least geometric degrees of freedom
     SetNDOFs(kNDOFGeom);
   }
@@ -770,7 +769,7 @@ void AliAlgVol::CreateAlignmentObjects(TClonesArray* arr) const
   //  new (parr[parr.GetEntriesFast()]) AliAlignObjParams(GetName(), GetVolID(), algM, kTRUE);
   const Double_t* translation = algM.GetTranslation();
   const Double_t* rotation = algM.GetRotationMatrix();
-  new (parr[parr.GetEntriesFast()]) detectors::AlignParam(GetName(), GetVolID(),
+  new (parr[parr.GetEntriesFast()]) detectors::AlignParam(GetName(), 0, //TODO RS GeomManager:: GetVolID(),
                                                           translation[0], translation[1], translation[2],
                                                           rotation[0], rotation[1], rotation[2], kTRUE);
   int nch = GetNChildren();

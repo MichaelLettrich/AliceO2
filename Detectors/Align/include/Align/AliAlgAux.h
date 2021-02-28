@@ -45,9 +45,9 @@ const double kAlmostOneD = 1. - kAlmostZeroD;
 const float kAlmostOneF = 1. - kAlmostZeroF;
 const double kTinyDist = 1.e-7; // ignore distances less that this
 //
-enum { kColl,
-       kCosm,
-       kNTrackTypes };
+enum TrackType { kColl,
+                 kCosm,
+                 kNTrackTypes };
 //
 inline Double_t Sector2Alpha(int sect);
 inline Int_t Phi2Sector(double alpha);

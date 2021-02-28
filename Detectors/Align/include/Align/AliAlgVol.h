@@ -69,8 +69,6 @@ class AliAlgVol : public TNamed
   //
   const char* GetSymName() const { return GetName(); }
   //
-  Int_t GetVolID() const { return (Int_t)GetUniqueID(); }
-  void SetVolID(Int_t v) { SetUniqueID(v); }
   Int_t GetInternalID() const { return fIntID; }
   void SetInternalID(Int_t v) { fIntID = v; }
   //

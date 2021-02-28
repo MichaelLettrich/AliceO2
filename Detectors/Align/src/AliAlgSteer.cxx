@@ -51,6 +51,11 @@
 #include <stdio.h>
 #include <TGeoGlobalMagField.h>
 
+#include "DetectorsCommonDataFormats/NameConf.h"
+#include "DataFormatsParameters/GRPObject.h"
+#include "DetectorsBase/GeometryManager.h"
+#include "DetectorsBase/Propagator.h"
+
 using namespace TMath;
 using namespace o2::align::AliAlgAux;
 using std::ifstream;
@@ -162,6 +167,10 @@ AliAlgSteer::AliAlgSteer(const char* configMacro, int refRun)
   SetDefPtBOffCosm();
   SetDefPtBOffColl();
   //
+  o2::base::GeometryManager::loadGeometry();
+  o2::base::Propagator::initFieldFromGRP(o2::base::NameConf::getGRPFileName());
+  std::unique_ptr<o2::parameters::GRPObject> grp{o2::parameters::GRPObject::loadFrom(o2::base::NameConf::getGRPFileName())};
+
   // run config macro if provided
   if (!fConfMacroName.IsNull()) {
     gROOT->ProcessLine(Form(".x %s+g((AliAlgSteer*)%p)", fConfMacroName.Data(), this));
@@ -201,6 +210,7 @@ void AliAlgSteer::InitDetectors()
 {
   // init all detectors geometry
   //
+
   if (GetInitGeomDone())
     return;
   //
@@ -1023,16 +1033,6 @@ void AliAlgSteer::AcknowledgeNewRun(Int_t run)
 //  //
 //  return PreloadOCDB(fRunNumber, cdbMap, cdbList);
 //}
-
-//_________________________________________________________
-AliAlgDet* AliAlgSteer::GetDetectorByVolID(Int_t vid) const
-{
-  // get detector by sensor volid
-  for (int i = fNDet; i--;)
-    if (fDetectors[i]->SensorOfDetector(vid))
-      return fDetectors[i];
-  return 0;
-}
 
 //____________________________________________
 void AliAlgSteer::Print(const Option_t* opt) const

@@ -46,7 +46,7 @@ namespace align
 
 //____________________________________________
 AliAlgDet::AliAlgDet()
-  : fNDOFs(0), fVolIDMin(-1), fVolIDMax(-1), fNSensors(0), fSID2VolID(0), fNProcPoints(0)
+  : fNDOFs(0), fNProcPoints(0)
     //
     ,
     fNCalibDOF(0),
@@ -219,7 +219,7 @@ void AliAlgDet::DefineVolumes()
 }
 
 //_________________________________________________________
-void AliAlgDet::AddVolume(AliAlgVol* vol)
+AliAlgVol* AliAlgDet::AddVolume(AliAlgVol* vol)
 {
   // add volume
   if (GetVolume(vol->GetSymName())) {
@@ -229,13 +229,9 @@ void AliAlgDet::AddVolume(AliAlgVol* vol)
   if (vol->IsSensor()) {
     fSensors.AddLast(vol);
     ((AliAlgSens*)vol)->SetDetector(this);
-    Int_t vid = ((AliAlgSens*)vol)->GetVolID();
-    if (fVolIDMin < 0 || vid < fVolIDMin)
-      fVolIDMin = vid;
-    if (fVolIDMax < 0 || vid > fVolIDMax)
-      fVolIDMax = vid;
   }
   //
+  return vol;
 }
 
 //_________________________________________________________
@@ -269,24 +265,6 @@ void AliAlgDet::DefineMatrices()
 }
 
 //_________________________________________________________
-void AliAlgDet::SortSensors()
-{
-  // build local tables for internal numbering
-  fNSensors = fSensors.GetEntriesFast();
-  if (!fNSensors) {
-    LOG(WARNING) << "No sensors defined";
-    return;
-  }
-  fSensors.Sort();
-  fSID2VolID = new Int_t[fNSensors]; // cash id's for fast binary search
-  for (int i = 0; i < fNSensors; i++) {
-    fSID2VolID[i] = GetSensor(i)->GetVolID();
-    GetSensor(i)->SetSID(i);
-  }
-  //
-}
-
-//_________________________________________________________
 Int_t AliAlgDet::InitGeom()
 {
   // define hiearchy, initialize matrices, return number of global parameters
@@ -294,7 +272,6 @@ Int_t AliAlgDet::InitGeom()
     return 0;
   //
   DefineVolumes();
-  SortSensors(); // VolID's must be in increasing order
   DefineMatrices();
   //
   // calculate number of global parameters
@@ -364,32 +341,14 @@ void AliAlgDet::InitDOFs()
   return;
 }
 
-//_________________________________________________________
-Int_t AliAlgDet::VolID2SID(Int_t vid) const
-{
-  // find SID corresponding to VolID
-  int mn(0), mx(fNSensors - 1);
-  while (mx >= mn) {
-    int md((mx + mn) >> 1), vids(GetSensor(md)->GetVolID());
-    if (vid < vids)
-      mx = md - 1;
-    else if (vid > vids)
-      mn = md + 1;
-    else
-      return md;
-  }
-  return -1;
-}
-
 //____________________________________________
 void AliAlgDet::Print(const Option_t* opt) const
 {
   // print info
   TString opts = opt;
   opts.ToLower();
-  printf("\nDetector:%5s %5d volumes %5d sensors {VolID: %5d-%5d} Def.Sys.Err: %.4e %.4e | Stat:%d\n",
-         GetName(), GetNVolumes(), GetNSensors(), GetVolIDMin(),
-         GetVolIDMax(), fAddError[0], fAddError[1], fNProcPoints);
+  printf("\nDetector:%5s %5d volumes %5d sensors Def.Sys.Err: %.4e %.4e | Stat:%d\n",
+         GetName(), GetNVolumes(), GetNSensors(), fAddError[0], fAddError[1], fNProcPoints);
   //
   printf("Errors assignment: ");
   if (fUseErrorParam)
@@ -416,14 +375,6 @@ void AliAlgDet::Print(const Option_t* opt) const
   for (int i = 0; i < GetNCalibDOFs(); i++) {
     printf("CalibDOF%2d: %-20s\t%e\n", i, GetCalibDOFName(i), GetCalibDOFValWithCal(i));
   }
-}
-
-//____________________________________________
-void AliAlgDet::SetDetID(UInt_t tp)
-{
-  o2::detectors::DetID detID(tp);
-  SetUniqueID(detID);
-  LOG(WARNING) << __PRETTY_FUNCTION__ << "Possible discrepancies with o2 detector ID";
 }
 
 //____________________________________________
@@ -766,7 +717,7 @@ void AliAlgDet::WriteSensorPositions(const char* outFName)
   //
   for (int isn = 0; isn < ns; isn++) {
     AliAlgSens* sens = GetSensor(isn);
-    spos.volID = sens->GetVolID();
+    spos.volID = sens->GetInternalID(); //TODO RS
     sens->GetMatrixL2GIdeal().LocalToMaster(loc, spos.pId);
     sens->GetMatrixL2G().LocalToMaster(loc, spos.pRf);
     sens->GetMatrixL2GReco().LocalToMaster(loc, spos.pRc);

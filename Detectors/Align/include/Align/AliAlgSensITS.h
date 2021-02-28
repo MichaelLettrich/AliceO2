@@ -28,18 +28,29 @@ namespace o2
 namespace align
 {
 
+/* RS MENO
+o2::itsmft::ChipInfo chinfo;
+const auto* map = ((AliAlgDetITS*)fDet)->getChipMapping();
+map->getChipInfoSW(sens->GetSID(), chinfo);
+auto chipLr = map->getRUInfoSW( chinfo.ru)->layer;
+*/
+
 class AliAlgSensITS : public AliAlgSens
 {
  public:
-  AliAlgSensITS(const char* name = 0, Int_t vid = 0, Int_t iid = 0);
+  AliAlgSensITS(const char* name = 0, int lr = 0, int id = 0);
   virtual ~AliAlgSensITS();
   //
-  virtual AliAlgPoint* TrackPoint2AlgPoint(int pntId, const AliTrackPointArray* trpArr, const AliESDtrack* t);
+  // TODO RS virtual AliAlgPoint* TrackPoint2AlgPoint(int pntId, const AliTrackPointArray* trpArr, const AliESDtrack* t);
 
+  uint8_t getLayer() const { return mLayer; }
+  void setLayer(uint8_t l) { mLayer = l; }
   //  virtual void   SetTrackingFrame();
   //
  protected:
   //
+  uint8_t mLayer = 0;
+
   ClassDef(AliAlgSensITS, 1)
 };
 } // namespace align

@@ -259,7 +259,6 @@ class AliAlgSteer : public TObject
   Int_t GetNDetectors() const { return fNDet; }
   AliAlgDet* GetDetector(Int_t i) const { return fDetectors[i]; }
   AliAlgDet* GetDetectorByDetID(Int_t i) const { return fDetPos[i] < 0 ? 0 : fDetectors[fDetPos[i]]; }
-  AliAlgDet* GetDetectorByVolID(Int_t id) const;
   AliAlgVtx* GetVertexSensor() const { return fVtxSens; }
   //
   void ResetDetectors();

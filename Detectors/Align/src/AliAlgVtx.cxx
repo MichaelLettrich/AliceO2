@@ -31,7 +31,7 @@ namespace align
 {
 
 //_________________________________________________________
-AliAlgVtx::AliAlgVtx() : AliAlgSens("Vertex", 0, 1)
+AliAlgVtx::AliAlgVtx() : AliAlgSens("Vertex", 0)
 {
   // def c-tor
   SetVarFrame(kLOC);

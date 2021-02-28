@@ -8,12 +8,14 @@
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 
+add_compile_options(-O0 -g -fPIC)
+
 o2_add_library(Align
                SOURCES  src/AliAlgAux.cxx
                         src/AliAlgConstraint.cxx
                         src/AliAlgDet.cxx
                         #src/AliAlgDetHMPID.cxx
-                        #src/AliAlgDetITS.cxx
+                        src/AliAlgDetITS.cxx
                         #src/AliAlgDetTOF.cxx
                         #src/AliAlgDetTPC.cxx
                         #src/AliAlgDetTRD.cxx
@@ -24,7 +26,7 @@ o2_add_library(Align
                         src/AliAlgResFast.cxx
                         src/AliAlgSens.cxx
                         #src/AliAlgSensHMPID.cxx
-                        #src/AliAlgSensITS.cxx
+                        src/AliAlgSensITS.cxx
                         #src/AliAlgSensTOF.cxx
                         #src/AliAlgSensTPC.cxx
                         #src/AliAlgSensTRD.cxx
@@ -37,6 +39,9 @@ o2_add_library(Align
                						 O2::ReconstructionDataFormats
                						 O2::DetectorsCommonDataFormats
                					     O2::DetectorsBase
+                                     O2::DataFormatsITS
+                                     O2::ITSMFTReconstruction
+                                     O2::ITSBase
                                      ROOT::Core
                                      ROOT::Geom
                                      ROOT::Gpad
@@ -50,7 +55,7 @@ o2_add_library(Align
 o2_target_root_dictionary(
   Align
   HEADERS include/Align/AliAlgDet.h
-          #include/Align/AliAlgDetITS.h
+          include/Align/AliAlgDetITS.h
           #include/Align/AliAlgDetTOF.h
           #include/Align/AliAlgDetTPC.h
           #include/Align/AliAlgDetTRD.h
@@ -58,7 +63,7 @@ o2_target_root_dictionary(
           include/Align/AliAlgMPRecord.h
           include/Align/AliAlgPoint.h
           include/Align/AliAlgSens.h
-          #include/Align/AliAlgSensITS.h
+          include/Align/AliAlgSensITS.h
           #include/Align/AliAlgSensTOF.h
           #include/Align/AliAlgSensTPC.h
           #include/Align/AliAlgSensTRD.h

@@ -39,16 +39,17 @@ class AliAlgSens : public AliAlgVol
 {
  public:
   //
-  AliAlgSens(const char* name = 0, Int_t vid = 0, Int_t iid = 0);
+  AliAlgSens(const char* name = 0, int id = 0);
   virtual ~AliAlgSens();
   //
   virtual void AddChild(AliAlgVol*);
   //
-  void SetDetector(AliAlgDet* det) { fDet = det; }
+  void SetDetector(AliAlgDet* det);
+
   AliAlgDet* GetDetector() const { return fDet; }
   //
-  Int_t GetSID() const { return fSID; }
-  void SetSID(int s) { fSID = s; }
+  int GetSID() const { return mSID; }
+  void SetSID(int s) { mSID = s; }
   //
   void IncrementStat() { fNProcPoints++; }
   //
@@ -104,7 +105,7 @@ class AliAlgSens : public AliAlgVol
   //
  protected:
   //
-  Int_t fSID;                // sensor id in detector
+  int mSID;                  // sensor ID within the detector
   Double_t fAddError[2];     // additional error increment for measurement
   AliAlgDet* fDet;           // pointer on detector
   TGeoHMatrix fMatClAlg;     // reference cluster alignment matrix in tracking frame

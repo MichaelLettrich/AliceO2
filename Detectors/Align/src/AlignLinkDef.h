@@ -5,7 +5,7 @@
 #pragma link off all functions;
 
 #pragma link C++ class o2::align::AliAlgDet + ;
-//#pragma link C++ class o2::align::AliAlgDetITS + ;
+#pragma link C++ class o2::align::AliAlgDetITS + ;
 //#pragma link C++ class o2::align::AliAlgDetTOF + ;
 //#pragma link C++ class o2::align::AliAlgDetTPC + ;
 //#pragma link C++ class o2::align::AliAlgDetTRD + ;
@@ -13,7 +13,7 @@
 #pragma link C++ class o2::align::AliAlgMPRecord + ;
 #pragma link C++ class o2::align::AliAlgPoint + ;
 #pragma link C++ class o2::align::AliAlgSens + ;
-//#pragma link C++ class o2::align::AliAlgSensITS + ;
+#pragma link C++ class o2::align::AliAlgSensITS + ;
 //#pragma link C++ class o2::align::AliAlgSensTOF + ;
 //#pragma link C++ class o2::align::AliAlgSensTPC + ;
 //#pragma link C++ class o2::align::AliAlgSensTRD + ;

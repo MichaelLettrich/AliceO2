@@ -134,7 +134,7 @@ Bool_t AliAlgMPRecord::FillTrack(const AliAlgTrack* trc, const Int_t* id2Lab)
       //
       for (int idim = 0; idim < 2; idim++) { // 2 dimensional orthogonal measurement
         fNDGlo[fNResid] = 0;
-        fVolID[fNResid] = pnt->GetSensor()->GetVolID() + 1;
+        // TODO RS       fVolID[fNResid] = pnt->GetSensor()->GetVolID() + 1;
         //
         // measured residual/error
         fResid[fNResid] = trc->GetResidual(idim, ip);

@@ -16,8 +16,6 @@
 #include <stdio.h>
 #include "Align/AliAlgTrack.h"
 #include "DetectorsBase/Propagator.h"
-#include "DetectorsCommonDataFormats/NameConf.h"
-#include "DataFormatsParameters/GRPObject.h"
 //#include "AliTrackerBase.h"
 #include "Framework/Logger.h"
 #include "Align/AliAlgSens.h"
@@ -560,9 +558,6 @@ Bool_t AliAlgTrack::PropagateParamToPoint(trackParam_t& tr, const AliAlgPoint* p
   dim3_t bxyzV{};
   float bxyzF[3]{0, 0, 0};
 
-  o2::base::GeometryManager::loadGeometry();
-  o2::base::Propagator::initFieldFromGRP(o2::base::NameConf::getGRPFileName());
-  std::unique_ptr<o2::parameters::GRPObject> grp{o2::parameters::GRPObject::loadFrom(o2::base::NameConf::getGRPFileName())};
   const auto* propagator = base::Propagator::Instance();
   //
   if (!tr.rotateParam(pnt->GetAlphaSens())) {
@@ -599,7 +594,7 @@ Bool_t AliAlgTrack::PropagateParamToPoint(trackParam_t& tr, const AliAlgPoint* p
         }
       } else {
         //AliTrackerBase::GetBxByBz(xyz, bxyz);
-        propagator->getFiedXYZ(xyzP, bxyzF);
+        propagator->getFieldXYZ(xyzP, bxyzF);
         std::copy(std::begin(bxyzF), std::end(bxyzF), std::begin(bxyzV));
         if (!tr.propagateParamTo(xToGo, bxyzV)) {
 #if DEBUG > 3
@@ -629,8 +624,6 @@ Bool_t AliAlgTrack::PropagateParamToPoint(trackParam_t& tr, const AliAlgPoint* p
 Bool_t AliAlgTrack::PropagateToPoint(trackParam_t& tr, const AliAlgPoint* pnt,
                                      int minNSteps, double maxStep, Bool_t matCor, double* matPar)
 {
-  LOG(FATAL) << __PRETTY_FUNCTION__ << " is disabled";
-  // FIXME(milettri): needs AliTrackerBase
   //   // propagate tracks to the point. If matCor is true, then material corrections will be applied.
   //   // if matPar pointer is provided, it will be filled by total x2x0 and signed xrho
   if (!tr.rotate(pnt->GetAlphaSens())) {
@@ -641,9 +634,6 @@ Bool_t AliAlgTrack::PropagateToPoint(trackParam_t& tr, const AliAlgPoint* pnt,
     return kFALSE;
   }
   //
-  base::GeometryManager::loadGeometry();
-  base::Propagator::initFieldFromGRP(base::NameConf::getGRPFileName());
-  std::unique_ptr<parameters::GRPObject> grp{parameters::GRPObject::loadFrom(base::NameConf::getGRPFileName())};
   const auto* propagator = base::Propagator::Instance();
 
   dim3_t xyz0{0};
@@ -690,7 +680,7 @@ Bool_t AliAlgTrack::PropagateToPoint(trackParam_t& tr, const AliAlgPoint* pnt,
         }
       } else {
         //AliTrackerBase::GetBxByBz(xyz0, bxyz);
-        propagator->getFiedXYZ(xyzP, bxyzF);
+        propagator->getFieldXYZ(xyzP, bxyzF);
         std::copy(std::begin(bxyzF), std::end(bxyzF), std::begin(bxyzV));
         if (!tr.propagateParamTo(xToGo, bxyzV)) {
 #if DEBUG > 3
@@ -710,11 +700,17 @@ Bool_t AliAlgTrack::PropagateToPoint(trackParam_t& tr, const AliAlgPoint* pnt,
     //
     if (queryXYZ) {
       tr.getXYZGlo(xyz1);
+
       if (matCor) {
+        math_utils::Point3D<float> xyzF0, xyzF1; //TODO RS remove this once the Propagator is templated to float and double
+        xyzF0.SetXYZ(xyz0[0], xyz0[1], xyz0[2]);
+        xyzF1.SetXYZ(xyz1[0], xyz1[1], xyz1[2]);
+        const auto mbud = propagator->getMatBudget(o2::base::Propagator::MatCorrType::USEMatCorrLUT, xyzF0, xyzF1);
         //AliTrackerBase::MeanMaterialBudget(xyz0, xyz1, matarr); //TODO(milettri, shahoian) - t
-        Double_t xrho = matarr[0] * matarr[4], xx0 = matarr[1];
-        if (alongTrackDir)
+        auto xrho = mbud.meanRho * mbud.length, xx0 = mbud.meanX2X0;
+        if (alongTrackDir) {
           xrho = -xrho; // if we go along track direction, energy correction is negative
+        }
         x2X0Tot += xx0;
         xrhoTot += xrho;
         //	printf("MAT %+7.2f %+7.2f %+7.2f -> %+7.2f %+7.2f %+7.2f | %+e %+e | -> %+e %+e | %+e %+e %+e %+e %+e\n",

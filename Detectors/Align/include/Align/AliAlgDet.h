@@ -47,9 +47,8 @@ class AliAlgDet : public TNamed
   AliAlgDet();
   AliAlgDet(const char* name, const char* title = "", Int_t id = -1) : TNamed(name, title) { SetUniqueID(id); };
   virtual ~AliAlgDet();
-  Int_t GetDetID() const { return GetUniqueID(); }
-  detectors::DetID GetO2DetID() const { return detectors::DetID(GetUniqueID()); };
-  void SetDetID(UInt_t tp);
+  //Int_t GetDetID() const { return GetUniqueID(); }
+  detectors::DetID GetDetID() const { return detectors::DetID(GetUniqueID()); };
   void SetDetID(detectors::DetID id) { SetUniqueID(id); }
   //
   virtual void CacheReferenceOCDB();
@@ -57,13 +56,8 @@ class AliAlgDet : public TNamed
   virtual void UpdateL2GRecoMatrices();
   virtual void ApplyAlignmentFromMPSol();
   //
-  Int_t VolID2SID(Int_t vid) const;
-  Int_t SID2VolID(Int_t sid) const { return sid < GetNSensors() ? fSID2VolID[sid] : -1; } //todo
   Int_t GetNSensors() const { return fSensors.GetEntriesFast(); }
   Int_t GetNVolumes() const { return fVolumes.GetEntriesFast(); }
-  Int_t GetVolIDMin() const { return fVolIDMin; }
-  Int_t GetVolIDMax() const { return fVolIDMax; }
-  Bool_t SensorOfDetector(Int_t vid) const { return vid >= fVolIDMin && vid <= fVolIDMax; }
   void SetAddError(double y, double z);
   const Double_t* GetAddError() const { return fAddError; }
   //
@@ -71,11 +65,6 @@ class AliAlgDet : public TNamed
   //
   void SetAlgSteer(AliAlgSteer* s) { fAlgSteer = s; }
   AliAlgSens* GetSensor(Int_t id) const { return (AliAlgSens*)fSensors.UncheckedAt(id); }
-  AliAlgSens* GetSensorByVolId(Int_t vid) const
-  {
-    int sid = VolID2SID(vid);
-    return sid < 0 ? 0 : GetSensor(sid);
-  }
   AliAlgSens* GetSensor(const char* symname) const { return (AliAlgSens*)fSensors.FindObject(symname); }
   AliAlgVol* GetVolume(Int_t id) const { return (AliAlgVol*)fVolumes.UncheckedAt(id); }
   AliAlgVol* GetVolume(const char* symname) const { return (AliAlgVol*)fVolumes.FindObject(symname); }
@@ -104,7 +93,7 @@ class AliAlgDet : public TNamed
   virtual void InitDOFs();
   virtual void Terminate();
   void FillDOFStat(AliAlgDOFStat* dofst = 0) const;
-  virtual void AddVolume(AliAlgVol* vol);
+  virtual AliAlgVol* AddVolume(AliAlgVol* vol);
   virtual void DefineVolumes();
   virtual void DefineMatrices();
   virtual void Print(const Option_t* opt = "") const;
@@ -113,7 +102,7 @@ class AliAlgDet : public TNamed
   virtual void SetUseErrorParam(Int_t v = 0);
   Int_t GetUseErrorParam() const { return fUseErrorParam; }
   //
-  //  virtual Bool_t AcceptTrack(const AliESDtrack* trc, Int_t trtype) const = 0; FIXME(milettri): needs AliESDtrack
+  //  virtual Bool_t AcceptTrack(const AliESDtrack* trc, Int_t trtype) const = 0; FIXME(milettri): needs AliESDtrack  // TODO RS templatize this
   //  Bool_t CheckFlags(const AliESDtrack* trc, Int_t trtype) const; FIXME(milettri): needs AliESDtrack
   //
   virtual AliAlgPoint* GetPointFromPool();
@@ -194,7 +183,6 @@ class AliAlgDet : public TNamed
   void SetFirstParGloID(Int_t id) { fFirstParGloID = id; }
   //
  protected:
-  void SortSensors();
   void CalcFree(Bool_t condFree = kFALSE);
   //
   // ------- dummies ---------
@@ -203,11 +191,8 @@ class AliAlgDet : public TNamed
   //
  protected:
   //
+
   Int_t fNDOFs;       // number of DOFs free
-  Int_t fVolIDMin;    // min volID for this detector (for sensors only)
-  Int_t fVolIDMax;    // max volID for this detector (for sensors only)
-  Int_t fNSensors;    // number of sensors (i.e. volID's)
-  Int_t* fSID2VolID;  //[fNSensors] table of conversion from VolID to sid
   Int_t fNProcPoints; // total number of points processed
   //
   // Detector specific calibration degrees of freedom

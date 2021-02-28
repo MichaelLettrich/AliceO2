@@ -217,7 +217,7 @@ Bool_t AliAlgRes::FillTrack(AliAlgTrack* trc, Bool_t doKalman)
       continue;
     if (!pnt->IsStatOK())
       pnt->IncrementStat();
-    fVolID[nfill] = pnt->GetVolID();
+    //TODO RS fVolID[nfill] = pnt->GetVolID();
     fLabel[nfill] = pnt->GetSensor()->GetInternalID();
     fAlpha[nfill] = pnt->GetAlphaSens();
     fX[nfill] = pnt->GetXPoint() * inv;
@@ -246,9 +246,11 @@ Bool_t AliAlgRes::FillTrack(AliAlgTrack* trc, Bool_t doKalman)
       AliAlgPoint* pnt = trc->GetPoint(i);
       if (!pnt->ContainsMeasurement())
         continue;
-      if (fVolID[nfilk] != int(pnt->GetVolID())) {
-        LOG(FATAL) << "Mismatch in Kalman filling for point " << i << ": filled VID:" << fVolID[nfilk] << ", point VID:" << pnt->GetVolID();
-      }
+
+      // TODO RS
+      //      if (fVolID[nfilk] != int(pnt->GetVolID())) {
+      //        LOG(FATAL) << "Mismatch in Kalman filling for point " << i << ": filled VID:" << fVolID[nfilk] << ", point VID:" << pnt->GetVolID();
+      //      }
       const double* wsA = pnt->GetTrParamWSA();
       fDYK[nfilk] = pnt->GetResidY();
       fDZK[nfilk] = pnt->GetResidZ();

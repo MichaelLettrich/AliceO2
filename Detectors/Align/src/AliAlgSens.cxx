@@ -33,11 +33,10 @@ namespace align
 {
 
 //_________________________________________________________
-AliAlgSens::AliAlgSens(const char* name, Int_t vid, Int_t iid)
-  : AliAlgVol(name, iid), fSID(0), fDet(0), fMatClAlg(), fMatClAlgReco()
+AliAlgSens::AliAlgSens(const char* name, int id)
+  : AliAlgVol(name, id), mSID(id), fDet(0), fMatClAlg(), fMatClAlgReco()
 {
   // def c-tor
-  SetVolID(vid);
   fAddError[0] = fAddError[1] = 0;
   fConstrChild = 0; // sensors don't have children
 }
@@ -46,6 +45,13 @@ AliAlgSens::AliAlgSens(const char* name, Int_t vid, Int_t iid)
 AliAlgSens::~AliAlgSens()
 {
   // d-tor
+}
+
+//_________________________________________________________
+void AliAlgSens::SetDetector(AliAlgDet* det)
+{
+  fDet = det;
+  SetInternalID(det->GetDetLabel() + GetSID() + 1);
 }
 
 //_________________________________________________________
@@ -289,7 +295,8 @@ void AliAlgSens::GetModifiedMatrixT2LmodTRA(TGeoHMatrix& matMod, const Double_t*
 //__________________________________________________________________
 void AliAlgSens::AddChild(AliAlgVol*)
 {
-  LOG(FATAL) << "Sensor volume cannot have children: id=" << GetVolID() << " " << GetName();
+  LOG(FATAL) << "Sensor volume cannot have children "
+             << " " << GetName();
 }
 
 //__________________________________________________________________
@@ -320,8 +327,8 @@ void AliAlgSens::Print(const Option_t* opt) const
   // print info
   TString opts = opt;
   opts.ToLower();
-  printf("Lev:%2d IntID:%7d %s VId:%6d X:%8.4f Alp:%+.4f | Err: %.4e %.4e | Used Points: %d\n",
-         CountParents(), GetInternalID(), GetSymName(), GetVolID(), fX, fAlp,
+  printf("Lev:%2d IntID:%7d %s X:%8.4f Alp:%+.4f | Err: %.4e %.4e | Used Points: %d\n",
+         CountParents(), GetInternalID(), GetSymName(), fX, fAlp,
          fAddError[0], fAddError[1], fNProcPoints);
   printf("     DOFs: Tot: %d (offs: %5d) Free: %d  Geom: %d {", fNDOFs, fFirstParGloID, fNDOFFree, fNDOFGeomFree);
   for (int i = 0; i < kNDOFGeom; i++)
@@ -369,7 +376,7 @@ void AliAlgSens::PrepareMatrixT2L()
   TGeoHMatrix t2l;
   t2l.Clear();
   t2l.RotateZ(fAlp * RadToDeg()); // rotate in direction of normal to the sensor plane
-  const TGeoHMatrix* matL2G = base::GeometryManager::getMatrix(fDet->GetO2DetID(), GetSID());
+  const TGeoHMatrix* matL2G = base::GeometryManager::getMatrix(fDet->GetDetID(), GetSID());
   const TGeoHMatrix& matL2Gi = matL2G->Inverse();
   t2l.MultiplyLeft(&matL2Gi);
   SetMatrixT2L(t2l);
