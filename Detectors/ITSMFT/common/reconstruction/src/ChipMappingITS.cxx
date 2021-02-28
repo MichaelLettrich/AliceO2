@@ -94,7 +94,6 @@ ChipMappingITS::ChipMappingITS()
   // [i][j] gives lane id for  lowest(i=0) and highest(i=1) 7 chips of HW module (j+1) (1-4 for ML, 1-7 for OL)
   const int LANEID[2][7] = {{6, 5, 4, 3, 2, 1, 0}, {0, 1, 2, 3, 4, 5, 6}};
   const int maxModulesPerStave = NModulesPerStaveSB[OB];
-  const int chipsOnCable = 7;
   for (int bid = MB; bid <= OB; bid++) { // MB and OB staves have similar layout
     mChipInfoEntrySB[bid] = ctrChip;
     mCableHW2SW[bid].resize(0xff, 0xff);
@@ -115,7 +114,7 @@ ChipMappingITS::ChipMappingITS()
 
       uint8_t connector = 2 * hstave + upper7;
       cInfo.cableHW = (connector << 3) + LANEID[upper7][cInfo.moduleHW - 1];
-      cInfo.cableSW = i / chipsOnCable;
+      cInfo.cableSW = i / NChipsPerCableSB[bid];
       cInfo.cableHWPos = LANEID[upper7][cInfo.moduleHW - 1] + connector * maxModulesPerStave / 2;
       mCablesOnStaveSB[bid] |= 0x1 << cInfo.cableHWPos;                        // account in lanes pattern
       cInfo.chipOnCable = cInfo.chipOnModuleSW % (NChipsPerModuleSB[bid] / 2); // each cable serves half module

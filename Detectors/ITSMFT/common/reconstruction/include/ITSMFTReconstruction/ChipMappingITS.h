@@ -60,6 +60,12 @@ class ChipMappingITS
   ///< numbes of chips per layer
   static constexpr int getNChipsPerLr(int l) { return NStavesOnLr[l] * NChipsPerStaveSB[RUTypeLr[l]]; }
 
+  ///< number of chips on module of subBarel
+  static constexpr int getNChipsPerModuleSB(int ib) { return NChipsPerModuleSB[ib]; }
+
+  ///< number of modules (=chips on IB) per (sub)stave
+  static constexpr int getNModulesAlongStaveSB(int ib) { return NModulesAlongStaveSB[ib]; }
+
   ///< compose FEEid for given stave (ru) relative to layer and link, see documentation in the constructor
   uint16_t composeFEEId(uint16_t lr, uint16_t ruOnLr, uint16_t link) const { return (lr << 12) + (link << 8) + (ruOnLr); }
 
@@ -224,6 +230,8 @@ class ChipMappingITS
     }
     return sid + ruOnLr;
   }
+
+  static constexpr int layer2RUType(int lr) { return lr < 3 ? IB : (lr < 5 ? MB : OB); }
 
   // sub-barrel types, their number, N layers, Max N GBT Links per RU
   static constexpr int IB = 0, MB = 1, OB = 2, NSubB = 3, NLayers = 7, NLinks = 3;
