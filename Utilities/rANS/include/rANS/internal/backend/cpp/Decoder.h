@@ -14,8 +14,8 @@
 /// @since  2019-05-10
 /// @brief  lass for decoding symbols using rANS
 
-#ifndef RANS_INTERNAL_DECODER_H_
-#define RANS_INTERNAL_DECODER_H_
+#ifndef RANS_INTERNAL_CPP_DECODER_H_
+#define RANS_INTERNAL_CPP_DECODER_H_
 
 #include <vector>
 #include <cstdint>
@@ -23,8 +23,8 @@
 #include <tuple>
 #include <type_traits>
 
-#include "rANS/internal/DecoderSymbol.h"
-#include "rANS/internal/EncoderSymbol.h"
+#include "rANS/internal/backend/cpp/DecoderSymbol.h"
+#include "rANS/internal/backend/cpp/EncoderSymbol.h"
 #include "rANS/internal/helper.h"
 
 namespace o2
@@ -32,6 +32,8 @@ namespace o2
 namespace rans
 {
 namespace internal
+{
+namespace cpp
 {
 __extension__ typedef unsigned __int128 uint128;
 
@@ -159,8 +161,9 @@ inline std::tuple<state_T, stream_IT> Decoder<state_T, stream_T>::renorm(state_T
   return std::make_tuple(state, streamPosition);
 }
 
+} // namespace cpp
 } // namespace internal
 } // namespace rans
 } // namespace o2
 
-#endif /* RANS_INTERNAL_DECODER_H_ */
+#endif /* RANS_INTERNAL_CPP_DECODER_H_ */
