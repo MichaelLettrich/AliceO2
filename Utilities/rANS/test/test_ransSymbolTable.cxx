@@ -34,7 +34,7 @@ BOOST_AUTO_TEST_CASE(test_empty)
   using namespace o2::rans;
 
   const auto frequencyTable = renorm(FrequencyTable{});
-  const internal::SymbolTable<internal::DecoderSymbol> symbolTable{frequencyTable};
+  const internal::SymbolTable<internal::cpp::DecoderSymbol> symbolTable{frequencyTable};
 
   BOOST_CHECK_EQUAL(symbolTable.getMinSymbol(), 0);
   BOOST_CHECK_EQUAL(symbolTable.getMaxSymbol(), 0);
@@ -69,7 +69,7 @@ BOOST_AUTO_TEST_CASE(test_symbolTable)
   const int32_t min = *std::min_element(A.begin(), A.end());
 
   RenormedFrequencyTable frequencyTable = renorm(makeFrequencyTableFromSamples(A.begin(), A.end()), scaleBits);
-  const internal::SymbolTable<internal::DecoderSymbol> symbolTable{frequencyTable};
+  const internal::SymbolTable<internal::cpp::DecoderSymbol> symbolTable{frequencyTable};
 
   BOOST_CHECK_EQUAL(symbolTable.getMinSymbol(), min);
   BOOST_CHECK_EQUAL(symbolTable.getMaxSymbol(), *std::max_element(A.begin(), A.end()) + 1);

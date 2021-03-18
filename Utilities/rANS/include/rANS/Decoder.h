@@ -25,7 +25,7 @@
 
 #include <fairlogger/Logger.h>
 
-#include "rANS/internal/Decoder.h"
+#include "rANS/internal/backend/cpp/Decoder.h"
 #include "rANS/internal/DecoderBase.h"
 
 namespace o2
