@@ -13,8 +13,8 @@
 /// @since  2019-05-21
 /// @brief  Structure containing all relevant information for decoding a rANS encoded symbol
 
-#ifndef RANS_INTERNAL_DECODERSYMBOL_H
-#define RANS_INTERNAL_DECODERSYMBOL_H
+#ifndef RANS_INTERNAL_CPP_DECODERSYMBOL_H
+#define RANS_INTERNAL_CPP_DECODERSYMBOL_H
 
 #include <cstdint>
 #include <cstring>
@@ -25,6 +25,8 @@ namespace o2
 namespace rans
 {
 namespace internal
+{
+namespace cpp
 {
 
 // Decoder symbols are straightforward.
@@ -50,8 +52,10 @@ class DecoderSymbol
   count_t mCumulative{}; // Start of range.
   count_t mFrequency{};  // Symbol frequency.
 };
+
+} // namespace cpp
 } // namespace internal
 } // namespace rans
 } // namespace o2
 
-#endif /* RANS_INTERNAL_DECODERSYMBOL_H */
+#endif /* RANS_INTERNAL_CPP_DECODERSYMBOL_H */

@@ -8,13 +8,13 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// @file   Decoder.h
+/// @file   SIMDDecoder.h
 /// @author Michael Lettrich
 /// @since  2020-04-06
 /// @brief  Decoder - decode a rANS encoded state back into source symbols
 
-#ifndef RANS_DECODER_H
-#define RANS_DECODER_H
+#ifndef RANS_SIMDDECODER_H
+#define RANS_SIMDDECODER_H
 
 #include <cstddef>
 #include <type_traits>
@@ -39,12 +39,15 @@ namespace rans
 {
 
 template <typename coder_T, typename stream_T, typename source_T>
-class Decoder : public internal::DecoderBase<coder_T, stream_T, source_T>
+class SIMDDecoder : public internal::DecoderBase<coder_T, stream_T, source_T>
 {
  public:
   using internal::DecoderBase<coder_T, stream_T, source_T>::DecoderBase;
 
-  template <typename stream_IT, typename source_IT, std::enable_if_t<internal::isCompatibleIter_v<stream_T, stream_IT>, bool> = true>
+  template <typename stream_IT,
+            typename source_IT,
+            int nStreams_V = 8,
+            std::enable_if_t<internal::isCompatibleIter_v<stream_T, stream_IT>, bool> = true>
   void process(stream_IT inputEnd, source_IT outputBegin, size_t messageLength) const;
 
  private:
@@ -52,8 +55,11 @@ class Decoder : public internal::DecoderBase<coder_T, stream_T, source_T>
 };
 
 template <typename coder_T, typename stream_T, typename source_T>
-template <typename stream_IT, typename source_IT, std::enable_if_t<internal::isCompatibleIter_v<stream_T, stream_IT>, bool>>
-void Decoder<coder_T, stream_T, source_T>::process(stream_IT inputEnd, source_IT outputBegin, size_t messageLength) const
+template <typename stream_IT,
+          typename source_IT,
+          int nStreams_V,
+          std::enable_if_t<internal::isCompatibleIter_v<stream_T, stream_IT>, bool>>
+void SIMDDecoder<coder_T, stream_T, source_T>::process(stream_IT inputEnd, source_IT outputBegin, size_t messageLength) const
 {
   using namespace internal;
   LOG(trace) << "start decoding";
@@ -71,27 +77,30 @@ void Decoder<coder_T, stream_T, source_T>::process(stream_IT inputEnd, source_IT
   // make Iter point to the last last element
   --inputIter;
 
-  ransDecoder_t rans0{this->mSymbolTablePrecission};
-  ransDecoder_t rans1{this->mSymbolTablePrecission};
-
-  inputIter = rans0.init(inputIter);
-  inputIter = rans1.init(inputIter);
-
-  for (size_t i = 0; i < (messageLength & ~1); i += 2) {
-    const int64_t s0 = this->mReverseLUT[rans0.get()];
-    const int64_t s1 = this->mReverseLUT[rans1.get()];
-    *it++ = s0;
-    *it++ = s1;
-    inputIter = rans0.advanceSymbol(inputIter, this->mSymbolTable[s0]);
-    inputIter = rans1.advanceSymbol(inputIter, this->mSymbolTable[s1]);
+  std::vector<ransDecoder_t> decoders{nStreams_V, ransDecoder_t{this->mSymbolTablePrecission}};
+#pragma GCC unroll 4
+  for (size_t i = 0; i < nStreams_V; ++i) {
+    inputIter = decoders[i].init(inputIter);
   }
 
-  // last byte, if message length was odd
-  if (messageLength & 1) {
-    const int64_t s0 = this->mReverseLUT[rans0.get()];
-    *it = s0;
-    inputIter = rans0.advanceSymbol(inputIter, this->mSymbolTable[s0]);
+  const size_t nLoops = messageLength / nStreams_V;
+  const size_t nLoopRemainder = messageLength % nStreams_V;
+
+  for (size_t i = 0; i < nLoops; ++i) {
+#pragma GCC unroll 4
+    for (size_t i = 0; i < nStreams_V; ++i) {
+      const source_T symbol = this->mReverseLUT[decoders[i].get()];
+      *it++ = symbol;
+      inputIter = decoders[i].advanceSymbol(inputIter, this->mSymbolTable[symbol]);
+    }
   }
+
+  for (size_t i = 0; i < nLoopRemainder; ++i) {
+    const source_T symbol = this->mReverseLUT[decoders[i].get()];
+    *it++ = symbol;
+    inputIter = decoders[i].advanceSymbol(inputIter, this->mSymbolTable[symbol]);
+  }
+
   t.stop();
   LOG(debug1) << "Decoder::" << __func__ << " { DecodedSymbols: " << messageLength << ","
               << "processedBytes: " << messageLength * sizeof(source_T) << ","
@@ -103,4 +112,4 @@ void Decoder<coder_T, stream_T, source_T>::process(stream_IT inputEnd, source_IT
 } // namespace rans
 } // namespace o2
 
-#endif /* RANS_DECODER_H */
+#endif /* RANS_SIMDDECODER_H */

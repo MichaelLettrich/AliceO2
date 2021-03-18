@@ -19,6 +19,8 @@
 #include "rANS/FrequencyTable.h"
 #include "rANS/Encoder.h"
 #include "rANS/Decoder.h"
+#include "rANS/SIMDEncoder.h"
+#include "rANS/SIMDDecoder.h"
 #include "rANS/DedupEncoder.h"
 #include "rANS/DedupDecoder.h"
 #include "rANS/LiteralEncoder.h"

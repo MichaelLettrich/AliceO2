@@ -23,8 +23,8 @@
 #include <fairlogger/Logger.h>
 #include <stdexcept>
 
-#include "rANS/internal/Encoder.h"
-#include "rANS/internal/EncoderSymbol.h"
+#include "rANS/internal/backend/cpp/Encoder.h"
+#include "rANS/internal/backend/cpp/EncoderSymbol.h"
 #include "rANS/internal/helper.h"
 #include "rANS/internal/SymbolTable.h"
 #include "rANS/FrequencyTable.h"
@@ -40,7 +40,8 @@ template <typename coder_T, typename stream_T, typename source_T>
 class EncoderBase
 {
  protected:
-  using encoderSymbolTable_t = typename internal::SymbolTable<internal::EncoderSymbol<coder_T>>;
+  using encoderSymbolTable_t = typename internal::SymbolTable<cpp::EncoderSymbol<coder_T>>;
+  using ransCoder_t = typename cpp::Encoder<coder_T, stream_T>;
 
  public:
   using symbol_t = typename FrequencyTable::symbol_t;
@@ -62,8 +63,6 @@ class EncoderBase
  protected:
   encoderSymbolTable_t mSymbolTable{};
   size_t mSymbolTablePrecission{};
-
-  using ransCoder_t = typename internal::Encoder<coder_T, stream_T>;
 };
 
 template <typename coder_T, typename stream_T, typename source_T>
