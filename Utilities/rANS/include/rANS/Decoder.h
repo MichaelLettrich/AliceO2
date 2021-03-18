@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <type_traits>
 #include <iostream>
+#include <iomanip>
 #include <memory>
 
 #include <fairlogger/Logger.h>

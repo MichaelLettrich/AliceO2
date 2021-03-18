@@ -17,6 +17,7 @@
 #define RANS_INTERNAL_DECODERSYMBOL_H
 
 #include <cstdint>
+#include <cassert>
 
 namespace o2
 {

@@ -53,7 +53,7 @@ class Encoder : public internal::EncoderBase<coder_T, stream_T, source_T>
 
 template <typename coder_T, typename stream_T, typename source_T>
 template <typename stream_IT, typename source_IT, std::enable_if_t<internal::isCompatibleIter_v<stream_T, stream_IT> && internal::isCompatibleIter_v<source_T, source_IT>, bool>>
-const stream_IT Encoder<coder_T, stream_T, source_T>::Encoder::process(const stream_IT outputBegin, const stream_IT outputEnd, const source_IT inputBegin, const source_IT inputEnd) const
+const stream_IT Encoder<coder_T, stream_T, source_T>::process(const stream_IT outputBegin, const stream_IT outputEnd, const source_IT inputBegin, const source_IT inputEnd) const
 {
   using namespace internal;
   LOG(trace) << "start encoding";
@@ -129,7 +129,7 @@ const stream_IT Encoder<coder_T, stream_T, source_T>::Encoder::process(const str
               << "sourceTypeB: " << sizeof(source_T) << ", "
               << "streamTypeB: " << sizeof(stream_T) << ", "
               << "coderTypeB: " << sizeof(coder_T) << ", "
-              << "probabilityBits: " << mProbabilityBits << ", "
+              << "probabilityBits: " << this->mProbabilityBits << ", "
               << "inputBufferSizeB: " << inputBufferSizeB << ", "
               << "outputBufferSizeB: " << outputBufferSizeB << ", "
               << "compressionFactor: " << std::fixed << std::setprecision(2) << static_cast<double>(inputBufferSizeB) / static_cast<double>(outputBufferSizeB) << "}";

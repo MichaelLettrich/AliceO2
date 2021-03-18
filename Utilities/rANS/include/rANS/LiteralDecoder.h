@@ -21,6 +21,7 @@
 #include <cstddef>
 #include <type_traits>
 #include <iostream>
+#include <iomanip>
 #include <string>
 
 #include <fairlogger/Logger.h>
