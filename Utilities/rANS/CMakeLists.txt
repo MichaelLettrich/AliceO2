@@ -16,6 +16,10 @@ o2_add_library(rANS
                PUBLIC_LINK_LIBRARIES FairLogger::FairLogger)
 #target_compile_definitions(${targetName} PUBLIC O2_RANS_PRINT_PROCESSED_DATA)
 target_compile_options(${targetName} PUBLIC -mavx2 -mfma)
+if(${ENABLE_VTUNE_PROFILER})
+        target_compile_definitions(${librans} PUBLIC ENABLE_VTUNE_PROFILER)
+        target_link_libraries(${librans} PUBLIC PkgConfig::Vtune)
+endif()
 
 o2_add_test(SIMDEncoder
             NAME SIMDEncoder
