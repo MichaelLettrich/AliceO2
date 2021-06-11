@@ -11,9 +11,14 @@
 o2_add_library(rANS
                SOURCES src/SymbolStatistics.cxx
                        src/FrequencyTable.cxx
-               TARGETVARNAME targetName
+               TARGETVARNAME librans
                PUBLIC_LINK_LIBRARIES FairLogger::FairLogger)
-target_compile_options(${targetName} PUBLIC -mavx2 -mfma)
+
+target_compile_options(${librans} PUBLIC -mavx2 -mfma)
+if(${ENABLE_VTUNE_PROFILER})
+        target_compile_definitions(${librans} PUBLIC ENABLE_VTUNE_PROFILER)
+        target_link_libraries(${librans} PUBLIC PkgConfig::Vtune)
+endif()
 
 o2_add_test(SIMDEncoder
             NAME SIMDEncoder
