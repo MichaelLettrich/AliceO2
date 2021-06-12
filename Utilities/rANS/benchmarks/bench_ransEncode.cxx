@@ -23,6 +23,10 @@
 #include "rANS/rans.h"
 #include "rANS/internal/backend/simd/kernel.h"
 
+#ifdef ENABLE_VTUNE_PROFILER
+#include <ittnotify.h>
+#endif
+
 class RANSData
 {
  public:
@@ -200,6 +204,9 @@ void encodeSIMD(benchmark::State& s)
   const size_t messageLength = frequencies.size() * SIMDWidth_V;
 
   for (auto _ : s) {
+#ifdef ENABLE_VTUNE_PROFILER
+    __itt_resume();
+#endif
     [&frequencies = frequencies, &cumulative = cumulative, &states = states]() {
       for (size_t i = 0; i < frequencies.size(); ++i) {
         const pd_t frequency = simd::int32ToDouble(frequencies[i]);
@@ -208,6 +215,9 @@ void encodeSIMD(benchmark::State& s)
         auto newState = simd::ransEncode(states[i], frequency, cumul, normalization);
         states[i] = newState;
       }
+#ifdef ENABLE_VTUNE_PROFILER
+      __itt_pause();
+#endif
     }();
   }
 
