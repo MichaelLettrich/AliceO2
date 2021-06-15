@@ -17,8 +17,8 @@ o2_add_library(rANS
 #target_compile_definitions(${targetName} PUBLIC O2_RANS_PRINT_PROCESSED_DATA)
 target_compile_options(${targetName} PUBLIC -mavx2 -mfma)
 if(${ENABLE_VTUNE_PROFILER})
-        target_compile_definitions(${librans} PUBLIC ENABLE_VTUNE_PROFILER)
-        target_link_libraries(${librans} PUBLIC PkgConfig::Vtune)
+  target_compile_definitions(${librans} PUBLIC ENABLE_VTUNE_PROFILER)
+  target_link_libraries(${librans} PUBLIC PkgConfig::Vtune)
 endif()
 
 o2_add_test(SIMDEncoder
@@ -72,20 +72,27 @@ o2_add_test(EncodeDecode
 
 if (TARGET benchmark::benchmark)
 o2_add_executable(CombinedIterator
-                    SOURCES benchmarks/bench_ransCombinedIterator.cxx
-                    COMPONENT_NAME rANS
-                    IS_BENCHMARK
-                    PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
+                  SOURCES benchmarks/bench_ransCombinedIterator.cxx
+                  COMPONENT_NAME rANS
+                  IS_BENCHMARK
+                  PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
 
 o2_add_executable(Encode
-                    SOURCES benchmarks/bench_ransEncode.cxx
-                    COMPONENT_NAME rANS
-                    IS_BENCHMARK
-                    TARGETVARNAME encodeBench
-                    PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark Boost::boost)
+                  SOURCES benchmarks/bench_ransEncode.cxx
+                  COMPONENT_NAME rANS
+                  IS_BENCHMARK
+                  TARGETVARNAME encodeBench
+                  PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark Boost::boost)
+  target_compile_options(${encodeBench} PRIVATE -O3 -march=native)
 
-                    target_compile_options(${encodeBench} PRIVATE -O3 -march=native)
-                    
+o2_add_executable(SymbolTableAccess
+                  SOURCES benchmarks/bench_ransSymbolTableAccess.cxx
+                  COMPONENT_NAME rANS
+                  IS_BENCHMARK
+                  TARGETVARNAME symbolTableAccess
+                  PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark Boost::boost)
+  target_compile_options(${symbolTableAccess} PRIVATE -O3 -march=native -fopenmp)
+
 endif()
 
 o2_add_executable(rans-encode-decode-8

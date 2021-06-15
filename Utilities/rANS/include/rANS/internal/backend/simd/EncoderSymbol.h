@@ -20,6 +20,8 @@
 #include <cstring>
 #include <array>
 
+#include "rANS/internal/backend/simd/types.h"
+
 namespace o2
 {
 namespace rans
@@ -28,14 +30,14 @@ namespace internal
 {
 namespace simd
 {
-// Encoder symbol description
-class EncoderSymbol
+//TODO(milettri): respect global alignment
+class alignas(Alignment::AVX512aligned) EncoderSymbol
 {
  public:
-  EncoderSymbol() = default;
-  EncoderSymbol(uint32_t frequency, uint32_t cumulative) : mSymbol{frequency, cumulative} {};
+  constexpr EncoderSymbol() noexcept {}; //NOLINT
+  constexpr EncoderSymbol(uint32_t frequency, uint32_t cumulative) noexcept : mSymbol{frequency, cumulative} {};
   // legacy
-  EncoderSymbol(uint32_t frequency, uint32_t cumulative, size_t precision) : mSymbol{frequency, cumulative} {};
+  constexpr EncoderSymbol(uint32_t frequency, uint32_t cumulative, size_t precision) noexcept : mSymbol{frequency, cumulative} {};
 
   constexpr const uint32_t* data() const noexcept
   {
