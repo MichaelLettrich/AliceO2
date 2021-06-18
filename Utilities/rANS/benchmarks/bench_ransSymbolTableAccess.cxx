@@ -16,6 +16,7 @@
 #include <vector>
 #include <random>
 #include <cmath>
+#include <utility>
 
 #include <benchmark/benchmark.h>
 #include <boost/align/aligned_allocator.hpp>
@@ -27,6 +28,9 @@
 #ifdef ENABLE_VTUNE_PROFILER
 #include <ittnotify.h>
 #endif
+
+using namespace o2::rans::internal;
+using namespace o2::rans::internal::simd;
 
 class RANSData
 {
@@ -99,7 +103,6 @@ BENCHMARK_F(RANSDataFixture, accessSOA)
 
   for (auto _ : s) {
 
-#pragma GCC unroll(4)
     for (size_t i = 0; i < mSourceMessage.size(); i += 4) {
 #pragma omp simd
       for (size_t j = 0; j < 4; ++j) {
@@ -131,7 +134,6 @@ BENCHMARK_F(RANSDataFixture, accessAOS)
 
   for (auto _ : s) {
 
-#pragma GCC unroll(4)
     for (size_t i = 0; i < mSourceMessage.size(); i += 4) {
 #pragma omp simd
       for (size_t j = 0; j < 4; ++j) {
@@ -159,7 +161,6 @@ BENCHMARK_F(RANSDataFixture, accessLightSymbolTable)
 
   for (auto _ : s) {
 
-#pragma GCC unroll(4)
     for (size_t i = 0; i < mSourceMessage.size(); i += 4) {
 #pragma omp simd
       for (size_t j = 0; j < 4; ++j) {
@@ -187,13 +188,12 @@ BENCHMARK_F(RANSDataFixture, accessHeavySymbolTable)
 
   for (auto _ : s) {
 
-#pragma GCC unroll(4)
     for (size_t i = 0; i < mSourceMessage.size(); i += 4) {
 #pragma omp simd
       for (size_t j = 0; j < 4; ++j) {
         const auto sourceSymbol = mSourceMessage[i + j];
         const auto encoderSymbol = symbolTable[sourceSymbol];
-        states[j] += encoderSymbol.freq + encoderSymbol.bias;
+        states[j] += encoderSymbol.getFrequency() + encoderSymbol.getBias();
       }
     }
     benchmark::DoNotOptimize(states.data());
@@ -203,74 +203,218 @@ BENCHMARK_F(RANSDataFixture, accessHeavySymbolTable)
   s.SetBytesProcessed(int64_t(s.iterations()) * mSourceMessage.size() * sizeof(source_T));
 };
 
-template <o2::rans::internal::simd::SIMDWidth SIMDWidth_V>
-void accessSOASIMD(benchmark::State& s)
+inline std::pair<simd::simdepi32_t<SSE>, simd::simdepi32_t<SSE>> aosToSoaSSE(const uint32_t* in0, const uint32_t* in1) noexcept
+{
+
+  __m128i in0vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in0));
+  __m128i in1vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in1));
+
+  __m128i resvec0 = _mm_unpacklo_epi32(in0vec, in1vec);
+  __m128i resvec1 = _mm_shuffle_epi32(resvec0, _MM_SHUFFLE(0, 0, 3, 2));
+
+  simd::simdepi32_t<SSE> outvec0;
+  simd::simdepi32_t<SSE> outvec1;
+  _mm_store_si128(reinterpret_cast<__m128i*>(outvec0.data()), resvec0);
+  _mm_store_si128(reinterpret_cast<__m128i*>(outvec1.data()), resvec1);
+
+  return {outvec0, outvec1};
+};
+
+inline simd::simdepi64_t<SSE> add(const simd::simdepi32_t<SSE>& in0, const simd::simdepi32_t<SSE>& in1, const simd::simdepi64_t<SSE>& in2) noexcept
+{
+  __m128i in0vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in0.data()));
+  __m128i in1vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in1.data()));
+  __m128i in2vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in2.data()));
+
+  __m128i result = _mm_add_epi32(in0vec, in1vec);
+  result = _mm_cvtepi32_epi64(result);
+  result = _mm_add_epi64(result, in2vec);
+
+  simd::simdepi64_t<SSE> resultvec;
+  _mm_store_si128(reinterpret_cast<__m128i*>(resultvec.data()), result);
+  return resultvec;
+};
+
+void accessAOSsse(benchmark::State& s)
 {
   using namespace o2::rans;
   using namespace o2::rans::internal;
 
-  using epi64_t = simd::simdepi64_t<SIMDWidth_V>;
-  using epi32_t = simd::simdepi32_t<SIMDWidth_V>;
-  using pd_t = simd::simdpd_t<SIMDWidth_V>;
+  using epi64_t = simd::simdepi64_t<SSE>;
+  using epi32_t = simd::simdepi32_t<SSE>;
+  using pd_t = simd::simdpd_t<SSE>;
 
   using source_T = typename RANSData::source_T;
   using coder_T = uint64_t;
 
   RANSData data;
-  const auto symbolStats = data.buildSymbolStats();
   const auto& sourceMessage = data.getSourceMessage();
-  std::vector<uint32_t> frequencies;
-  std::vector<uint32_t> cumulative;
+  const auto symbolStats = data.buildSymbolStats();
+  std::vector<simd::EncoderSymbol> symbolTable;
 
   for (const auto [freq, cumul] : symbolStats) {
-    frequencies.push_back(freq);
-    cumulative.push_back(cumul);
+    symbolTable.emplace_back(freq, cumul);
   }
-
   epi64_t states{0};
 
   for (auto _ : s) {
+#ifdef ENABLE_VTUNE_PROFILER
+    __itt_resume();
+#endif
+    for (size_t i = 0; i < sourceMessage.size(); i += SSE) {
 
-    for (size_t i = 0; i < sourceMessage.size(); i += SIMDWidth_V) {
-
-      //convert first
-      pd_t freqs;
-      pd_t cumuls;
-      for (size_t j = 0; j < SIMDWidth_V; ++j) {
+      std::array<const uint32_t*, 2> symbols;
+      for (size_t j = 0; j < SSE; ++j) {
         const auto sourceSymbol = sourceMessage[i + j];
         const auto tableIndex = sourceSymbol - data.getMin();
-        freqs[j] = frequencies[tableIndex];
-        cumuls[j] = cumulative[tableIndex];
+        symbols[j] = symbolTable[tableIndex].data();
       }
 
-      //       const auto [freqs, cumuls] = [&frequencies, &cumulative, &data, i]() {
-      //         epi32_t freqs_epi32;
-      //         epi32_t cumuls_epi32;
-      //         const auto& sourceMessage = data.getSourceMessage();
-      // #pragma omp simd
-      //         for (size_t j = 0; j < SIMDWidth_V; ++j) {
-      //           const auto sourceSymbol = sourceMessage[i + j];
-      //           const auto tableIndex = sourceSymbol - data.getMin();
-      //           freqs_epi32[j] = frequencies[tableIndex];
-      //           cumuls_epi32[j] = cumulative[tableIndex];
-      //         }
-
-      //         return std::pair(internal::simd::int32ToDouble(freqs_epi32), internal::simd::int32ToDouble(cumuls_epi32));
-      //       }();
-
-#pragma omp simd
-      for (size_t j = 0; j < SIMDWidth_V; ++j) {
-        states[j] += freqs[j] + cumuls[j];
-      }
+      const auto [freqs, cumuls] = aosToSoaSSE(symbols[0], symbols[1]);
+      states = add(freqs, cumuls, states);
     }
     benchmark::DoNotOptimize(states.data());
+#ifdef ENABLE_VTUNE_PROFILER
+    __itt_pause();
+#endif
   }
 
   s.SetItemsProcessed(int64_t(s.iterations()) * sourceMessage.size());
   s.SetBytesProcessed(int64_t(s.iterations()) * sourceMessage.size() * sizeof(source_T));
 };
 
-BENCHMARK_TEMPLATE(accessSOASIMD, o2::rans::internal::simd::SIMDWidth::SSE);
-BENCHMARK_TEMPLATE(accessSOASIMD, o2::rans::internal::simd::SIMDWidth::AVX);
+// inline std::pair<simdepi32_t<AVX>, simdepi32_t<AVX>> aosToSOA4(const EncoderSymbol* base, const uint64_t* index) noexcept
+// {
+//   __m256i indexVec = _mm256_load_si256(reinterpret_cast<__m256i const*>(index));
+//   __m256i data = _mm256_i64gather_epi64(reinterpret_cast<const long long int*>(base), indexVec, 8);
+
+//   //simdepi32_t<AVX512>shuffleMask{0u,2u,4u,6u,1u,3u,5u,7u};
+//   // __m256i shuffleMaskVec = _mm256_load_si256(reinterpret_cast<__m256i const*>(shuffleMask.data()));
+
+//   data = _mm256_shuffle_epi32(data, _MM_SHUFFLE(3, 1, 2, 0));
+//   //data = _mm256_permutevar8x32_epi32(data,shuffleMaskVec);
+//   __m128i lo = _mm256_extractf128_si256(data, 0);
+//   __m128i hi = _mm256_extractf128_si256(data, 1);
+
+//   __m128i resvec0 = _mm_unpacklo_epi64(lo, hi);
+//   __m128i resvec1 = _mm_unpackhi_epi64(lo, hi);
+
+//   simdepi32_t<AVX> outvec0;
+//   simdepi32_t<AVX> outvec1;
+//   _mm_store_si128(reinterpret_cast<__m128i*>(outvec0.data()), resvec0);
+//   _mm_store_si128(reinterpret_cast<__m128i*>(outvec1.data()), resvec1);
+
+//   return {outvec0, outvec1};
+// };
+
+inline std::pair<simdepi32_t<AVX>, simdepi32_t<AVX>> aosToSOA4(const EncoderSymbol* base, const uint64_t* index) noexcept
+{
+  __m256i indexVec = _mm256_load_si256(reinterpret_cast<__m256i const*>(index));
+  __m256i data = _mm256_i64gather_epi64(reinterpret_cast<const long long int*>(base), indexVec, 8);
+
+  //simdepi32_t<AVX512>shuffleMask{0u,2u,4u,6u,1u,3u,5u,7u};
+  // __m256i shuffleMaskVec = _mm256_load_si256(reinterpret_cast<__m256i const*>(shuffleMask.data()));
+
+  data = _mm256_shuffle_epi32(data, _MM_SHUFFLE(3, 1, 2, 0));
+  //data = _mm256_permutevar8x32_epi32(data,shuffleMaskVec);
+  __m128i lo = _mm256_extractf128_si256(data, 0);
+  __m128i hi = _mm256_extractf128_si256(data, 1);
+
+  __m128i resvec0 = _mm_unpacklo_epi64(lo, hi);
+  __m128i resvec1 = _mm_unpackhi_epi64(lo, hi);
+
+  simdepi32_t<AVX> outvec0;
+  simdepi32_t<AVX> outvec1;
+  _mm_store_si128(reinterpret_cast<__m128i*>(outvec0.data()), resvec0);
+  _mm_store_si128(reinterpret_cast<__m128i*>(outvec1.data()), resvec1);
+
+  return {outvec0, outvec1};
+};
+
+inline std::pair<simdepi32_t<AVX>, simdepi32_t<AVX>> aosToSOAavx(const uint32_t* in0, const uint32_t* in1, const uint32_t* in2, const uint32_t* in3) noexcept
+{
+  __m128i in0vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in0));
+  __m128i in1vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in1));
+  __m128i in2vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in2));
+  __m128i in3vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in3));
+
+  __m128i merged0 = _mm_unpacklo_epi32(in0vec, in1vec);
+  __m128i merged1 = _mm_unpacklo_epi32(in2vec, in3vec);
+  __m128i resvec0 = _mm_unpacklo_epi64(merged0, merged1);
+  __m128i resvec1 = _mm_unpackhi_epi64(merged0, merged1);
+
+  simdepi32_t<AVX> outvec0;
+  simdepi32_t<AVX> outvec1;
+  _mm_store_si128(reinterpret_cast<__m128i*>(outvec0.data()), resvec0);
+  _mm_store_si128(reinterpret_cast<__m128i*>(outvec1.data()), resvec1);
+
+  return {outvec0, outvec1};
+};
+
+inline simdepi64_t<AVX> add(const simdepi32_t<AVX>& in0, const simdepi32_t<AVX>& in1, const simdepi64_t<AVX>& in2) noexcept
+{
+  __m128i in0vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in0.data()));
+  __m128i in1vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in1.data()));
+  __m256i in2vec = _mm256_load_si256(reinterpret_cast<__m256i const*>(in2.data()));
+
+  __m128i tmp = _mm_add_epi32(in0vec, in1vec);
+  __m256i result = _mm256_cvtepi32_epi64(tmp);
+  result = _mm256_add_epi64(result, in2vec);
+
+  simdepi64_t<AVX> resultvec;
+  _mm256_store_si256(reinterpret_cast<__m256i*>(resultvec.data()), result);
+  return resultvec;
+};
+
+void accessAOSavx(benchmark::State& s)
+{
+  using namespace o2::rans;
+  using namespace o2::rans::internal;
+
+  using epi64_t = simd::simdepi64_t<AVX>;
+  using epi32_t = simd::simdepi32_t<AVX>;
+  using pd_t = simd::simdpd_t<AVX>;
+
+  using source_T = typename RANSData::source_T;
+  using coder_T = uint64_t;
+
+  RANSData data;
+  const auto& sourceMessage = data.getSourceMessage();
+  const auto symbolStats = data.buildSymbolStats();
+  std::vector<simd::EncoderSymbol> symbolTable;
+
+  for (const auto [freq, cumul] : symbolStats) {
+    symbolTable.emplace_back(freq, cumul);
+  }
+  epi64_t states{0};
+
+  for (auto _ : s) {
+#ifdef ENABLE_VTUNE_PROFILER
+    __itt_resume();
+#endif
+    for (size_t i = 0; i < sourceMessage.size(); i += AVX) {
+
+      std::array<const uint32_t*, 4> symbols;
+      for (size_t j = 0; j < AVX; ++j) {
+        const auto sourceSymbol = sourceMessage[i + j];
+        const auto tableIndex = sourceSymbol - data.getMin();
+        symbols[j] = symbolTable[tableIndex].data();
+      }
+
+      const auto [freqs, cumuls] = aosToSOAavx(symbols[0], symbols[1], symbols[2], symbols[3]);
+      states = add(freqs, cumuls, states);
+    }
+    benchmark::DoNotOptimize(states.data());
+#ifdef ENABLE_VTUNE_PROFILER
+    __itt_pause();
+#endif
+  }
+
+  s.SetItemsProcessed(int64_t(s.iterations()) * sourceMessage.size());
+  s.SetBytesProcessed(int64_t(s.iterations()) * sourceMessage.size() * sizeof(source_T));
+};
+
+BENCHMARK(accessAOSsse);
+BENCHMARK(accessAOSavx);
 
 BENCHMARK_MAIN();

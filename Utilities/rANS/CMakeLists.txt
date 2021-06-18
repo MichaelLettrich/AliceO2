@@ -90,7 +90,7 @@ o2_add_executable(SymbolTableAccess
                   IS_BENCHMARK
                   TARGETVARNAME symbolTableAccess
                   PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark Boost::boost)
-  target_compile_options(${symbolTableAccess} PRIVATE -O3 -march=native)
+  target_compile_options(${symbolTableAccess} PRIVATE -O3 -march=native -fopenmp)
 
 endif()
 
