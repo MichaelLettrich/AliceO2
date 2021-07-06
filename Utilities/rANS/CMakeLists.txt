@@ -81,17 +81,28 @@ o2_add_executable(Encode
                   SOURCES benchmarks/bench_ransEncode.cxx
                   COMPONENT_NAME rANS
                   IS_BENCHMARK
-                  TARGETVARNAME encodeBench
+                  TARGETVARNAME ransEncodeBenchmark
                   PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark Boost::boost)
-  target_compile_options(${encodeBench} PRIVATE -O3 -march=native)
+  target_compile_options(${ransEncodeBenchmark} PRIVATE -O3 -march=native)
 
 o2_add_executable(SymbolTableAccess
                   SOURCES benchmarks/bench_ransSymbolTableAccess.cxx
                   COMPONENT_NAME rANS
                   IS_BENCHMARK
-                  TARGETVARNAME symbolTableAccess
+                  TARGETVARNAME ransSymbolTableAccessBenchmark
                   PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark Boost::boost)
-  target_compile_options(${symbolTableAccess} PRIVATE -O3 -march=native -fopenmp)
+  target_compile_options(${ransSymbolTableAccessBenchmark} PRIVATE -O3 -march=native -fopenmp)
+
+o2_add_executable(Streaming
+                SOURCES benchmarks/bench_ransStreaming.cxx
+                COMPONENT_NAME rANS
+                IS_BENCHMARK
+                TARGETVARNAME ransStreamingBenchmark
+                PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
+  target_compile_options(${ransStreamingBenchmark} PRIVATE -O3 -march=native -fopenmp)
+#target_compile_options(${ransStreamingBenchmark} PRIVATE -O0 -ggdb -march=native -fopenmp)
+
+
 
 endif()
 
