@@ -31,7 +31,7 @@ namespace internal
 namespace simd
 {
 //TODO(milettri): respect global alignment
-class alignas(Alignment::AVX512aligned) EncoderSymbol
+class alignas(getAlignment(SIMDWidth::AVX512)) EncoderSymbol
 {
  public:
   constexpr EncoderSymbol() noexcept {}; //NOLINT

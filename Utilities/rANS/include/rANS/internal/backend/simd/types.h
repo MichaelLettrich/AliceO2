@@ -18,6 +18,10 @@
 
 #include <cstring>
 #include <cassert>
+#include <type_traits>
+
+#include <sstream>
+#include <fmt/format.h>
 
 #include "rANS/internal/backend/simd/utils.h"
 
@@ -30,21 +34,28 @@ namespace internal
 namespace simd
 {
 
-inline constexpr size_t simdAlign(size_t SIMDwidth) noexcept
+enum class SIMDWidth : uint32_t { SSE = 128,
+                                  AVX = 256,
+                                  AVX512 = 512 };
+
+inline constexpr size_t toBytes(size_t bits) { return (bits / 8) + (bits % 8 != 0); };
+
+inline constexpr size_t toBits(size_t bytes) { return bytes * 8; };
+
+inline constexpr size_t getLaneWidthBits(SIMDWidth width) noexcept { return static_cast<size_t>(width); };
+
+inline constexpr size_t getLaneWidthBytes(SIMDWidth width) noexcept { return toBytes(static_cast<size_t>(width)); };
+
+inline constexpr size_t getAlignment(SIMDWidth width) noexcept { return getLaneWidthBytes(width); };
+
+template <typename T>
+inline constexpr size_t getElementCount(SIMDWidth width) noexcept
 {
-  return SIMDwidth * 8;
-}
+  return getLaneWidthBytes(width) / sizeof(T);
+};
 
-enum SIMDWidth : unsigned int { SSE = 2,
-                                AVX = 4,
-                                AVX512 = 8 };
-
-enum Alignment : unsigned int { SSEaligned = 16,
-                                AVXaligned = 32,
-                                AVX512aligned = 64 };
-
-template <typename T, size_t SIMDWidth_V>
-class alignas(simdAlign(SIMDWidth_V)) AlignedArray
+template <typename T, SIMDWidth simdWidth_V>
+class alignas(getAlignment(simdWidth_V)) AlignedArray
 {
  public:
   using value_type = T;
@@ -52,57 +63,103 @@ class alignas(simdAlign(SIMDWidth_V)) AlignedArray
   using reference = T&;
   using iterator = T*;
   using const_iterator = const T*;
+  using reverse_iterator = std::reverse_iterator<iterator>;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
   inline constexpr AlignedArray() noexcept {}; //NOLINT
 
   inline constexpr AlignedArray(T elem) noexcept
   {
-#pragma omp simd
-    for (size_t i = 0; i < SIMDWidth_V; ++i) {
+    //#pragma omp simd
+    for (size_t i = 0; i < size(); ++i) {
       mData[i] = elem;
     }
   };
 
-  template <typename... Args, std::enable_if_t<(sizeof...(Args) == SIMDWidth_V), bool> = true>
+  template <typename... Args, std::enable_if_t<(sizeof...(Args) == getElementCount<T>(simdWidth_V)), bool> = true>
   inline constexpr AlignedArray(Args... args) noexcept : mData{args...} {};
 
-  inline constexpr size_t size() const noexcept { return SIMDWidth_V; };
+  inline constexpr size_t size() const noexcept { return getElementCount<T>(simdWidth_V); };
   inline constexpr const T* data() const noexcept { return mData; };
   inline constexpr T* data() noexcept { return const_cast<T*>(static_cast<const AlignedArray&>(*this).data()); };
   inline constexpr const_iterator begin() const noexcept { return data(); };
   inline constexpr const_iterator end() const noexcept { return data() + size(); };
   inline constexpr iterator begin() noexcept { return const_cast<iterator>(static_cast<const AlignedArray&>(*this).begin()); };
   inline constexpr iterator end() noexcept { return const_cast<iterator>(static_cast<const AlignedArray&>(*this).end()); };
+  inline constexpr const_reverse_iterator rbegin() const noexcept { return std::reverse_iterator(this->end()); };
+  inline constexpr const_reverse_iterator rend() const noexcept { return std::reverse_iterator(this->begin()); };
+  inline constexpr reverse_iterator rbegin() noexcept { return std::reverse_iterator(this->end()); };
+  inline constexpr reverse_iterator rend() noexcept { return std::reverse_iterator(this->begin()); };
   inline constexpr const T& operator[](size_t i) const
   {
-    assert(i < SIMDWidth_V);
+    assert(i < size());
     return mData[i];
   };
   inline constexpr T& operator[](size_t i) { return const_cast<T&>(static_cast<const AlignedArray&>(*this)[i]); };
 
  private:
-  T mData[SIMDWidth_V]{};
+  T mData[getElementCount<T>(simdWidth_V)]{};
 };
 
 template <typename T>
-struct array_size : std::integral_constant<size_t, 0> {
-};
-template <typename T, size_t N>
-struct array_size<std::array<T, N>> : std::integral_constant<size_t, N> {
-};
-template <typename T, size_t N>
-struct array_size<AlignedArray<T, N>> : std::integral_constant<size_t, N> {
+struct simdWidth;
+
+template <typename T, SIMDWidth simd_V>
+struct simdWidth<AlignedArray<T, simd_V>> : public std::integral_constant<SIMDWidth, simd_V> {
 };
 
 template <typename T>
-using getSIMDWidth = array_size<T>;
+inline constexpr SIMDWidth getSimdWidth_v = simdWidth<T>::value;
 
-template <size_t simdWidth_V>
-using simdpd_t = AlignedArray<double, simdWidth_V>;
-template <size_t simdWidth_V>
-using simdepi64_t = AlignedArray<uint64_t, simdWidth_V>;
-template <size_t simdWidth_V>
-using simdepi32_t = AlignedArray<uint32_t, simdWidth_V>;
+template <typename T>
+struct elementCount;
+
+template <typename T, SIMDWidth simd_V>
+struct elementCount<AlignedArray<T, simd_V>> : public std::integral_constant<size_t, getElementCount<T>(simd_V)> {
+};
+
+template <typename T>
+inline constexpr size_t elementCount_v = elementCount<T>::value;
+
+template <SIMDWidth simd_V>
+using pd_t = AlignedArray<double, simd_V>;
+template <SIMDWidth simd_V>
+using epi64_t = AlignedArray<uint64_t, simd_V>;
+template <SIMDWidth simd_V>
+using epi32_t = AlignedArray<uint32_t, simd_V>;
+template <SIMDWidth simd_V>
+using epi16_t = AlignedArray<uint16_t, simd_V>;
+template <SIMDWidth simd_V>
+using epi8_t = AlignedArray<uint8_t, simd_V>;
+
+inline constexpr std::uint8_t operator"" _u8(unsigned long long int value) { return static_cast<uint8_t>(value); };
+inline constexpr std::int8_t operator"" _i8(unsigned long long int value) { return static_cast<int8_t>(value); };
+
+inline constexpr std::uint16_t operator"" _u16(unsigned long long int value) { return static_cast<uint16_t>(value); };
+inline constexpr std::int16_t operator"" _i16(unsigned long long int value) { return static_cast<int16_t>(value); };
+
+template <typename T, SIMDWidth width_V>
+std::ostream& operator<<(std::ostream& stream, const AlignedArray<T, width_V>& vec)
+{
+  stream << "[";
+  for (const auto& elem : vec) {
+    stream << elem << ", ";
+  }
+  stream << "]";
+  return stream;
+};
+
+template <typename T, SIMDWidth width_V>
+std::string asHex(const AlignedArray<T, width_V>& vec)
+{
+  std::stringstream ss;
+  ss << "[";
+  for (const auto& elem : vec) {
+    ss << fmt::format("{:#0x}, ", elem);
+  }
+  ss << "]";
+  return ss.str();
+};
 
 } // namespace simd
 } // namespace internal
