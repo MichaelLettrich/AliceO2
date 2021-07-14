@@ -19,7 +19,6 @@
 #include <utility>
 
 #include <benchmark/benchmark.h>
-#include <boost/align/aligned_allocator.hpp>
 
 #include "rANS/utils.h"
 #include "rANS/rans.h"
@@ -207,7 +206,7 @@ BENCHMARK_F(RANSDataFixture, accessHeavySymbolTable)
   s.SetBytesProcessed(int64_t(s.iterations()) * mSourceMessage.size() * sizeof(source_T));
 };
 
-inline std::pair<simd::simdepi32_t<SSE>, simd::simdepi32_t<SSE>> aosToSoaSSE(const uint32_t* in0, const uint32_t* in1) noexcept
+inline std::pair<simd::epi32_t<simd::SIMDWidth::SSE>, simd::epi32_t<simd::SIMDWidth::SSE>> aosToSoaSSE(const uint32_t* in0, const uint32_t* in1) noexcept
 {
 
   __m128i in0vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in0));
@@ -216,15 +215,15 @@ inline std::pair<simd::simdepi32_t<SSE>, simd::simdepi32_t<SSE>> aosToSoaSSE(con
   __m128i resvec0 = _mm_unpacklo_epi32(in0vec, in1vec);
   __m128i resvec1 = _mm_shuffle_epi32(resvec0, _MM_SHUFFLE(0, 0, 3, 2));
 
-  simd::simdepi32_t<SSE> outvec0;
-  simd::simdepi32_t<SSE> outvec1;
+  simd::epi32_t<simd::SIMDWidth::SSE> outvec0;
+  simd::epi32_t<simd::SIMDWidth::SSE> outvec1;
   _mm_store_si128(reinterpret_cast<__m128i*>(outvec0.data()), resvec0);
   _mm_store_si128(reinterpret_cast<__m128i*>(outvec1.data()), resvec1);
 
   return {outvec0, outvec1};
 };
 
-inline simd::simdepi64_t<SSE> add(const simd::simdepi32_t<SSE>& in0, const simd::simdepi32_t<SSE>& in1, const simd::simdepi64_t<SSE>& in2) noexcept
+inline simd::epi64_t<simd::SIMDWidth::SSE> add(const simd::epi32_t<simd::SIMDWidth::SSE>& in0, const simd::epi32_t<simd::SIMDWidth::SSE>& in1, const simd::epi64_t<simd::SIMDWidth::SSE>& in2) noexcept
 {
   __m128i in0vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in0.data()));
   __m128i in1vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in1.data()));
@@ -234,7 +233,7 @@ inline simd::simdepi64_t<SSE> add(const simd::simdepi32_t<SSE>& in0, const simd:
   result = _mm_cvtepi32_epi64(result);
   result = _mm_add_epi64(result, in2vec);
 
-  simd::simdepi64_t<SSE> resultvec;
+  simd::epi64_t<simd::SIMDWidth::SSE> resultvec;
   _mm_store_si128(reinterpret_cast<__m128i*>(resultvec.data()), result);
   return resultvec;
 };
@@ -244,9 +243,9 @@ void accessAOSsse(benchmark::State& s)
   using namespace o2::rans;
   using namespace o2::rans::internal;
 
-  using epi64_t = simd::simdepi64_t<SSE>;
-  using epi32_t = simd::simdepi32_t<SSE>;
-  using pd_t = simd::simdpd_t<SSE>;
+  using epi64_t = simd::epi64_t<simd::SIMDWidth::SSE>;
+  using epi32_t = simd::epi32_t<simd::SIMDWidth::SSE>;
+  using pd_t = simd::pd_t<simd::SIMDWidth::SSE>;
 
   using source_T = typename RANSData::source_T;
   using coder_T = uint64_t;
@@ -267,10 +266,10 @@ void accessAOSsse(benchmark::State& s)
 #ifdef ENABLE_VTUNE_PROFILER
     __itt_resume();
 #endif
-    for (size_t i = 0; i < sourceMessage.size(); i += SSE) {
+    for (size_t i = 0; i < sourceMessage.size(); i += elementCount_v<epi64_t>) {
 
       std::array<const uint32_t*, 2> symbols;
-      for (size_t j = 0; j < SSE; ++j) {
+      for (size_t j = 0; j < elementCount_v<epi64_t>; ++j) {
         const auto sourceSymbol = sourceMessage[i + j];
         const auto tableIndex = sourceSymbol - data.getMin();
         symbols[j] = symbolTable[tableIndex].data();
@@ -313,12 +312,12 @@ void accessAOSsse(benchmark::State& s)
 //   return {outvec0, outvec1};
 // };
 
-inline std::pair<simdepi32_t<AVX>, simdepi32_t<AVX>> aosToSOA4(const EncoderSymbol* base, const uint64_t* index) noexcept
+inline std::pair<epi32_t<SIMDWidth::AVX>, epi32_t<SIMDWidth::AVX>> aosToSOA4(const EncoderSymbol* base, const uint64_t* index) noexcept
 {
   __m256i indexVec = _mm256_load_si256(reinterpret_cast<__m256i const*>(index));
   __m256i data = _mm256_i64gather_epi64(reinterpret_cast<const long long int*>(base), indexVec, 8);
 
-  //simdepi32_t<AVX512>shuffleMask{0u,2u,4u,6u,1u,3u,5u,7u};
+  //epi32_t<SIMDWidth::AVX>shuffleMask{0u,2u,4u,6u,1u,3u,5u,7u};
   // __m256i shuffleMaskVec = _mm256_load_si256(reinterpret_cast<__m256i const*>(shuffleMask.data()));
 
   data = _mm256_shuffle_epi32(data, _MM_SHUFFLE(3, 1, 2, 0));
@@ -329,15 +328,15 @@ inline std::pair<simdepi32_t<AVX>, simdepi32_t<AVX>> aosToSOA4(const EncoderSymb
   __m128i resvec0 = _mm_unpacklo_epi64(lo, hi);
   __m128i resvec1 = _mm_unpackhi_epi64(lo, hi);
 
-  simdepi32_t<AVX> outvec0;
-  simdepi32_t<AVX> outvec1;
+  epi32_t<SIMDWidth::AVX> outvec0;
+  epi32_t<SIMDWidth::AVX> outvec1;
   _mm_store_si128(reinterpret_cast<__m128i*>(outvec0.data()), resvec0);
   _mm_store_si128(reinterpret_cast<__m128i*>(outvec1.data()), resvec1);
 
   return {outvec0, outvec1};
 };
 
-inline std::pair<simdepi32_t<AVX>, simdepi32_t<AVX>> aosToSOAavx(const uint32_t* in0, const uint32_t* in1, const uint32_t* in2, const uint32_t* in3) noexcept
+inline std::pair<epi32_t<SIMDWidth::SSE>, epi32_t<SIMDWidth::SSE>> aosToSOAavx(const uint32_t* in0, const uint32_t* in1, const uint32_t* in2, const uint32_t* in3) noexcept
 {
   __m128i in0vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in0));
   __m128i in1vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in1));
@@ -349,15 +348,15 @@ inline std::pair<simdepi32_t<AVX>, simdepi32_t<AVX>> aosToSOAavx(const uint32_t*
   __m128i resvec0 = _mm_unpacklo_epi64(merged0, merged1);
   __m128i resvec1 = _mm_unpackhi_epi64(merged0, merged1);
 
-  simdepi32_t<AVX> outvec0;
-  simdepi32_t<AVX> outvec1;
+  epi32_t<SIMDWidth::SSE> outvec0;
+  epi32_t<SIMDWidth::SSE> outvec1;
   _mm_store_si128(reinterpret_cast<__m128i*>(outvec0.data()), resvec0);
   _mm_store_si128(reinterpret_cast<__m128i*>(outvec1.data()), resvec1);
 
   return {outvec0, outvec1};
 };
 
-inline simdepi64_t<AVX> add(const simdepi32_t<AVX>& in0, const simdepi32_t<AVX>& in1, const simdepi64_t<AVX>& in2) noexcept
+inline epi64_t<SIMDWidth::AVX> add(const epi32_t<SIMDWidth::SSE>& in0, const epi32_t<SIMDWidth::SSE>& in1, const epi64_t<SIMDWidth::AVX>& in2) noexcept
 {
   __m128i in0vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in0.data()));
   __m128i in1vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in1.data()));
@@ -367,7 +366,7 @@ inline simdepi64_t<AVX> add(const simdepi32_t<AVX>& in0, const simdepi32_t<AVX>&
   __m256i result = _mm256_cvtepi32_epi64(tmp);
   result = _mm256_add_epi64(result, in2vec);
 
-  simdepi64_t<AVX> resultvec;
+  epi64_t<SIMDWidth::AVX> resultvec;
   _mm256_store_si256(reinterpret_cast<__m256i*>(resultvec.data()), result);
   return resultvec;
 };
@@ -376,10 +375,6 @@ void accessAOSavx(benchmark::State& s)
 {
   using namespace o2::rans;
   using namespace o2::rans::internal;
-
-  using epi64_t = simd::simdepi64_t<AVX>;
-  using epi32_t = simd::simdepi32_t<AVX>;
-  using pd_t = simd::simdpd_t<AVX>;
 
   using source_T = typename RANSData::source_T;
   using coder_T = uint64_t;
@@ -394,16 +389,17 @@ void accessAOSavx(benchmark::State& s)
     symbolTable.emplace_back(frequency, cumulatedFrequency);
     cumulatedFrequency += frequency;
   }
-  epi64_t states{0};
+  simd::epi64_t<SIMDWidth::AVX> states{0};
 
   for (auto _ : s) {
 #ifdef ENABLE_VTUNE_PROFILER
     __itt_resume();
 #endif
-    for (size_t i = 0; i < sourceMessage.size(); i += AVX) {
+    const size_t nParallelElements = simd::elementCount_v<simd::epi64_t<simd::SIMDWidth::AVX>>;
+    for (size_t i = 0; i < sourceMessage.size(); i += nParallelElements) {
 
       std::array<const uint32_t*, 4> symbols;
-      for (size_t j = 0; j < AVX; ++j) {
+      for (size_t j = 0; j < nParallelElements; ++j) {
         const auto sourceSymbol = sourceMessage[i + j];
         const auto tableIndex = sourceSymbol - data.getMin();
         symbols[j] = symbolTable[tableIndex].data();

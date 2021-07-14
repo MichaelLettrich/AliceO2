@@ -17,7 +17,6 @@
 #include <random>
 
 #include <benchmark/benchmark.h>
-#include <boost/align/aligned_allocator.hpp>
 
 #include "rANS/utils.h"
 #include "rANS/rans.h"
@@ -160,34 +159,26 @@ void encodeSIMD(benchmark::State& s)
 {
   using namespace o2::rans;
   using namespace o2::rans::internal;
-
-  using epi64_t = simd::simdepi64_t<SIMDWidth_V>;
-  using epi32_t = simd::simdepi32_t<SIMDWidth_V>;
-  using pd_t = simd::simdpd_t<SIMDWidth_V>;
-
-  using alingedVectorEpi32_t = std::vector<epi32_t, boost::alignment::aligned_allocator<epi32_t, simd::simdAlign(SIMDWidth_V)>>;
-  using alingedVectorEpi64_t = std::vector<epi64_t, boost::alignment::aligned_allocator<epi64_t, simd::simdAlign(SIMDWidth_V)>>;
-
-  using symbol_T = simd::EncoderSymbol;
+  using namespace o2::rans::internal::simd;
 
   RANSData data;
-  const auto symbolTable = data.buildSymbolTable<symbol_T>();
+  const auto symbolTable = data.buildSymbolTable<simd::EncoderSymbol>();
 
   auto [frequencies, cumulative, states] = [&data, &symbolTable](size_t initialState) {
     const auto& sourceMessage = data.getSourceMessage();
-    const size_t nSIMDIterations = sourceMessage.size() / SIMDWidth_V;
-    alingedVectorEpi32_t frequencies;
-    alingedVectorEpi32_t cumulative;
-    alingedVectorEpi64_t states;
+    const size_t nSIMDIterations = sourceMessage.size() / elementCount_v<epi64_t<SIMDWidth_V>>;
+    std::vector<epi32_t<SIMDWidth_V>> frequencies;
+    std::vector<epi32_t<SIMDWidth_V>> cumulative;
+    std::vector<epi64_t<SIMDWidth_V>> states;
     frequencies.reserve(nSIMDIterations);
     cumulative.reserve(nSIMDIterations);
     states.reserve(nSIMDIterations);
 
-    for (size_t i = 0; i < sourceMessage.size(); i += SIMDWidth_V) {
-      epi32_t frequency;
-      epi32_t cumul;
+    for (size_t i = 0; i < sourceMessage.size(); i += elementCount_v<simd::epi64_t<SIMDWidth_V>>) {
+      epi32_t<SIMDWidth_V> frequency(0);
+      epi32_t<SIMDWidth_V> cumul(0);
 
-      for (size_t j = 0; j < SIMDWidth_V; ++j) {
+      for (size_t j = 0; j < elementCount_v<epi64_t<SIMDWidth_V>>; ++j) {
         auto& symbol = symbolTable[sourceMessage[i + j]];
         frequency[j] = symbol.getFrequency();
         cumul[j] = symbol.getCumulative();
@@ -195,13 +186,13 @@ void encodeSIMD(benchmark::State& s)
       frequencies.push_back(frequency);
       cumulative.push_back(cumul);
 
-      epi64_t state{initialState};
+      epi64_t<SIMDWidth_V> state{initialState};
       states.push_back(state);
     }
     return std::make_tuple(frequencies, cumulative, states);
   }(1ul << 37);
 
-  const size_t messageLength = frequencies.size() * SIMDWidth_V;
+  const size_t messageLength = states.size() * elementCount_v<epi64_t<SIMDWidth_V>>;
 
   for (auto _ : s) {
 #ifdef ENABLE_VTUNE_PROFILER
@@ -209,8 +200,8 @@ void encodeSIMD(benchmark::State& s)
 #endif
     [&frequencies = frequencies, &cumulative = cumulative, &states = states]() {
       for (size_t i = 0; i < frequencies.size(); ++i) {
-        const pd_t frequency = simd::int32ToDouble(frequencies[i]);
-        const pd_t cumul = simd::int32ToDouble(cumulative[i]);
+        const pd_t<SIMDWidth_V> frequency = simd::int32ToDouble(frequencies[i]);
+        const pd_t<SIMDWidth_V> cumul = simd::int32ToDouble(cumulative[i]);
         const double normalization = 1 << 24;
         auto newState = simd::ransEncode(states[i], frequency, cumul, normalization);
         states[i] = newState;
