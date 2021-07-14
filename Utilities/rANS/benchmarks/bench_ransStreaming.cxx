@@ -32,11 +32,7 @@ using ransState_t = uint64_t;
 using stream_t = uint32_t;
 
 using namespace o2::rans;
-using namespace o2::rans::internal;
-
-using epi64_t = simd::simdepi64_t<simd::SSE>;
-using epi32_t = simd::simdepi32_t<simd::SSE>;
-using pd_t = simd::simdpd_t<simd::SSE>;
+using namespace o2::rans::internal::simd;
 
 template <typename T>
 inline constexpr size_t toBits()
@@ -98,14 +94,14 @@ struct SSEFixture : public Fixture {
     std::binomial_distribution<source_t> dist(tries, probability);
 
     for (size_t i = 0; i < nRepetitions; i += 2) {
-      frequencies.emplace_back(dist(mt), dist(mt));
+      frequencies.emplace_back(dist(mt), dist(mt), 0u, 0u);
     }
   };
 
   void TearDown(const ::benchmark::State& state) override{};
 
-  static constexpr epi64_t initialState = {expectationValue << MAX_SHIFT, expectationValue << MAX_SHIFT};
-  std::vector<epi32_t> frequencies;
+  static constexpr epi64_t<SIMDWidth::SSE> initialState = {expectationValue << MAX_SHIFT, expectationValue << MAX_SHIFT};
+  std::vector<epi32_t<SIMDWidth::SSE>> frequencies;
 };
 
 template <typename output_IT>
@@ -125,7 +121,7 @@ inline auto renorm(ransState_t state, count_t frequency, output_IT outputIter) n
 };
 
 template <typename output_IT>
-inline auto renorm(const simd::simdepi64_t<simd::SSE>& states, const simd::simdepi32_t<simd::SSE>& frequencies, output_IT outputIter) noexcept -> std::tuple<output_IT, simd::simdepi64_t<simd::SSE>>
+inline auto renorm(const epi64_t<SIMDWidth::SSE>& states, const epi32_t<SIMDWidth::SSE>& frequencies, output_IT outputIter) noexcept -> std::tuple<output_IT, epi64_t<SIMDWidth::SSE>>
 {
   __m128i stateVec = _mm_load_si128(reinterpret_cast<__m128i const*>(states.data()));
   __m128i frequencyVec = _mm_load_si128(reinterpret_cast<__m128i const*>(frequencies.data()));
@@ -143,11 +139,11 @@ inline auto renorm(const simd::simdepi64_t<simd::SSE>& states, const simd::simde
   //store new state
   __m128i newStateVec = _mm_srli_epi64(stateVec, STREAM_BITS);
   newStateVec = _mm_blendv_epi8(stateVec, newStateVec, cmpVec);
-  simd::simdepi64_t<simd::SSE> newState;
+  epi64_t<SIMDWidth::SSE> newState;
   _mm_store_si128(reinterpret_cast<__m128i*>(newState.data()), newStateVec);
 
   //stream out
-  constexpr simd::simdepi32_t<simd::AVX> extractionMask{0xFFFFFFFFu, 0x0u, 0xFFFFFFFFu, 0x0u};
+  constexpr epi32_t<SIMDWidth::SSE> extractionMask{0xFFFFFFFFu, 0x0u, 0xFFFFFFFFu, 0x0u};
   __m128i extractionMaskVec = _mm_load_si128(reinterpret_cast<__m128i const*>(extractionMask.data()));
   __m128i streamOutMaskVec = _mm_and_si128(cmpVec, extractionMaskVec);
   const uint32_t id = _mm_movemask_ps(_mm_castsi128_ps(streamOutMaskVec));
@@ -155,7 +151,7 @@ inline auto renorm(const simd::simdepi64_t<simd::SSE>& states, const simd::simde
 
   __m128i streamOutVec = _mm_and_si128(stateVec, streamOutMaskVec);
   streamOutVec = _mm_shuffle_epi8(streamOutVec, shuffleMaskVec);
-  simd::simdepi32_t<simd::AVX> tmpStream;
+  epi32_t<SIMDWidth::SSE> tmpStream;
   _mm_store_si128(reinterpret_cast<__m128i*>(tmpStream.data()), streamOutVec);
 
   output_IT newOutputIT = outputIter;
@@ -207,8 +203,8 @@ BENCHMARK_F(SSEFixture, renormSSE)
     __itt_resume();
 #endif
     for (size_t i = 0; i < nRepetitions / 2; ++i) {
-      const epi32_t frequency = frequencies[i];
-      epi64_t state = initialState;
+      const epi32_t<SIMDWidth::SSE> frequency = frequencies[i];
+      epi64_t<SIMDWidth::SSE> state = initialState;
 
       std::tie(outputIter, state) = renorm(state, frequency, outputIter);
       benchmark::DoNotOptimize(state);

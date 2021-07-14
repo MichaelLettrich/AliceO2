@@ -67,9 +67,9 @@ inline __m512i _mm512_ransencode_pd(__m512i state, __m512d frequency, __m512d cu
 //
 // uint32 -> double
 //
-inline simdpd_t<SIMDWidth::AVX512> int32ToDouble(const simdepi32_t<SIMDWidth::AVX512>& in)
+inline pd_t<SIMDWidth::AVX512> int32ToDouble(const epi32_t<SIMDWidth::AVX512>& in)
 {
-  simdpd_t<SIMDWidth::AVX512> out;
+  pd_t<SIMDWidth::AVX512> out;
   __m256i inReg = _mm256_load_si256(reinterpret_cast<const __m256i*>(in.data()));
   _mm512_store_pd(out.data(), _mm512_cvtepi32_pd(inReg));
   return out;
@@ -78,9 +78,9 @@ inline simdpd_t<SIMDWidth::AVX512> int32ToDouble(const simdepi32_t<SIMDWidth::AV
 //
 // uint64 -> double
 //
-inline simdpd_t<SIMDWidth::AVX512> uint64ToDouble(const simdepi64_t<SIMDWidth::AVX512>& in)
+inline pd_t<SIMDWidth::AVX512> uint64ToDouble(const epi64_t<SIMDWidth::AVX512>& in)
 {
-  simdpd_t<SIMDWidth::AVX512> out;
+  pd_t<SIMDWidth::AVX512> out;
   __m512i inReg = _mm512_load_si512(reinterpret_cast<const __m512i*>(in.data()));
   _mm512_store_pd(out.data(), _mm512_cvtepu64_pd(inReg));
   return out;
@@ -89,9 +89,9 @@ inline simdpd_t<SIMDWidth::AVX512> uint64ToDouble(const simdepi64_t<SIMDWidth::A
 //
 // double -> uint64
 //
-inline simdepi64_t<SIMDWidth::AVX512> doubleToUint64(const simdpd_t<SIMDWidth::AVX512>& in)
+inline epi64_t<SIMDWidth::AVX512> doubleToUint64(const pd_t<SIMDWidth::AVX512>& in)
 {
-  simdepi64_t<SIMDWidth::AVX512> out;
+  epi64_t<SIMDWidth::AVX512> out;
   __m512d inReg = _mm512_load_pd(in.data());
   _mm512_store_si512(reinterpret_cast<__m512i*>(out.data()), _mm512_cvttpd_epu64(inReg));
   return out;
@@ -100,9 +100,9 @@ inline simdepi64_t<SIMDWidth::AVX512> doubleToUint64(const simdpd_t<SIMDWidth::A
 //
 // rans Encode
 //
-inline simdepi64_t<SIMDWidth::AVX512> ransEncode(const simdepi64_t<SIMDWidth::AVX512>& state, const simdpd_t<SIMDWidth::AVX512>& frequency, const simdpd_t<SIMDWidth::AVX512>& cumulative, double normalization)
+inline epi64_t<SIMDWidth::AVX512> ransEncode(const epi64_t<SIMDWidth::AVX512>& state, const pd_t<SIMDWidth::AVX512>& frequency, const pd_t<SIMDWidth::AVX512>& cumulative, double normalization)
 {
-  simdepi64_t<SIMDWidth::AVX512> newState;
+  epi64_t<SIMDWidth::AVX512> newState;
   __m512d stateReg = _mm512_load_si512(reinterpret_cast<const __m512i*>(state.data()));
   __m512d frequencyReg = _mm512_load_pd(frequency.data());
   __m512d cumulativeReg = _mm512_load_pd(cumulative.data());

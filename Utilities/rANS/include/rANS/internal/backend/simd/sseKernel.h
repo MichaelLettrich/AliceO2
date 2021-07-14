@@ -78,9 +78,9 @@ inline __m128i _mm_ransencode_pd(__m128i state, __m128d frequency, __m128d cumul
 //
 // uint32 -> double
 //
-inline simdpd_t<SIMDWidth::SSE> int32ToDouble(const simdepi32_t<SIMDWidth::SSE>& in) noexcept
+inline pd_t<SIMDWidth::SSE> int32ToDouble(const epi32_t<SIMDWidth::SSE>& in) noexcept
 {
-  simdpd_t<SIMDWidth::SSE> out;
+  pd_t<SIMDWidth::SSE> out;
   __m128i inReg = _mm_load_si128(reinterpret_cast<const __m128i*>(in.data()));
   _mm_store_pd(out.data(), _mm_cvtepi32_pd(inReg));
   return out;
@@ -88,10 +88,11 @@ inline simdpd_t<SIMDWidth::SSE> int32ToDouble(const simdepi32_t<SIMDWidth::SSE>&
 
 //
 // uint64 -> double
+// Only works for inputs in the range: [0, 2^52)
 //
-inline simdpd_t<SIMDWidth::SSE> uint64ToDouble(const simdepi64_t<SIMDWidth::SSE>& in) noexcept
+inline pd_t<SIMDWidth::SSE> uint64ToDouble(const epi64_t<SIMDWidth::SSE>& in) noexcept
 {
-  simdpd_t<SIMDWidth::SSE> out;
+  pd_t<SIMDWidth::SSE> out;
   __m128i inReg = _mm_load_si128(reinterpret_cast<const __m128i*>(in.data()));
   _mm_store_pd(out.data(), detail::_mm_cvtepu64_pd(inReg));
   return out;
@@ -100,9 +101,9 @@ inline simdpd_t<SIMDWidth::SSE> uint64ToDouble(const simdepi64_t<SIMDWidth::SSE>
 //
 // double -> uint64
 //
-inline simdepi64_t<SIMDWidth::SSE> doubleToUint64(const simdpd_t<SIMDWidth::SSE>& in) noexcept
+inline epi64_t<SIMDWidth::SSE> doubleToUint64(const pd_t<SIMDWidth::SSE>& in) noexcept
 {
-  simdepi64_t<SIMDWidth::SSE> out;
+  epi64_t<SIMDWidth::SSE> out;
   __m128d inReg = _mm_load_pd(in.data());
   _mm_store_si128(reinterpret_cast<__m128i*>(out.data()), detail::_mm_cvttpd_epu64(inReg));
   return out;
@@ -111,9 +112,9 @@ inline simdepi64_t<SIMDWidth::SSE> doubleToUint64(const simdpd_t<SIMDWidth::SSE>
 //
 // rans Encode
 //
-inline simdepi64_t<SIMDWidth::SSE> ransEncode(const simdepi64_t<SIMDWidth::SSE>& state, const simdpd_t<SIMDWidth::SSE>& frequency, const simdpd_t<SIMDWidth::SSE>& cumulative, uint32_t normalization) noexcept
+inline epi64_t<SIMDWidth::SSE> ransEncode(const epi64_t<SIMDWidth::SSE>& state, const pd_t<SIMDWidth::SSE>& frequency, const pd_t<SIMDWidth::SSE>& cumulative, uint32_t normalization) noexcept
 {
-  simdepi64_t<SIMDWidth::SSE> newState;
+  epi64_t<SIMDWidth::SSE> newState;
   __m128i stateReg = _mm_load_si128(reinterpret_cast<const __m128i*>(state.data()));
   __m128d frequencyReg = _mm_load_pd(frequency.data());
   __m128d cumulativeReg = _mm_load_pd(cumulative.data());
