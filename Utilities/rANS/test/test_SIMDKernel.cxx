@@ -29,30 +29,30 @@
 using namespace o2::rans::internal::simd;
 
 // clang-format off
-using simdpd_types = boost::mpl::list<simdpd_t<SIMDWidth::SSE>
+using pd_types = boost::mpl::list<pd_t<SIMDWidth::SSE>
 #ifdef __AVX2__
-                                      , simdpd_t<SIMDWidth::AVX>
+                                      , pd_t<SIMDWidth::AVX>
 #endif /* __AVX2__ */
 #ifdef __AVX512F__
-                                      , simdpd_t<SIMDWidth::AVX512>
+                                      , pd_t<SIMDWidth::AVX512>
 #endif /* __AVX512F__ */
                                       >;
 
-using simduint64_types = boost::mpl::list<simdepi64_t<SIMDWidth::SSE>
+using simduint64_types = boost::mpl::list<epi64_t<SIMDWidth::SSE>
 #ifdef __AVX2__
-                                          , simdepi64_t<SIMDWidth::AVX>
+                                          , epi64_t<SIMDWidth::AVX>
 #endif /* __AVX2__ */
 #ifdef __AVX512F__
-                                          , simdepi64_t<SIMDWidth::AVX512>
+                                          , epi64_t<SIMDWidth::AVX512>
 #endif /* __AVX512F__ */
                                           >;
 
-using simduint32_types = boost::mpl::list<simdepi32_t<SIMDWidth::SSE>
+using simduint32_types = boost::mpl::list<epi32_t<SIMDWidth::SSE>
 #ifdef __AVX2__
-                                          , simdepi32_t<SIMDWidth::AVX>
+                                          , epi32_t<SIMDWidth::AVX>
 #endif /* __AVX2__ */
 #ifdef __AVX512F__
-                                          , simdepi32_t<SIMDWidth::AVX512>
+                                          , epi32_t<SIMDWidth::AVX512>
 #endif /* __AVX512F__ */
                                           >;
 // clang-format on
@@ -83,10 +83,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(simd_uint64ToDouble, simdInt64_T, simduint64_types
   }
 }
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(simd_doubleToUint64, simdpd_T, simdpd_types)
+BOOST_AUTO_TEST_CASE_TEMPLATE(simd_doubleToUint64, pd_T, pd_types)
 {
   for (size_t i = 0; i < doubleData.size(); ++i) {
-    const simdpd_T src{doubleData[i]};
+    const pd_T src{doubleData[i]};
     const auto dest = doubleToUint64(src);
 
     for (auto elem : dest) {
@@ -145,25 +145,25 @@ struct ModDivFixture {
 
 BOOST_FIXTURE_TEST_SUITE(testModDiv, ModDivFixture)
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(modDiv, simdpd_T, simdpd_types)
+BOOST_AUTO_TEST_CASE_TEMPLATE(modDiv, pd_T, pd_types)
 {
   for (size_t i = 0; i < numerator.size(); ++i) {
-    const simdpd_T numeratorPD{static_cast<double>(numerator[i])};
-    const simdpd_T denominatorPD{static_cast<double>(denominator[i])};
-    simdpd_T divPD{0};
-    simdpd_T modPD{0};
+    const pd_T numeratorPD{static_cast<double>(numerator[i])};
+    const pd_T denominatorPD{static_cast<double>(denominator[i])};
+    pd_T divPD{0};
+    pd_T modPD{0};
 
-    if constexpr (std::size(simdpd_T{}) == 2) {
+    if constexpr (std::size(pd_T{}) == 2) {
       //SSE
       __m128d n = _mm_load_pd(numeratorPD.data());
       __m128d d = _mm_load_pd(denominatorPD.data());
       detail::_mm_moddiv_pd(n, d, divPD.data(), modPD.data());
-    } else if constexpr (std::size(simdpd_T{}) == 4) {
+    } else if constexpr (std::size(pd_T{}) == 4) {
       //AVX
       __m256d n = _mm256_load_pd(numeratorPD.data());
       __m256d d = _mm256_load_pd(denominatorPD.data());
       detail::_mm256_moddiv_pd(n, d, divPD.data(), modPD.data());
-    } else if constexpr (std::size(simdpd_T{}) == 8) {
+    } else if constexpr (std::size(pd_T{}) == 8) {
 //AVX512
 #ifdef __AVX512F__
       __m512d n = _mm512_load_pd(numeratorPD.data());
@@ -172,8 +172,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(modDiv, simdpd_T, simdpd_types)
 #endif /* __AVX512F__ */
     }
 
-    simdpd_T modResult{static_cast<double>(mod[i])};
-    simdpd_T divResult{static_cast<double>(div[i])};
+    pd_T modResult{static_cast<double>(mod[i])};
+    pd_T divResult{static_cast<double>(div[i])};
 
     BOOST_CHECK_EQUAL_COLLECTIONS(divResult.begin(), divResult.end(), divPD.begin(), divPD.end());
     BOOST_CHECK_EQUAL_COLLECTIONS(modResult.begin(), modResult.end(), modPD.begin(), modPD.end());
@@ -213,21 +213,21 @@ struct RANSEncodeFixture {
 
 BOOST_FIXTURE_TEST_SUITE(testRANSEncode, RANSEncodeFixture)
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(simd_RansEncode, simdpd_T, simdpd_types)
+BOOST_AUTO_TEST_CASE_TEMPLATE(simd_RansEncode, pd_T, pd_types)
 {
-  using simdepi64_T = simdepi64_t<static_cast<size_t>(getSIMDWidth<simdpd_T>())>;
+  using epi64_T = epi64_t<getSimdWidth_v<pd_T>>;
 
   const size_t nTests = mFrequency.size();
 
   for (size_t i = 0; i < nTests; ++i) {
-    const simdepi64_T state{mState};
-    const simdpd_T frequencyPD{mFrequency[i]};
-    const simdpd_T cumulativePD{mCumulative[i]};
-    simdepi64_T result{0};
+    const epi64_T state{mState};
+    const pd_T frequencyPD{mFrequency[i]};
+    const pd_T cumulativePD{mCumulative[i]};
+    epi64_T result{0};
 
     result = ransEncode(state, frequencyPD, cumulativePD, mNormalization);
 
-    simdepi64_T correctStateVector{mResultState[i]};
+    epi64_T correctStateVector{mResultState[i]};
 
     BOOST_CHECK_EQUAL_COLLECTIONS(correctStateVector.begin(), correctStateVector.end(), result.begin(), result.end());
   }
