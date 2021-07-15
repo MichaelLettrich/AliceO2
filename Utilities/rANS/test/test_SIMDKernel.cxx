@@ -113,9 +113,12 @@ BOOST_FIXTURE_TEST_SUITE(test_SIMDconvert32, ConvertingFixture32)
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(simd_int32ToDouble, simdInt32_T, simduint32_types)
 {
+  constexpr SIMDWidth simdWidth_V = getSimdWidth_v<simdInt32_T>;
+  using simdPD_T = pd_t<simdWidth_V>;
+
   for (size_t i = 0; i < uint32Data.size(); ++i) {
     const simdInt32_T src{uint32Data[i]};
-    const auto dest = int32ToDouble(src);
+    auto dest = int32ToDouble<simdWidth_V>(src);
 
     for (auto elem : dest) {
       BOOST_CHECK_EQUAL(elem, doubleData[i]);
@@ -131,8 +134,8 @@ struct ModDivFixture {
   // test 1: mod = 0, div correctly rounded
   // test 2: div = 0, mod correclty rounded
   // test 3: mod, div nonzero and correctly rounded
-  std::vector<uint32_t> mod = std::vector<uint32_t>(4);
-  std::vector<uint32_t> div = std::vector<uint32_t>(4);
+  std::array<uint32_t, 3> mod;
+  std::array<uint32_t, 3> div;
 
   ModDivFixture()
   {
@@ -150,27 +153,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(modDiv, pd_T, pd_types)
   for (size_t i = 0; i < numerator.size(); ++i) {
     const pd_T numeratorPD{static_cast<double>(numerator[i])};
     const pd_T denominatorPD{static_cast<double>(denominator[i])};
-    pd_T divPD{0};
-    pd_T modPD{0};
 
-    if constexpr (std::size(pd_T{}) == 2) {
-      //SSE
-      __m128d n = _mm_load_pd(numeratorPD.data());
-      __m128d d = _mm_load_pd(denominatorPD.data());
-      detail::_mm_moddiv_pd(n, d, divPD.data(), modPD.data());
-    } else if constexpr (std::size(pd_T{}) == 4) {
-      //AVX
-      __m256d n = _mm256_load_pd(numeratorPD.data());
-      __m256d d = _mm256_load_pd(denominatorPD.data());
-      detail::_mm256_moddiv_pd(n, d, divPD.data(), modPD.data());
-    } else if constexpr (std::size(pd_T{}) == 8) {
-//AVX512
-#ifdef __AVX512F__
-      __m512d n = _mm512_load_pd(numeratorPD.data());
-      __m512d d = _mm512_load_pd(denominatorPD.data());
-      detail::_mm512_moddiv_pd(n, d, divPD.data(), modPD.data());
-#endif /* __AVX512F__ */
-    }
+    auto [divPD, modPD] = divMod(numeratorPD, denominatorPD);
 
     pd_T modResult{static_cast<double>(mod[i])};
     pd_T divResult{static_cast<double>(div[i])};
