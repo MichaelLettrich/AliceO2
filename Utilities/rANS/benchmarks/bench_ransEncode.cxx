@@ -200,8 +200,8 @@ void encodeSIMD(benchmark::State& s)
 #endif
     [&frequencies = frequencies, &cumulative = cumulative, &states = states]() {
       for (size_t i = 0; i < frequencies.size(); ++i) {
-        const pd_t<SIMDWidth_V> frequency = simd::int32ToDouble(frequencies[i]);
-        const pd_t<SIMDWidth_V> cumul = simd::int32ToDouble(cumulative[i]);
+        const auto frequency = simd::int32ToDouble<SIMDWidth_V>(frequencies[i]);
+        const auto cumul = simd::int32ToDouble<SIMDWidth_V>(cumulative[i]);
         const double normalization = 1 << 24;
         auto newState = simd::ransEncode(states[i], frequency, cumul, normalization);
         states[i] = newState;
