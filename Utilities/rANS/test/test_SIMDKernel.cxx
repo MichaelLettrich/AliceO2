@@ -20,11 +20,14 @@
 #ifdef __SSE__
 
 #include <vector>
+#include <type_traits>
 
 #include <boost/test/unit_test.hpp>
 #include <boost/mpl/list.hpp>
 
+#include "rANS/internal/backend/simd/types.h"
 #include "rANS/internal/backend/simd/kernel.h"
+#include "rANS/internal/backend/simd/EncoderSymbol.h"
 
 using namespace o2::rans::internal::simd;
 
@@ -38,7 +41,7 @@ using pd_types = boost::mpl::list<pd_t<SIMDWidth::SSE>
 #endif /* __AVX512F__ */
                                       >;
 
-using simduint64_types = boost::mpl::list<epi64_t<SIMDWidth::SSE>
+using epi64_types = boost::mpl::list<epi64_t<SIMDWidth::SSE>
 #ifdef __AVX2__
                                           , epi64_t<SIMDWidth::AVX>
 #endif /* __AVX2__ */
@@ -47,7 +50,7 @@ using simduint64_types = boost::mpl::list<epi64_t<SIMDWidth::SSE>
 #endif /* __AVX512F__ */
                                           >;
 
-using simduint32_types = boost::mpl::list<epi32_t<SIMDWidth::SSE>
+using epi32_types = boost::mpl::list<epi32_t<SIMDWidth::SSE>
 #ifdef __AVX2__
                                           , epi32_t<SIMDWidth::AVX>
 #endif /* __AVX2__ */
@@ -71,10 +74,10 @@ struct ConvertingFixture64 {
 
 BOOST_FIXTURE_TEST_SUITE(test_SIMDconvert64, ConvertingFixture64)
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(simd_uint64ToDouble, simdInt64_T, simduint64_types)
+BOOST_AUTO_TEST_CASE_TEMPLATE(simd_uint64ToDouble, epi64_T, epi64_types)
 {
   for (size_t i = 0; i < uint64Data.size(); ++i) {
-    const simdInt64_T src{uint64Data[i]};
+    const epi64_T src{uint64Data[i]};
     const auto dest = uint64ToDouble(src);
 
     for (auto elem : dest) {
@@ -111,13 +114,13 @@ struct ConvertingFixture32 {
 
 BOOST_FIXTURE_TEST_SUITE(test_SIMDconvert32, ConvertingFixture32)
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(simd_int32ToDouble, simdInt32_T, simduint32_types)
+BOOST_AUTO_TEST_CASE_TEMPLATE(simd_int32ToDouble, epi32_T, epi32_types)
 {
-  constexpr SIMDWidth simdWidth_V = getSimdWidth_v<simdInt32_T>;
+  constexpr SIMDWidth simdWidth_V = getSimdWidth_v<epi32_T>;
   using simdPD_T = pd_t<simdWidth_V>;
 
   for (size_t i = 0; i < uint32Data.size(); ++i) {
-    const simdInt32_T src{uint32Data[i]};
+    const epi32_T src{uint32Data[i]};
     auto dest = int32ToDouble<simdWidth_V>(src);
 
     for (auto elem : dest) {
@@ -216,7 +219,49 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(simd_RansEncode, pd_T, pd_types)
     BOOST_CHECK_EQUAL_COLLECTIONS(correctStateVector.begin(), correctStateVector.end(), result.begin(), result.end());
   }
 }
+BOOST_AUTO_TEST_SUITE_END()
 
+struct AosToSoaFixture {
+
+  std::vector<EncoderSymbol> mSource;
+  epi32_t<SIMDWidth::AVX512> mFrequencies;
+  epi32_t<SIMDWidth::AVX512> mCumulative;
+
+  AosToSoaFixture()
+  {
+    constexpr size_t nElems = getElementCount<uint32_t>(SIMDWidth::AVX512);
+    uint32_t counter = 0;
+
+    for (size_t i = 0; i < nElems; ++i) {
+      EncoderSymbol symbol{counter++, counter++};
+      mFrequencies[i] = symbol.getFrequency();
+      mCumulative[i] = symbol.getCumulative();
+
+      mSource.emplace_back(std::move(symbol));
+    }
+  };
+};
+using aosToSoa_T = boost::mpl::list<std::integral_constant<size_t, 2>,
+                                    std::integral_constant<size_t, 4>,
+                                    std::integral_constant<size_t, 8>>;
+
+BOOST_FIXTURE_TEST_SUITE(testAostoSoa, AosToSoaFixture)
+BOOST_AUTO_TEST_CASE_TEMPLATE(simd_AosToSOA, sizes_T, aosToSoa_T)
+{
+  constexpr sizes_T nElements;
+  std::array<const uint32_t*, nElements()> aosPtrs;
+
+  for (size_t i = 0; i < nElements(); ++i) {
+    aosPtrs[i] = mSource[i].data();
+  }
+
+  auto [frequencies, cumulative] = aosToSoa(aosPtrs);
+
+  for (size_t i = 0; i < nElements(); ++i) {
+    BOOST_CHECK_EQUAL(frequencies[i], mFrequencies[i]);
+    BOOST_CHECK_EQUAL(cumulative[i], mCumulative[i]);
+  };
+}
 BOOST_AUTO_TEST_SUITE_END()
 
 #endif /* __SSE__ */

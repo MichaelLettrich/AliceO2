@@ -13,10 +13,8 @@
 /// @since  2021-03-18
 /// @brief
 
-#ifndef RANS_INTERNAL_SIMD_SSEKERNEL_H
-#define RANS_INTERNAL_SIMD_SSEKERNEL_H
-
-#ifdef __SSE__
+#ifndef RANS_INTERNAL_SIMD_KERNEL_H
+#define RANS_INTERNAL_SIMD_KERNEL_H
 
 #include <immintrin.h>
 #include <cfenv>
@@ -26,7 +24,6 @@
 
 #include "rANS/internal/backend/simd/utils.h"
 #include "rANS/internal/backend/simd/types.h"
-#include "rANS/internal/backend/simd/EncoderSymbol.h"
 
 namespace o2
 {
@@ -36,8 +33,7 @@ namespace internal
 {
 namespace simd
 {
-
-template <typename T>
+template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
 inline __m128i load(const AlignedArray<T, SIMDWidth::SSE>& v) noexcept
 {
   return _mm_load_si128(reinterpret_cast<const __m128i*>(v.data()));
@@ -50,7 +46,7 @@ inline __m128d load(const AlignedArray<double, SIMDWidth::SSE>& v) noexcept
 
 #ifdef __AVX2__
 
-template <typename T>
+template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
 inline __m256i load(const AlignedArray<T, SIMDWidth::AVX>& v) noexcept
 {
   return _mm256_load_si256(reinterpret_cast<const __m256i*>(v.data()));
@@ -64,7 +60,7 @@ inline __m256d load(const AlignedArray<double, SIMDWidth::AVX>& v) noexcept
 #endif /* __AVX2__ */
 #ifdef __AVX512F__
 
-template <typename T>
+template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
 inline __m512i load(const AlignedArray<T, SIMDWidth::AVX512>& v) noexcept
 {
   return _mm512_load_si512(reinterpret_cast<const __m512i*>(v.data()));
@@ -77,7 +73,7 @@ inline __m512d load(const AlignedArray<double, SIMDWidth::AVX512>& v) noexcept
 
 #endif /* __AVX_512F_ */
 
-template <typename T>
+template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
 inline AlignedArray<T, SIMDWidth::SSE> store(__m128i inVec) noexcept
 {
   AlignedArray<T, SIMDWidth::SSE> out;
@@ -94,7 +90,7 @@ inline AlignedArray<double, SIMDWidth::SSE> store(__m128d inVec) noexcept
 
 #ifdef __AVX2__
 
-template <typename T>
+template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
 inline AlignedArray<T, SIMDWidth::AVX> store(__m256i inVec) noexcept
 {
   AlignedArray<T, SIMDWidth::AVX> out;
@@ -112,7 +108,7 @@ inline AlignedArray<double, SIMDWidth::AVX> store(__m256d inVec) noexcept
 #endif /* __AVX2__ */
 #ifdef __AVX512F__
 
-template <typename T>
+template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
 inline AlignedArray<T, SIMDWidth::AVX512> store(__m512i inVec) noexcept
 {
   AlignedArray<T, SIMDWidth::AVX512> out;
@@ -330,10 +326,56 @@ inline epi64_t<SIMDWidth::AVX512> ransEncode(const epi64_t<SIMDWidth::AVX512>& s
 
 #endif /* __AVX_512F_ */
 
+inline std::tuple<simd::epi32_t<simd::SIMDWidth::SSE>, simd::epi32_t<simd::SIMDWidth::SSE>> aosToSoa(const std::array<const uint32_t*, 2>& in) noexcept
+{
+  __m128i in0Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[0]));
+  __m128i in1Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[1]));
+
+  __m128i res0Reg = _mm_unpacklo_epi32(in0Reg, in1Reg);
+  __m128i res1Reg = _mm_shuffle_epi32(res0Reg, _MM_SHUFFLE(0, 0, 3, 2));
+
+  return {store<uint32_t>(res0Reg), store<uint32_t>(res1Reg)};
+};
+
+inline std::tuple<epi32_t<SIMDWidth::SSE>, epi32_t<SIMDWidth::SSE>> aosToSoa(const std::array<const uint32_t*, 4>& in) noexcept
+{
+  __m128i in0Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[0]));
+  __m128i in1Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[1]));
+  __m128i in2Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[2]));
+  __m128i in3Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[3]));
+
+  __m128i merged0Reg = _mm_unpacklo_epi32(in0Reg, in1Reg);
+  __m128i merged1Reg = _mm_unpacklo_epi32(in2Reg, in3Reg);
+  __m128i res0Reg = _mm_unpacklo_epi64(merged0Reg, merged1Reg);
+  __m128i res1Reg = _mm_unpackhi_epi64(merged0Reg, merged1Reg);
+
+  return {store<uint32_t>(res0Reg), store<uint32_t>(res1Reg)};
+};
+
+#ifdef __AVX2__
+inline std::tuple<epi32_t<SIMDWidth::AVX>, epi32_t<SIMDWidth::AVX>> aosToSoa(const std::array<const uint32_t*, 8>& in) noexcept
+{
+  std::array<const uint32_t*, 4> first{in[0], in[1], in[2], in[3]};
+  std::array<const uint32_t*, 4> second{in[4], in[5], in[6], in[7]};
+
+  auto [arr00, arr01] = aosToSoa(first);
+  auto [arr10, arr11] = aosToSoa(second);
+
+  auto arr00Reg = load(arr00);
+  auto arr01Reg = load(arr01);
+  auto arr10Reg = load(arr10);
+  auto arr11Reg = load(arr11);
+
+  auto res0Reg = _mm256_set_m128i(arr10Reg, arr00Reg);
+  auto res1Reg = _mm256_set_m128i(arr11Reg, arr01Reg);
+
+  return {store<uint32_t>(res0Reg), store<uint32_t>(res1Reg)};
+};
+#endif /* __AVX2__ */
+
 } // namespace simd
 } // namespace internal
 } // namespace rans
 } // namespace o2
 
-#endif /* __SSE__ */
-#endif /* RANS_INTERNAL_SIMD_SSEKERNEL_H */
+#endif /* RANS_INTERNAL_SIMD_KERNEL_H */

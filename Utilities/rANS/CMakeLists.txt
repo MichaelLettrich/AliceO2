@@ -102,8 +102,6 @@ o2_add_executable(Streaming
   target_compile_options(${ransStreamingBenchmark} PRIVATE -O3 -march=native -fopenmp)
 #target_compile_options(${ransStreamingBenchmark} PRIVATE -O0 -ggdb -march=native -fopenmp)
 
-
-
 endif()
 
 o2_add_executable(rans-encode-decode-8

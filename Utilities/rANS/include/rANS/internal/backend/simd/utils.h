@@ -24,8 +24,6 @@
 #include <tuple>
 #include <array>
 
-#include "rANS/internal/backend/simd/EncoderSymbol.h"
-
 namespace o2
 {
 namespace rans
