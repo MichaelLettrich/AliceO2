@@ -18,6 +18,7 @@
 
 #include <cstring>
 #include <cassert>
+#include <cstdint>
 #include <type_traits>
 
 #include "rANS/internal/backend/simd/utils.h"

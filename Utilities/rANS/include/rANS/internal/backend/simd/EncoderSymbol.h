@@ -30,8 +30,8 @@ namespace internal
 {
 namespace simd
 {
-//TODO(milettri): respect global alignment
-class alignas(getAlignment(SIMDWidth::AVX512)) EncoderSymbol
+
+class alignas(getAlignment(SIMDWidth::SSE)) EncoderSymbol
 {
  public:
   constexpr EncoderSymbol() noexcept {}; //NOLINT
@@ -57,6 +57,7 @@ class alignas(getAlignment(SIMDWidth::AVX512)) EncoderSymbol
  private:
   std::array<uint32_t, 2> mSymbol{0, 0};
 };
+
 } // namespace simd
 } // namespace internal
 } //namespace rans
