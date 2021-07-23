@@ -25,6 +25,7 @@
 #include <fmt/format.h>
 
 #include "rANS/internal/backend/simd/utils.h"
+#include "rANS/internal/helper.h"
 
 namespace o2
 {
@@ -38,10 +39,6 @@ namespace simd
 enum class SIMDWidth : uint32_t { SSE = 128,
                                   AVX = 256,
                                   AVX512 = 512 };
-
-inline constexpr size_t toBytes(size_t bits) { return (bits / 8) + (bits % 8 != 0); };
-
-inline constexpr size_t toBits(size_t bytes) { return bytes * 8; };
 
 inline constexpr size_t getLaneWidthBits(SIMDWidth width) noexcept { return static_cast<size_t>(width); };
 

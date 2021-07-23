@@ -32,6 +32,10 @@ namespace rans
 namespace internal
 {
 
+inline constexpr size_t toBytes(size_t bits) { return (bits / 8) + (bits % 8 != 0); };
+
+inline constexpr size_t toBits(size_t bytes) { return bytes * 8; };
+
 template <typename T>
 inline constexpr bool needs64Bit() noexcept
 {
@@ -40,7 +44,7 @@ inline constexpr bool needs64Bit() noexcept
 
 inline constexpr size_t pow2(size_t n) noexcept
 {
-  return 1 << n;
+  return static_cast<size_t>(1) << n;
 }
 
 inline constexpr uint32_t log2UInt(uint32_t x) noexcept
@@ -57,7 +61,7 @@ inline constexpr bool isPow2(T x) noexcept
 inline constexpr size_t
   numSymbolsWithNBits(size_t bits) noexcept
 {
-  return (1 << (bits + 1)) - 1;
+  return (static_cast<size_t>(1) << (bits + 1)) - 1;
 }
 
 inline constexpr size_t numBitsForNSymbols(size_t nSymbols) noexcept
