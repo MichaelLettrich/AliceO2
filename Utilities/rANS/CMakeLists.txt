@@ -70,6 +70,13 @@ o2_add_test(EncodeDecode
             COMPONENT_NAME rANS
             LABELS utils)
 
+o2_add_test(EncodeDecodeLargeScale
+            NAME EncodeDecodeLargeScale
+            SOURCES test/test_ransEncodeDecodeLargeScale.cxx
+            PUBLIC_LINK_LIBRARIES O2::rANS
+            COMPONENT_NAME rANS
+            LABELS utils)
+
 if (TARGET benchmark::benchmark)
 o2_add_executable(CombinedIterator
                   SOURCES benchmarks/bench_ransCombinedIterator.cxx
