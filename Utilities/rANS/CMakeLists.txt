@@ -84,6 +84,15 @@ o2_add_executable(CombinedIterator
                   IS_BENCHMARK
                   PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
 
+o2_add_executable(Compression
+                  SOURCES benchmarks/bench_ransCompression.cxx
+                  COMPONENT_NAME rANS
+                  IS_BENCHMARK
+                  TARGETVARNAME ransCompressionBenchmark
+                  PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
+  target_compile_options(${ransCompressionBenchmark} PRIVATE  -march=native -fopenmp)
+  target_link_libraries(${ransCompressionBenchmark} PRIVATE -ltbb)
+
 o2_add_executable(Encode
                   SOURCES benchmarks/bench_ransEncode.cxx
                   COMPONENT_NAME rANS

@@ -24,6 +24,8 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/mpl/vector.hpp>
 
+#include "rANS/SimpleEncoder.h"
+#include "rANS/SimpleDecoder.h"
 #include "rANS/rans.h"
 
 using source_t = uint8_t;
@@ -40,7 +42,7 @@ struct Fixture {
     const double probability = 0.3;
     std::binomial_distribution<source_t> dist(trials, probability);
 
-    const size_t sourceSize = 1ul << 16;
+    const size_t sourceSize = 1ul << 8;
     sourceSymbols.reserve(sourceSize);
 
     for (size_t i = 0; i < sourceSize; ++i) {
@@ -55,8 +57,8 @@ BOOST_FIXTURE_TEST_CASE(test_largeScaleEncodeDecode, Fixture)
 {
   auto frequencies = o2::rans::renorm(o2::rans::makeFrequencyTableFromSamples(std::begin(sourceSymbols), std::end(sourceSymbols)), SymbolTablePrecision);
 
-  o2::rans::Encoder<coder_t, stream_t, source_t> encoder{frequencies};
-  o2::rans::Decoder<coder_t, stream_t, source_t> decoder{frequencies};
+  o2::rans::SimpleEncoder<coder_t, stream_t, source_t> encoder{frequencies};
+  o2::rans::SimpleDecoder<coder_t, stream_t, source_t> decoder{frequencies};
 
   std::vector<stream_t> encodeBuffer{};
   std::vector<source_t> decodeBuffer{};
