@@ -17,5 +17,6 @@
 #define INCLUDE_RANS_UTILS__H_
 
 #include "rANS/utils/iterators.h"
+#include "rANS/utils/io.h"
 
 #endif /* INCLUDE_RANS_UTILS__H_ */

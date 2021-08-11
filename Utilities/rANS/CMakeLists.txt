@@ -12,7 +12,7 @@
 o2_add_library(rANS
                SOURCES src/SymbolStatistics.cxx
                        src/FrequencyTable.cxx
-               PUBLIC_LINK_LIBRARIES FairLogger::FairLogger)
+               PUBLIC_LINK_LIBRARIES FairLogger::FairLogger RapidJSON::RapidJSON)
 
 o2_add_test(Iterators
             NAME Iterators

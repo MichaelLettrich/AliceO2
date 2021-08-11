@@ -150,17 +150,24 @@ class CTFCoder : public o2::ctf::CTFCoderBase
 
   bool mCombineColumns = false; // combine correlated columns
 
+  rapidjson::Document mJSONDocument{};
+  rapidjson::Value mDictionaries{rapidjson::kArrayType};
+
   ClassDefNV(CTFCoder, 1);
 };
 
 template <typename source_T>
 void CTFCoder::buildCoder(ctf::CTFCoderBase::OpType coderType, const CTF::container_t& ctf, CTF::Slots slot)
 {
-  auto buildFrequencyTable = [](const CTF::container_t& ctf, CTF::Slots slot) -> rans::FrequencyTable {
+  auto buildFrequencyTable = [this](const CTF::container_t& ctf, CTF::Slots slot) -> rans::FrequencyTable {
     rans::FrequencyTable frequencyTable;
     auto block = ctf.getBlock(slot);
     auto metaData = ctf.getMetadata(slot);
     frequencyTable.addFrequencies(block.getDict(), block.getDict() + block.getNDict(), metaData.min, metaData.max);
+
+    LOG(info) << "writing dictionary to json";
+    this->mDictionaries.PushBack(rans::utils::toJSON(frequencyTable.cbegin(), frequencyTable.cend(), frequencyTable.getMinSymbol(), frequencyTable.getMaxSymbol(), this->mJSONDocument), this->mJSONDocument.GetAllocator());
+
     return frequencyTable;
   };
   auto getSymbolTablePrecision = [](const CTF::container_t& ctf, CTF::Slots slot) -> int {
@@ -287,6 +294,11 @@ void CTFCoder::encode(VEC& buff, const CompressedClusters& ccl)
   encodeTPC(ccl.nTrackClusters, ccl.nTrackClusters + ccl.nTracks, CTF::BLCnTrackClusters, 0);
   encodeTPC(ccl.nSliceRowClusters, ccl.nSliceRowClusters + ccl.nSliceRows, CTF::BLCnSliceRowClusters, 0);
   CTF::get(buff.data())->print(getPrefix());
+
+  std::ofstream f{"tpc-dicts.json"};
+  rapidjson::OStreamWrapper osw{f};
+  rapidjson::Writer<rapidjson::OStreamWrapper> writer{osw};
+  mDictionaries.Accept(writer);
 }
 
 /// decode entropy-encoded bloks to TPC CompressedClusters into the externally provided vector (e.g. PMR vector from DPL)
