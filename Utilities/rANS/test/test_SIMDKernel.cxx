@@ -27,7 +27,7 @@
 
 #include "rANS/internal/backend/simd/types.h"
 #include "rANS/internal/backend/simd/kernel.h"
-#include "rANS/internal/backend/simd/EncoderSymbol.h"
+#include "rANS/internal/backend/simd/Symbol.h"
 
 using namespace o2::rans::internal::simd;
 
@@ -223,7 +223,7 @@ BOOST_AUTO_TEST_SUITE_END()
 
 struct AosToSoaFixture {
 
-  std::vector<EncoderSymbol> mSource;
+  std::vector<Symbol> mSource;
   epi32_t<SIMDWidth::AVX512> mFrequencies;
   epi32_t<SIMDWidth::AVX512> mCumulative;
 
@@ -233,7 +233,7 @@ struct AosToSoaFixture {
     uint32_t counter = 0;
 
     for (size_t i = 0; i < nElems; ++i) {
-      EncoderSymbol symbol{counter++, counter++};
+      Symbol symbol{counter++, counter++};
       mFrequencies[i] = symbol.getFrequency();
       mCumulative[i] = symbol.getCumulative();
 
