@@ -122,7 +122,7 @@ BENCHMARK_F(RANSDataFixture, accessAOS)
 (benchmark::State& s)
 {
   using namespace o2::rans;
-  using symbol_T = internal::simd::EncoderSymbol;
+  using symbol_T = internal::simd::Symbol;
   using coder_T = uint64_t;
   const auto frequencyTable = buildFrequencyTable();
   std::vector<symbol_T> symbolTable;
@@ -156,7 +156,7 @@ BENCHMARK_F(RANSDataFixture, accessLightSymbolTable)
 (benchmark::State& s)
 {
   using namespace o2::rans;
-  using symbol_T = internal::simd::EncoderSymbol;
+  using symbol_T = internal::simd::Symbol;
   using coder_T = uint64_t;
   const internal::SymbolTable<symbol_T> symbolTable{buildFrequencyTable()};
 
@@ -253,7 +253,7 @@ void accessAOSsse(benchmark::State& s)
   RANSData data;
   const auto& sourceMessage = data.getSourceMessage();
   const auto frequencyTable = data.buildFrequencyTable();
-  std::vector<simd::EncoderSymbol> symbolTable;
+  std::vector<simd::Symbol> symbolTable;
 
   uint32_t cumulatedFrequency = 0;
   for (auto frequency : frequencyTable) {
@@ -288,7 +288,7 @@ void accessAOSsse(benchmark::State& s)
   s.SetBytesProcessed(int64_t(s.iterations()) * sourceMessage.size() * sizeof(source_T));
 };
 
-// inline std::pair<simdepi32_t<AVX>, simdepi32_t<AVX>> aosToSOA4(const EncoderSymbol* base, const uint64_t* index) noexcept
+// inline std::pair<simdepi32_t<AVX>, simdepi32_t<AVX>> aosToSOA4(const Symbol* base, const uint64_t* index) noexcept
 // {
 //   __m256i indexVec = _mm256_load_si256(reinterpret_cast<__m256i const*>(index));
 //   __m256i data = _mm256_i64gather_epi64(reinterpret_cast<const long long int*>(base), indexVec, 8);
@@ -312,7 +312,7 @@ void accessAOSsse(benchmark::State& s)
 //   return {outvec0, outvec1};
 // };
 
-inline std::pair<epi32_t<SIMDWidth::AVX>, epi32_t<SIMDWidth::AVX>> aosToSOA4(const EncoderSymbol* base, const uint64_t* index) noexcept
+inline std::pair<epi32_t<SIMDWidth::AVX>, epi32_t<SIMDWidth::AVX>> aosToSOA4(const Symbol* base, const uint64_t* index) noexcept
 {
   __m256i indexVec = _mm256_load_si256(reinterpret_cast<__m256i const*>(index));
   __m256i data = _mm256_i64gather_epi64(reinterpret_cast<const long long int*>(base), indexVec, 8);
@@ -382,7 +382,7 @@ void accessAOSavx(benchmark::State& s)
   RANSData data;
   const auto& sourceMessage = data.getSourceMessage();
   const auto frequencyTable = data.buildFrequencyTable();
-  std::vector<simd::EncoderSymbol> symbolTable;
+  std::vector<simd::Symbol> symbolTable;
 
   uint32_t cumulatedFrequency = 0;
   for (auto frequency : frequencyTable) {
