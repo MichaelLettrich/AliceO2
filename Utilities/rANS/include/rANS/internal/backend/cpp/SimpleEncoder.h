@@ -51,9 +51,12 @@ class SimpleEncoder
   template <typename stream_IT>
   stream_IT putSymbol(stream_IT outputIter, const EncoderSymbol<state_T>& symbol);
 
+  inline size_t getBranchingCount() const noexcept { return mBranchingCount; };
+
  private:
   state_T mState{LowerBound};
   size_t mSymbolTablePrecission{};
+  size_t mBranchingCount{};
 
   // Renormalize the encoder.
   template <typename stream_IT>
@@ -119,6 +122,7 @@ inline std::tuple<state_T, stream_IT> SimpleEncoder<state_T, stream_T, lowerBoun
 {
   state_T maxState = ((LowerBound >> mSymbolTablePrecission) << StreamBits) * frequency; // this turns into a shift.
   if (state >= maxState) {
+    ++mBranchingCount;
     *(++outputIter) = static_cast<stream_T>(state);
     state >>= StreamBits;
     assert(state < maxState);
