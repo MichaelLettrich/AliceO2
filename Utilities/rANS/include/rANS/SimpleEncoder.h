@@ -26,10 +26,10 @@
 #include "rANS/internal/EncoderBase.h"
 #include "rANS/internal/backend/cpp/SimpleEncoder.h"
 #include "rANS/internal/backend/cpp/Encoder.h"
-#include "rANS/internal/backend/cpp/EncoderSymbol.h"
+#include "rANS/internal/backend/cpp/DecoderSymbol.h"
 #include "rANS/internal/helper.h"
 #include "rANS/internal/SymbolTable.h"
-#include "rANS/FrequencyTable.h"
+#include "rANS/RenormedFrequencyTable.h"
 
 namespace o2
 {
@@ -39,22 +39,38 @@ namespace rans
 template <typename coder_T, typename stream_T, typename source_T, uint8_t lowerBound_V>
 class SimpleEncoder : public internal::EncoderBase<coder_T, stream_T, source_T>
 {
+ protected:
+  using ransCoder_t = internal::cpp::SimpleEncoder<coder_T, stream_T, lowerBound_V>;
 
  public:
-  //inherit constructors;
-  using internal::EncoderBase<coder_T, stream_T, source_T>::EncoderBase;
+  using simpleEncoderSymbol_t = internal::cpp::EncoderSymbol<coder_T>;
+  using encoderSymbolTable_t = typename internal::SymbolTable<simpleEncoderSymbol_t>;
+
+  using coder_t = coder_T;
+  using stream_t = stream_T;
+  using source_t = source_T;
+
+  //TODO(milettri): fix once ROOT cling respects the standard http://wg21.link/p1286r2
+  SimpleEncoder() noexcept {}; //NOLINT
+  explicit SimpleEncoder(const RenormedFrequencyTable& frequencies) : mSymbolTable{frequencies} {};
+
+  inline size_t getSymbolTablePrecision() const noexcept { return mSymbolTable.getPrecision(); }
+  inline size_t getAlphabetRangeBits() const noexcept { return mSymbolTable.getAlphabetRangeBits(); }
+  inline symbol_t getMinSymbol() const noexcept { return mSymbolTable.getMinSymbol(); }
+  inline symbol_t getMaxSymbol() const noexcept { return mSymbolTable.getMaxSymbol(); }
+  inline size_t getEncoderBranchingCount() const noexcept { return mRansCoder.getBranchingCount(); };
 
   template <typename stream_IT, typename source_IT, std::enable_if_t<internal::isCompatibleIter_v<source_T, source_IT>, bool> = true>
-  const stream_IT process(source_IT inputBegin, source_IT inputEnd, stream_IT outputBegin) const;
+  stream_IT process(source_IT inputBegin, source_IT inputEnd, stream_IT outputBegin);
 
  private:
-  //using ransCoder_t = internal::cpp::SimpleEncoder<coder_T, stream_T, lowerBound_V>;
-  using ransCoder_t = typename internal::EncoderBase<coder_T, stream_T, source_T>::ransCoder_t;
+  encoderSymbolTable_t mSymbolTable{};
+  ransCoder_t mRansCoder{0};
 };
 
 template <typename coder_T, typename stream_T, typename source_T, uint8_t lowerBound_V>
 template <typename stream_IT, typename source_IT, std::enable_if_t<internal::isCompatibleIter_v<source_T, source_IT>, bool>>
-const stream_IT SimpleEncoder<coder_T, stream_T, source_T, lowerBound_V>::process(source_IT inputBegin, source_IT inputEnd, stream_IT outputBegin) const
+stream_IT SimpleEncoder<coder_T, stream_T, source_T, lowerBound_V>::process(source_IT inputBegin, source_IT inputEnd, stream_IT outputBegin)
 {
   using namespace internal;
   LOG(trace) << "start encoding";
@@ -66,7 +82,8 @@ const stream_IT SimpleEncoder<coder_T, stream_T, source_T, lowerBound_V>::proces
     return outputBegin;
   }
 
-  ransCoder_t rans{this->getSymbolTablePrecision()};
+  mRansCoder = ransCoder_t{this->getSymbolTablePrecision()};
+  auto& rans = mRansCoder;
 
   stream_IT outputIter = outputBegin;
   source_IT inputIT = inputEnd;
