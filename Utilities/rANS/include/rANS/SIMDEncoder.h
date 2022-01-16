@@ -24,10 +24,10 @@
 #include <stdexcept>
 
 #include "rANS/internal/backend/simd/Encoder.h"
-#include "rANS/internal/backend/simd/EncoderSymbol.h"
+#include "rANS/internal/backend/simd/Symbol.h"
 #include "rANS/internal/helper.h"
-#include "rANS/internal/SymbolTable.h"
 #include "rANS/RenormedFrequencyTable.h"
+#include "rANS/internal/backend/simd/SymbolTable.h"
 
 namespace o2
 {
@@ -41,7 +41,7 @@ template <typename coder_T,
 class SIMDEncoder
 {
  protected:
-  using encoderSymbolTable_t = typename internal::SymbolTable<internal::simd::EncoderSymbol>;
+  using encoderSymbolTable_t = internal::simd::SymbolTable;
 
  public:
   //TODO(milettri): fix once ROOT cling respects the standard http://wg21.link/p1286r2
@@ -86,7 +86,7 @@ stream_IT SIMDEncoder<coder_T, stream_T, source_T, nStreams_V>::process(source_I
   source_IT inputIT = inputEnd;
 
   auto maskedEncode = [this](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder, size_t nActiveStreams = nHardwareStreams_V) {
-    std::array<internal::simd::EncoderSymbol, nHardwareStreams_V> encoderSymbols{};
+    std::array<internal::simd::Symbol, nHardwareStreams_V> encoderSymbols{};
     for (auto encSymbolIter = encoderSymbols.rend() - nActiveStreams; encSymbolIter != encoderSymbols.rend(); ++encSymbolIter) {
       const source_T symbol = *(--symbolIter);
       *encSymbolIter = (this->mSymbolTable)[symbol];
@@ -95,7 +95,7 @@ stream_IT SIMDEncoder<coder_T, stream_T, source_T, nStreams_V>::process(source_I
   };
 
   auto encode = [this](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder) {
-    std::array<internal::simd::EncoderSymbol, nHardwareStreams_V> encoderSymbols{};
+    std::array<internal::simd::Symbol, nHardwareStreams_V> encoderSymbols{};
     for (auto encSymbolIter = encoderSymbols.rbegin(); encSymbolIter != encoderSymbols.rend(); ++encSymbolIter) {
       const source_T symbol = *(--symbolIter);
       *encSymbolIter = (this->mSymbolTable)[symbol];

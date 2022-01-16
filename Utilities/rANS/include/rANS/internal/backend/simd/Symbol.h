@@ -8,7 +8,7 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// @file   EncoderSymbol.h
+/// @file   Symbol.h
 /// @author Michael Lettrich
 /// @since  2021-03-18
 /// @brief  Structure containing all relevant information to encode a symbol.
@@ -31,13 +31,13 @@ namespace internal
 namespace simd
 {
 
-class alignas(getAlignment(SIMDWidth::SSE)) EncoderSymbol
+class alignas(getAlignment(SIMDWidth::SSE)) Symbol
 {
  public:
-  constexpr EncoderSymbol() noexcept {}; //NOLINT
-  constexpr EncoderSymbol(uint32_t frequency, uint32_t cumulative) noexcept : mSymbol{frequency, cumulative} {};
+  constexpr Symbol() noexcept {}; //NOLINT
+  constexpr Symbol(uint32_t frequency, uint32_t cumulative) noexcept : mSymbol{frequency, cumulative} {};
   // legacy
-  constexpr EncoderSymbol(uint32_t frequency, uint32_t cumulative, size_t precision) noexcept : mSymbol{frequency, cumulative} {};
+  constexpr Symbol(uint32_t frequency, uint32_t cumulative, size_t precision) noexcept : mSymbol{frequency, cumulative} {};
 
   constexpr const uint32_t* data() const noexcept
   {

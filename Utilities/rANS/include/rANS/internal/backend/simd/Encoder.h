@@ -24,7 +24,11 @@
 
 #include <fairlogger/Logger.h>
 
-#include "rANS/internal/backend/simd/EncoderSymbol.h"
+#ifdef ENABLE_VTUNE_PROFILER
+#include <ittnotify.h>
+#endif
+
+#include "rANS/internal/backend/simd/Symbol.h"
 #include "rANS/internal/backend/simd/utils.h"
 #include "rANS/internal/helper.h"
 
@@ -47,25 +51,25 @@ class Encoder
                 "Coder can either be 32Bit with 8 Bit stream type or 64 Bit Type with 32 Bit stream type");
 
  public:
-  Encoder(size_t symbolTablePrecission) noexcept;
-  Encoder() noexcept : Encoder{0} {};
+  Encoder(size_t symbolTablePrecission);
+  Encoder() : Encoder{0} {};
 
   // Flushes the rANS encoder.
   template <typename Stream_IT>
   Stream_IT flush(Stream_IT outputIter);
 
   template <typename Stream_IT>
-  Stream_IT putSymbols(Stream_IT outputIter, const std::array<EncoderSymbol, nHardwareStreams_V>& encodeSymbols);
+  Stream_IT putSymbols(Stream_IT outputIter, const std::array<Symbol, nHardwareStreams_V>& encodeSymbols);
 
   template <typename Stream_IT>
-  Stream_IT putSymbols(Stream_IT outputIter, const std::array<EncoderSymbol, nHardwareStreams_V>& encodeSymbols, size_t mask);
+  Stream_IT putSymbols(Stream_IT outputIter, const std::array<Symbol, nHardwareStreams_V>& encodeSymbols, size_t mask);
 
  private:
   std::array<State_T, nHardwareStreams_V> mStates;
   size_t mSymbolTablePrecission{};
 
   template <typename Stream_IT>
-  Stream_IT putSymbol(Stream_IT outputIter, const EncoderSymbol& symbol, State_T& state);
+  Stream_IT putSymbol(Stream_IT outputIter, const Symbol& symbol, State_T& state);
 
   template <typename Stream_IT>
   Stream_IT flushState(State_T& state, Stream_IT outputIter);
@@ -80,14 +84,17 @@ class Encoder
   // fit in 32-bit uints: this permits some optimizations during encoding.
   inline static constexpr State_T LOWER_BOUND = (1u << 31); // lower bound of our normalization interval
 
-  inline static constexpr State_T STREAM_BITS = sizeof(Stream_T) * 8; // lower bound of our normalization interval
+  inline static constexpr State_T STREAM_BITS = toBits(sizeof(Stream_T)); // lower bound of our normalization interval
 };
 
 template <typename State_T, typename Stream_T, size_t nHardwareStreams_V>
-Encoder<State_T, Stream_T, nHardwareStreams_V>::Encoder(size_t symbolTablePrecission) noexcept : mSymbolTablePrecission(symbolTablePrecission)
+Encoder<State_T, Stream_T, nHardwareStreams_V>::Encoder(size_t symbolTablePrecission) : mSymbolTablePrecission(symbolTablePrecission)
 {
   for (auto& state : mStates) {
     state = LOWER_BOUND;
+  }
+  if (mSymbolTablePrecission > LOWER_BOUND) {
+    throw std::runtime_error(fmt::format("[{}]: SymbolTable Precision of {} Bits is larger than allowed by the rANS Encoder (max {} Bits)", __PRETTY_FUNCTION__, mSymbolTablePrecission, LOWER_BOUND));
   }
 };
 
@@ -104,7 +111,7 @@ Stream_IT Encoder<State_T, Stream_T, nHardwareStreams_V>::flush(Stream_IT iter)
 
 template <typename State_T, typename Stream_T, size_t nHardwareStreams_V>
 template <typename Stream_IT>
-Stream_IT Encoder<State_T, Stream_T, nHardwareStreams_V>::putSymbols(Stream_IT outputIter, const std::array<EncoderSymbol, nHardwareStreams_V>& encodeSymbols)
+Stream_IT Encoder<State_T, Stream_T, nHardwareStreams_V>::putSymbols(Stream_IT outputIter, const std::array<Symbol, nHardwareStreams_V>& encodeSymbols)
 {
 
   // can't encode symbol with freq=0
@@ -147,7 +154,7 @@ Stream_IT Encoder<State_T, Stream_T, nHardwareStreams_V>::putSymbols(Stream_IT o
 
 template <typename State_T, typename Stream_T, size_t nHardwareStreams_V>
 template <typename Stream_IT>
-Stream_IT Encoder<State_T, Stream_T, nHardwareStreams_V>::putSymbols(Stream_IT outputIter, const std::array<EncoderSymbol, nHardwareStreams_V>& encodeSymbols, size_t mask)
+Stream_IT Encoder<State_T, Stream_T, nHardwareStreams_V>::putSymbols(Stream_IT outputIter, const std::array<Symbol, nHardwareStreams_V>& encodeSymbols, size_t mask)
 {
   Stream_IT streamPos = outputIter;
 
@@ -160,7 +167,7 @@ Stream_IT Encoder<State_T, Stream_T, nHardwareStreams_V>::putSymbols(Stream_IT o
 
 template <typename State_T, typename Stream_T, size_t nHardwareStreams_V>
 template <typename Stream_IT>
-Stream_IT Encoder<State_T, Stream_T, nHardwareStreams_V>::putSymbol(Stream_IT outputIter, const EncoderSymbol& symbol, State_T& state)
+Stream_IT Encoder<State_T, Stream_T, nHardwareStreams_V>::putSymbol(Stream_IT outputIter, const Symbol& symbol, State_T& state)
 {
   assert(symbol.getFrequency() != 0); // can't encode symbol with freq=0
   // renormalize

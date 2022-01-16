@@ -86,7 +86,7 @@ BENCHMARK_F(RANSDataFixture, encodeSlow)
 {
   using namespace o2::rans;
   using coder_T = uint64_t;
-  using symbol_T = internal::simd::EncoderSymbol;
+  using symbol_T = internal::simd::Symbol;
 
   const auto symbolTable = buildSymbolTable<symbol_T>();
   const auto symbols = [this, &symbolTable]() {
@@ -162,7 +162,7 @@ void encodeSIMD(benchmark::State& s)
   using namespace o2::rans::internal::simd;
 
   RANSData data;
-  const auto symbolTable = data.buildSymbolTable<simd::EncoderSymbol>();
+  const auto symbolTable = data.buildSymbolTable<simd::Symbol>();
 
   auto [frequencies, cumulative, states] = [&data, &symbolTable](size_t initialState) {
     const auto& sourceMessage = data.getSourceMessage();
@@ -224,7 +224,7 @@ BENCHMARK_TEMPLATE(encodeSIMD, o2::rans::internal::simd::SIMDWidth::AVX);
 // {
 //   using namespace o2::rans;
 //   using coder_T = uint64_t;
-//   using symbol_T = internal::simd::EncoderSymbol;
+//   using symbol_T = internal::simd::Symbol;
 
 //   const auto symbolTable = buildSymbolTable<symbol_T>();
 
