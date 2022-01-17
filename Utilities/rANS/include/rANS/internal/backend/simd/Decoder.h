@@ -74,7 +74,7 @@ class Decoder
   // Between this and our byte-aligned emission, we use 31 (not 32!) bits.
   // This is done intentionally because exact reciprocals for 31-bit uints
   // fit in 32-bit uints: this permits some optimizations during encoding.
-  inline static constexpr state_T LOWER_BOUND = needs64Bit<state_T>() ? (1u << 31) : (1u << 23); // lower bound of our normalization interval
+  inline static constexpr state_T LOWER_BOUND = needs64Bit<state_T>() ? (1u << 20) : (1u << 23); // lower bound of our normalization interval
 
   inline static constexpr state_T STREAM_BITS = sizeof(stream_T) * 8; // lower bound of our normalization interval
 };
