@@ -19,11 +19,12 @@
 #include <immintrin.h>
 #include <cfenv>
 
-#include <tuple>
 #include <array>
+#include <tuple>
 
-#include "rANS/internal/backend/simd/utils.h"
+#include "rANS/internal/backend/simd/Symbol.h"
 #include "rANS/internal/backend/simd/types.h"
+#include "rANS/internal/backend/simd/utils.h"
 
 namespace o2
 {
@@ -163,6 +164,12 @@ inline auto int32ToDouble(const epi32_t<SIMDWidth::AVX>& in) noexcept
 //
 inline pd_t<SIMDWidth::SSE> uint64ToDouble(const epi64_t<SIMDWidth::SSE>& in) noexcept
 {
+#if !defined(NDEBUG)
+  for (auto i : in) {
+    assert(i < pow2(52));
+  }
+#endif
+
   __m128i inReg = load(in);
   inReg = _mm_or_si128(inReg, _mm_castpd_si128(_mm_set1_pd(detail::AlignMantissaMagic)));
   __m128d outReg = _mm_sub_pd(_mm_castsi128_pd(inReg), _mm_set1_pd(detail::AlignMantissaMagic));
@@ -177,6 +184,11 @@ inline pd_t<SIMDWidth::SSE> uint64ToDouble(const epi64_t<SIMDWidth::SSE>& in) no
 //
 inline pd_t<SIMDWidth::AVX> uint64ToDouble(const epi64_t<SIMDWidth::AVX>& in) noexcept
 {
+#if !defined(NDEBUG)
+  for (auto i : in) {
+    assert(i < pow2(52));
+  }
+#endif
   __m256i inReg = load(in);
   inReg = _mm256_or_si256(inReg, _mm256_castpd_si256(_mm256_set1_pd(detail::AlignMantissaMagic)));
   __m256d outReg = _mm256_sub_pd(_mm256_castsi256_pd(inReg), _mm256_set1_pd(detail::AlignMantissaMagic));
@@ -203,6 +215,11 @@ inline pd_t<SIMDWidth::AVX512> uint64ToDouble(const epi64_t<SIMDWidth::AVX512>& 
 //
 inline epi64_t<SIMDWidth::SSE> doubleToUint64(const pd_t<SIMDWidth::SSE>& in) noexcept
 {
+#if !defined(NDEBUG)
+  for (auto i : in) {
+    assert(i < pow2(52));
+  }
+#endif
   __m128d inReg = load(in);
   inReg = _mm_add_pd(inReg, _mm_set1_pd(detail::AlignMantissaMagic));
   __m128i outReg = _mm_xor_si128(_mm_castpd_si128(inReg),
@@ -218,6 +235,12 @@ inline epi64_t<SIMDWidth::SSE> doubleToUint64(const pd_t<SIMDWidth::SSE>& in) no
 //
 inline epi64_t<SIMDWidth::AVX> doubleToUint64(const pd_t<SIMDWidth::AVX>& in) noexcept
 {
+#if !defined(NDEBUG)
+  for (auto i : in) {
+    assert(i < pow2(52));
+  }
+#endif
+
   __m256d inReg = load(in);
   inReg = _mm256_add_pd(inReg, _mm256_set1_pd(detail::AlignMantissaMagic));
   __m256i outReg = _mm256_xor_si256(_mm256_castpd_si256(inReg),
@@ -282,10 +305,16 @@ inline std::tuple<pd_t<SIMDWidth::AVX512>, pd_t<SIMDWidth::AVX512>> divMod(const
 //
 inline epi64_t<SIMDWidth::SSE> ransEncode(const epi64_t<SIMDWidth::SSE>& state, const pd_t<SIMDWidth::SSE>& frequency, const pd_t<SIMDWidth::SSE>& cumulative, uint32_t normalization) noexcept
 {
+#if !defined(NDEBUG)
+  for (auto i : state) {
+    assert(i < pow2(52));
+  }
+#endif
+
   auto [div, mod] = divMod(uint64ToDouble(state), frequency);
   auto divReg = load(div);
   auto modReg = load(mod);
-  auto newState = _mm_fmadd_pd(_mm_set1_pd(normalization), divReg, load(cumulative));
+  auto newState = _mm_fmadd_pd(divReg, _mm_set1_pd(normalization), load(cumulative));
   newState = _mm_add_pd(newState, modReg);
 
   return doubleToUint64(store(newState));
@@ -298,6 +327,12 @@ inline epi64_t<SIMDWidth::SSE> ransEncode(const epi64_t<SIMDWidth::SSE>& state, 
 //
 inline epi64_t<SIMDWidth::AVX> ransEncode(const epi64_t<SIMDWidth::AVX>& state, const pd_t<SIMDWidth::AVX>& frequency, const pd_t<SIMDWidth::AVX>& cumulative, uint32_t normalization) noexcept
 {
+#if !defined(NDEBUG)
+  for (auto i : state) {
+    assert(i < pow2(52));
+  }
+#endif
+
   auto [div, mod] = divMod(uint64ToDouble(state), frequency);
   auto divReg = load(div);
   auto modReg = load(mod);
@@ -326,10 +361,10 @@ inline epi64_t<SIMDWidth::AVX512> ransEncode(const epi64_t<SIMDWidth::AVX512>& s
 
 #endif /* __AVX_512F_ */
 
-inline std::tuple<simd::epi32_t<simd::SIMDWidth::SSE>, simd::epi32_t<simd::SIMDWidth::SSE>> aosToSoa(const std::array<const uint32_t*, 2>& in) noexcept
+inline std::tuple<simd::epi32_t<simd::SIMDWidth::SSE>, simd::epi32_t<simd::SIMDWidth::SSE>> aosToSoa(const std::array<Symbol, 2>& in) noexcept
 {
-  __m128i in0Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[0]));
-  __m128i in1Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[1]));
+  __m128i in0Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[0].data()));
+  __m128i in1Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[1].data()));
 
   __m128i res0Reg = _mm_unpacklo_epi32(in0Reg, in1Reg);
   __m128i res1Reg = _mm_shuffle_epi32(res0Reg, _MM_SHUFFLE(0, 0, 3, 2));
@@ -337,12 +372,14 @@ inline std::tuple<simd::epi32_t<simd::SIMDWidth::SSE>, simd::epi32_t<simd::SIMDW
   return {store<uint32_t>(res0Reg), store<uint32_t>(res1Reg)};
 };
 
-inline std::tuple<epi32_t<SIMDWidth::SSE>, epi32_t<SIMDWidth::SSE>> aosToSoa(const std::array<const uint32_t*, 4>& in) noexcept
+#ifdef __AVX2__
+
+inline std::tuple<epi32_t<SIMDWidth::SSE>, epi32_t<SIMDWidth::SSE>> aosToSoa(const std::array<Symbol, 4>& in) noexcept
 {
-  __m128i in0Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[0]));
-  __m128i in1Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[1]));
-  __m128i in2Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[2]));
-  __m128i in3Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[3]));
+  __m128i in0Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[0].data()));
+  __m128i in1Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[1].data()));
+  __m128i in2Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[2].data()));
+  __m128i in3Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[3].data()));
 
   __m128i merged0Reg = _mm_unpacklo_epi32(in0Reg, in1Reg);
   __m128i merged1Reg = _mm_unpacklo_epi32(in2Reg, in3Reg);
@@ -352,11 +389,10 @@ inline std::tuple<epi32_t<SIMDWidth::SSE>, epi32_t<SIMDWidth::SSE>> aosToSoa(con
   return {store<uint32_t>(res0Reg), store<uint32_t>(res1Reg)};
 };
 
-#ifdef __AVX2__
-inline std::tuple<epi32_t<SIMDWidth::AVX>, epi32_t<SIMDWidth::AVX>> aosToSoa(const std::array<const uint32_t*, 8>& in) noexcept
+inline std::tuple<epi32_t<SIMDWidth::AVX>, epi32_t<SIMDWidth::AVX>> aosToSoa(const std::array<Symbol, 8>& in) noexcept
 {
-  std::array<const uint32_t*, 4> first{in[0], in[1], in[2], in[3]};
-  std::array<const uint32_t*, 4> second{in[4], in[5], in[6], in[7]};
+  std::array<Symbol, 4> first{in[0], in[1], in[2], in[3]};
+  std::array<Symbol, 4> second{in[4], in[5], in[6], in[7]};
 
   auto [arr00, arr01] = aosToSoa(first);
   auto [arr10, arr11] = aosToSoa(second);
