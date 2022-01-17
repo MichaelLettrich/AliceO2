@@ -52,6 +52,12 @@ inline constexpr size_t getElementCount(SIMDWidth width) noexcept
   return getLaneWidthBytes(width) / sizeof(T);
 };
 
+template <typename T>
+inline constexpr SIMDWidth getSimdWidth(size_t nHardwareStreams) noexcept
+{
+  return static_cast<SIMDWidth>(nHardwareStreams * toBits(sizeof(T)));
+};
+
 template <typename T, SIMDWidth simdWidth_V>
 class alignas(getAlignment(simdWidth_V)) AlignedArray
 {
@@ -107,7 +113,7 @@ struct simdWidth<AlignedArray<T, simd_V>> : public std::integral_constant<SIMDWi
 };
 
 template <typename T>
-inline constexpr SIMDWidth getSimdWidth_v = simdWidth<T>::value;
+inline constexpr SIMDWidth simdWidth_v = simdWidth<T>::value;
 
 template <typename T>
 struct elementCount;

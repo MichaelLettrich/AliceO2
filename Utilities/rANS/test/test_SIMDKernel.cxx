@@ -116,7 +116,7 @@ BOOST_FIXTURE_TEST_SUITE(test_SIMDconvert32, ConvertingFixture32)
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(simd_int32ToDouble, epi32_T, epi32_types)
 {
-  constexpr SIMDWidth simdWidth_V = getSimdWidth_v<epi32_T>;
+  constexpr SIMDWidth simdWidth_V = simdWidth_v<epi32_T>;
   using simdPD_T = pd_t<simdWidth_V>;
 
   for (size_t i = 0; i < uint32Data.size(); ++i) {
@@ -202,7 +202,7 @@ BOOST_FIXTURE_TEST_SUITE(testRANSEncode, RANSEncodeFixture)
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(simd_RansEncode, pd_T, pd_types)
 {
-  using epi64_T = epi64_t<getSimdWidth_v<pd_T>>;
+  using epi64_T = epi64_t<simdWidth_v<pd_T>>;
 
   const size_t nTests = mFrequency.size();
 
