@@ -29,6 +29,7 @@
 #endif
 
 #include "rANS/internal/backend/simd/Symbol.h"
+#include "rANS/internal/backend/simd/kernel.h"
 #include "rANS/internal/backend/simd/utils.h"
 #include "rANS/internal/helper.h"
 
@@ -63,7 +64,7 @@ class Encoder
   Stream_IT putSymbols(Stream_IT outputIter, const std::array<Symbol, nHardwareStreams>& encodeSymbols, size_t mask);
 
  private:
-  std::array<state_t, nHardwareStreams> mStates;
+  epi64_t<simdWidth_V> mStates;
   size_t mSymbolTablePrecission{};
 
   template <typename Stream_IT>
@@ -80,17 +81,14 @@ class Encoder
   // Between this and our byte-aligned emission, we use 31 (not 32!) bits.
   // This is done intentionally because exact reciprocals for 31-bit uints
   // fit in 32-bit uints: this permits some optimizations during encoding.
-  inline static constexpr state_t LOWER_BOUND = (1u << 31); // lower bound of our normalization interval
+  inline static constexpr state_t LOWER_BOUND = pow2(20); // lower bound of our normalization interval
 
   inline static constexpr state_t STREAM_BITS = toBits(sizeof(stream_t)); // lower bound of our normalization interval
 };
 
 template <SIMDWidth simdWidth_V>
-Encoder<simdWidth_V>::Encoder(size_t symbolTablePrecission) : mSymbolTablePrecission(symbolTablePrecission)
+Encoder<simdWidth_V>::Encoder(size_t symbolTablePrecission) : mStates{LOWER_BOUND}, mSymbolTablePrecission{symbolTablePrecission}
 {
-  for (auto& state : mStates) {
-    state = LOWER_BOUND;
-  }
   if (mSymbolTablePrecission > LOWER_BOUND) {
     throw std::runtime_error(fmt::format("[{}]: SymbolTable Precision of {} Bits is larger than allowed by the rANS Encoder (max {} Bits)", __PRETTY_FUNCTION__, mSymbolTablePrecission, LOWER_BOUND));
   }
@@ -128,25 +126,10 @@ Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, const std::arra
     return streamIter;
   }();
 
-  //calculate div and mod
-  auto [div, mod] = [this, &encodeSymbols]() {
-    std::array<uint64_t, nHardwareStreams> div;
-    std::array<uint64_t, nHardwareStreams> mod;
+  const auto [frequencies, cumulativeFrequencies] = aosToSoa(encodeSymbols);
+  const auto [div, mod] = divMod(uint64ToDouble(mStates), int32ToDouble<simdWidth_V>(frequencies));
+  mStates = ransEncode(mStates, int32ToDouble<simdWidth_V>(frequencies), int32ToDouble<simdWidth_V>(cumulativeFrequencies), pow2(mSymbolTablePrecission));
 
-    for (size_t i = 0; i < nHardwareStreams; ++i) {
-      div[i] = mStates[i] / encodeSymbols[i].getFrequency();
-      mod[i] = mStates[i] - div[i] * encodeSymbols[i].getFrequency();
-    }
-    return std::make_tuple(div, mod);
-  }();
-
-  // encode
-  // x = C(s,x)
-  [this, &encodeSymbols](auto& div, auto& mod) {
-    for (size_t i = 0; i < nHardwareStreams; ++i) {
-      mStates[i] = (div[i] << mSymbolTablePrecission) + mod[i] + encodeSymbols[i].getCumulative();
-    }
-  }(div, mod);
   return streamPosition;
 } // namespace fp64
 
