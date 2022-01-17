@@ -28,7 +28,7 @@
 #include "rANS/internal/backend/cpp/DecoderSymbol.h"
 #include "rANS/internal/ReverseSymbolLookupTable.h"
 #include "rANS/internal/SymbolTable.h"
-#include "rANS/internal/backend/cpp/Decoder.h"
+#include "rANS/internal/backend/simd/Decoder.h"
 #include "rANS/internal/DecoderBase.h"
 #include "rANS/internal/helper.h"
 
@@ -50,7 +50,7 @@ class SIMDDecoder : public internal::DecoderBase<coder_T, stream_T, source_T>
   void process(stream_IT inputEnd, source_IT outputBegin, size_t messageLength) const;
 
  private:
-  using ransDecoder_t = typename internal::DecoderBase<coder_T, stream_T, source_T>::ransDecoder_t;
+  using ransDecoder_t = internal::simd::Decoder<coder_T, stream_T>;
 };
 
 template <typename coder_T, typename stream_T, typename source_T>
