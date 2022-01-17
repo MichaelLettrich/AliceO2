@@ -41,16 +41,13 @@ namespace internal
 namespace simd
 {
 
-template <typename State_T, typename Stream_T, size_t nHardwareStreams_V>
+template <size_t nHardwareStreams_V>
 class Encoder
 {
-  // the Coder works either with a 64Bit state and 32 bit streaming or
-  //a 32 Bit state and 8 Bit streaming We need to make sure it gets initialized with
-  //the right template arguments at compile time.
-  static_assert((sizeof(State_T) == sizeof(uint64_t) && sizeof(Stream_T) == sizeof(uint32_t)),
-                "Coder can either be 32Bit with 8 Bit stream type or 64 Bit Type with 32 Bit stream type");
-
  public:
+  using stream_t = uint32_t;
+  using state_t = uint64_t;
+
   Encoder(size_t symbolTablePrecission);
   Encoder() : Encoder{0} {};
 
@@ -65,30 +62,30 @@ class Encoder
   Stream_IT putSymbols(Stream_IT outputIter, const std::array<Symbol, nHardwareStreams_V>& encodeSymbols, size_t mask);
 
  private:
-  std::array<State_T, nHardwareStreams_V> mStates;
+  std::array<state_t, nHardwareStreams_V> mStates;
   size_t mSymbolTablePrecission{};
 
   template <typename Stream_IT>
-  Stream_IT putSymbol(Stream_IT outputIter, const Symbol& symbol, State_T& state);
+  Stream_IT putSymbol(Stream_IT outputIter, const Symbol& symbol, state_t& state);
 
   template <typename Stream_IT>
-  Stream_IT flushState(State_T& state, Stream_IT outputIter);
+  Stream_IT flushState(state_t& state, Stream_IT outputIter);
 
   // Renormalize the encoder.
   template <typename Stream_IT>
-  std::tuple<State_T, Stream_IT> renorm(State_T state, Stream_IT outputIter, uint32_t frequency);
+  std::tuple<state_t, Stream_IT> renorm(state_t state, Stream_IT outputIter, uint32_t frequency);
 
   // L ('l' in the paper) is the lower bound of our normalization interval.
   // Between this and our byte-aligned emission, we use 31 (not 32!) bits.
   // This is done intentionally because exact reciprocals for 31-bit uints
   // fit in 32-bit uints: this permits some optimizations during encoding.
-  inline static constexpr State_T LOWER_BOUND = (1u << 31); // lower bound of our normalization interval
+  inline static constexpr state_t LOWER_BOUND = (1u << 31); // lower bound of our normalization interval
 
-  inline static constexpr State_T STREAM_BITS = toBits(sizeof(Stream_T)); // lower bound of our normalization interval
+  inline static constexpr state_t STREAM_BITS = toBits(sizeof(stream_t)); // lower bound of our normalization interval
 };
 
-template <typename State_T, typename Stream_T, size_t nHardwareStreams_V>
-Encoder<State_T, Stream_T, nHardwareStreams_V>::Encoder(size_t symbolTablePrecission) : mSymbolTablePrecission(symbolTablePrecission)
+template <size_t nHardwareStreams_V>
+Encoder<nHardwareStreams_V>::Encoder(size_t symbolTablePrecission) : mSymbolTablePrecission(symbolTablePrecission)
 {
   for (auto& state : mStates) {
     state = LOWER_BOUND;
@@ -98,9 +95,9 @@ Encoder<State_T, Stream_T, nHardwareStreams_V>::Encoder(size_t symbolTablePrecis
   }
 };
 
-template <typename State_T, typename Stream_T, size_t nHardwareStreams_V>
+template <size_t nHardwareStreams_V>
 template <typename Stream_IT>
-Stream_IT Encoder<State_T, Stream_T, nHardwareStreams_V>::flush(Stream_IT iter)
+Stream_IT Encoder<nHardwareStreams_V>::flush(Stream_IT iter)
 {
   Stream_IT streamPos = iter;
   for (auto stateIter = mStates.rbegin(); stateIter != mStates.rend(); ++stateIter) {
@@ -109,9 +106,9 @@ Stream_IT Encoder<State_T, Stream_T, nHardwareStreams_V>::flush(Stream_IT iter)
   return streamPos;
 };
 
-template <typename State_T, typename Stream_T, size_t nHardwareStreams_V>
+template <size_t nHardwareStreams_V>
 template <typename Stream_IT>
-Stream_IT Encoder<State_T, Stream_T, nHardwareStreams_V>::putSymbols(Stream_IT outputIter, const std::array<Symbol, nHardwareStreams_V>& encodeSymbols)
+Stream_IT Encoder<nHardwareStreams_V>::putSymbols(Stream_IT outputIter, const std::array<Symbol, nHardwareStreams_V>& encodeSymbols)
 {
 
   // can't encode symbol with freq=0
@@ -152,9 +149,9 @@ Stream_IT Encoder<State_T, Stream_T, nHardwareStreams_V>::putSymbols(Stream_IT o
   return streamPosition;
 } // namespace fp64
 
-template <typename State_T, typename Stream_T, size_t nHardwareStreams_V>
+template <size_t nHardwareStreams_V>
 template <typename Stream_IT>
-Stream_IT Encoder<State_T, Stream_T, nHardwareStreams_V>::putSymbols(Stream_IT outputIter, const std::array<Symbol, nHardwareStreams_V>& encodeSymbols, size_t mask)
+Stream_IT Encoder<nHardwareStreams_V>::putSymbols(Stream_IT outputIter, const std::array<Symbol, nHardwareStreams_V>& encodeSymbols, size_t mask)
 {
   Stream_IT streamPos = outputIter;
 
@@ -165,9 +162,9 @@ Stream_IT Encoder<State_T, Stream_T, nHardwareStreams_V>::putSymbols(Stream_IT o
   return streamPos;
 };
 
-template <typename State_T, typename Stream_T, size_t nHardwareStreams_V>
+template <size_t nHardwareStreams_V>
 template <typename Stream_IT>
-Stream_IT Encoder<State_T, Stream_T, nHardwareStreams_V>::putSymbol(Stream_IT outputIter, const Symbol& symbol, State_T& state)
+Stream_IT Encoder<nHardwareStreams_V>::putSymbol(Stream_IT outputIter, const Symbol& symbol, state_t& state)
 {
   assert(symbol.getFrequency() != 0); // can't encode symbol with freq=0
   // renormalize
@@ -178,29 +175,29 @@ Stream_IT Encoder<State_T, Stream_T, nHardwareStreams_V>::putSymbol(Stream_IT ou
   return streamPos;
 }
 
-template <typename State_T, typename Stream_T, size_t nHardwareStreams_V>
+template <size_t nHardwareStreams_V>
 template <typename Stream_IT>
-Stream_IT Encoder<State_T, Stream_T, nHardwareStreams_V>::flushState(State_T& state, Stream_IT iter)
+Stream_IT Encoder<nHardwareStreams_V>::flushState(state_t& state, Stream_IT iter)
 {
   Stream_IT streamPosition = iter;
 
   ++streamPosition;
-  *streamPosition = static_cast<Stream_T>(state >> 32);
+  *streamPosition = static_cast<stream_t>(state >> 32);
   ++streamPosition;
-  *streamPosition = static_cast<Stream_T>(state >> 0);
+  *streamPosition = static_cast<stream_t>(state >> 0);
 
   state = 0;
   return streamPosition;
 }
 
-template <typename State_T, typename Stream_T, size_t nHardwareStreams_V>
+template <size_t nHardwareStreams_V>
 template <typename Stream_IT>
-inline std::tuple<State_T, Stream_IT> Encoder<State_T, Stream_T, nHardwareStreams_V>::renorm(State_T state, Stream_IT outputIter, uint32_t frequency)
+inline auto Encoder<nHardwareStreams_V>::renorm(state_t state, Stream_IT outputIter, uint32_t frequency) -> std::tuple<state_t, Stream_IT>
 {
-  State_T maxState = ((LOWER_BOUND >> mSymbolTablePrecission) << STREAM_BITS) * frequency; // this turns into a shift.
+  state_t maxState = ((LOWER_BOUND >> mSymbolTablePrecission) << STREAM_BITS) * frequency; // this turns into a shift.
   if (state >= maxState) {
     ++outputIter;
-    *outputIter = static_cast<Stream_T>(state);
+    *outputIter = static_cast<stream_t>(state);
     state >>= STREAM_BITS;
     assert(state < maxState);
   }

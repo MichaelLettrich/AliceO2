@@ -63,7 +63,7 @@ class SIMDEncoder
   //TODO(milettri): make this depend on hardware
   static constexpr size_t nHardwareStreams_V = 4;
   static constexpr size_t nInterleavedStreams_V = nStreams_V / nHardwareStreams_V;
-  using ransCoder_t = typename internal::simd::Encoder<coder_T, stream_T, nHardwareStreams_V>;
+  using ransCoder_t = typename internal::simd::Encoder<nHardwareStreams_V>;
 };
 
 template <typename coder_T, typename stream_T, typename source_T, uint8_t nStreams_V>
