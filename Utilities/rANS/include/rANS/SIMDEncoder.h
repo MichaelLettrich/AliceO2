@@ -23,6 +23,7 @@
 #include <fairlogger/Logger.h>
 #include <stdexcept>
 
+#include "rANS/internal/backend/simd/types.h"
 #include "rANS/internal/backend/simd/Encoder.h"
 #include "rANS/internal/backend/simd/Symbol.h"
 #include "rANS/internal/helper.h"
@@ -63,7 +64,8 @@ class SIMDEncoder
   //TODO(milettri): make this depend on hardware
   static constexpr size_t nHardwareStreams_V = 4;
   static constexpr size_t nInterleavedStreams_V = nStreams_V / nHardwareStreams_V;
-  using ransCoder_t = typename internal::simd::Encoder<nHardwareStreams_V>;
+  static constexpr internal::simd::SIMDWidth simdWidth = internal::simd::getSimdWidth<coder_T>(nHardwareStreams_V);
+  using ransCoder_t = typename internal::simd::Encoder<simdWidth>;
 };
 
 template <typename coder_T, typename stream_T, typename source_T, uint8_t nStreams_V>
