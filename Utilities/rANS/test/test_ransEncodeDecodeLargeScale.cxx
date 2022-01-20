@@ -33,7 +33,6 @@ using stream_t = uint32_t;
 using coder_t = uint64_t;
 
 inline constexpr size_t SymbolTablePrecision = 24;
-inline constexpr uint8_t LowerBound = 31;
 
 struct Fixture {
   Fixture()
@@ -58,8 +57,8 @@ BOOST_FIXTURE_TEST_CASE(test_largeScaleEncodeDecode, Fixture)
 {
   auto frequencies = o2::rans::renorm(o2::rans::makeFrequencyTableFromSamples(std::begin(sourceSymbols), std::end(sourceSymbols)), SymbolTablePrecision);
 
-  o2::rans::SimpleEncoder<coder_t, stream_t, source_t, LowerBound> encoder{frequencies};
-  o2::rans::SimpleDecoder<coder_t, stream_t, source_t, LowerBound> decoder{frequencies};
+  o2::rans::SimpleEncoder<coder_t, stream_t, source_t> encoder{frequencies};
+  o2::rans::SimpleDecoder<coder_t, stream_t, source_t> decoder{frequencies};
 
   std::vector<stream_t> encodeBuffer{};
   std::vector<source_t> decodeBuffer{};

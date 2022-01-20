@@ -34,7 +34,7 @@ namespace internal
 namespace cpp
 {
 
-template <typename state_T, typename stream_T, uint8_t lowerBound_V>
+template <typename state_T, typename stream_T>
 class SimpleDecoder
 {
 
@@ -67,17 +67,17 @@ class SimpleDecoder
   // Between this and our byte-aligned emission, we use 31 (not 32!) bits.
   // This is done intentionally because exact reciprocals for 31-bit uints
   // fit in 32-bit uints: this permits some optimizations during encoding.
-  //  inline static constexpr state_T LOWER_BOUND = needs64Bit<state_T>() ? (1u << 31) : (1u << 23); // lower bound of our normalization interval
+  inline static constexpr state_T LOWER_BOUND = needs64Bit<state_T>() ? pow2(32) : pow2(23); // lower bound of our normalization interval
 
-  //inline static constexpr state_T STREAM_BITS = sizeof(stream_T) * 8; // lower bound of our normalization interval
+  inline static constexpr state_T STREAM_BITS = toBits(sizeof(stream_T));
 };
 
-template <typename state_T, typename stream_T, uint8_t lowerBound_V>
-SimpleDecoder<state_T, stream_T, lowerBound_V>::SimpleDecoder(size_t symbolTablePrecission) noexcept : mSymbolTablePrecision{symbolTablePrecission} {};
+template <typename state_T, typename stream_T>
+SimpleDecoder<state_T, stream_T>::SimpleDecoder(size_t symbolTablePrecission) noexcept : mSymbolTablePrecision{symbolTablePrecission} {};
 
-template <typename state_T, typename stream_T, uint8_t lowerBound_V>
+template <typename state_T, typename stream_T>
 template <typename stream_IT>
-stream_IT SimpleDecoder<state_T, stream_T, lowerBound_V>::init(stream_IT inputIter)
+stream_IT SimpleDecoder<state_T, stream_T>::init(stream_IT inputIter)
 {
   constexpr size_t StateBits = toBits(sizeof(state_T));
   constexpr size_t StreamBits = toBits(sizeof(stream_T));
@@ -92,16 +92,16 @@ stream_IT SimpleDecoder<state_T, stream_T, lowerBound_V>::init(stream_IT inputIt
   return streamPosition;
 };
 
-template <typename state_T, typename stream_T, uint8_t lowerBound_V>
-uint32_t SimpleDecoder<state_T, stream_T, lowerBound_V>::get()
+template <typename state_T, typename stream_T>
+uint32_t SimpleDecoder<state_T, stream_T>::get()
 {
   const state_T extractionMask = static_cast<state_T>(pow2(mSymbolTablePrecision) - 1);
   return mState & extractionMask;
 };
 
-template <typename state_T, typename stream_T, uint8_t lowerBound_V>
+template <typename state_T, typename stream_T>
 template <typename stream_IT, std::enable_if_t<isCompatibleIter_v<stream_T, stream_IT>, bool>>
-stream_IT SimpleDecoder<state_T, stream_T, lowerBound_V>::advanceSymbol(stream_IT inputIter, const DecoderSymbol& symbol)
+stream_IT SimpleDecoder<state_T, stream_T>::advanceSymbol(stream_IT inputIter, const DecoderSymbol& symbol)
 {
   // s, x = D(x)
   state_T newState = mState;
@@ -113,19 +113,16 @@ stream_IT SimpleDecoder<state_T, stream_T, lowerBound_V>::advanceSymbol(stream_I
   return newStreamPosition;
 };
 
-template <typename state_T, typename stream_T, uint8_t lowerBound_V>
+template <typename state_T, typename stream_T>
 template <typename stream_IT, std::enable_if_t<isCompatibleIter_v<stream_T, stream_IT>, bool>>
-inline std::tuple<state_T, stream_IT> SimpleDecoder<state_T, stream_T, lowerBound_V>::renorm(state_T state, stream_IT inputIter)
+inline std::tuple<state_T, stream_IT> SimpleDecoder<state_T, stream_T>::renorm(state_T state, stream_IT inputIter)
 {
-  constexpr size_t StreamBits = toBits(sizeof(stream_T));
-  constexpr size_t LowerBound = pow2(lowerBound_V);
-
   stream_IT streamPosition = inputIter;
   // renormalize
-  if (state < LowerBound) {
-    state = (state << StreamBits) | *streamPosition;
+  if (state < LOWER_BOUND) {
+    state = (state << STREAM_BITS) | *streamPosition;
     --streamPosition;
-    assert(state >= LowerBound);
+    assert(state >= LOWER_BOUND);
   }
 
   return std::make_tuple(state, streamPosition);

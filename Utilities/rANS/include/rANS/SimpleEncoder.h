@@ -36,15 +36,14 @@ namespace o2
 namespace rans
 {
 
-template <typename coder_T, typename stream_T, typename source_T, uint8_t lowerBound_V>
+template <typename coder_T, typename stream_T, typename source_T>
 class SimpleEncoder : public internal::EncoderBase<coder_T, stream_T, source_T>
 {
  protected:
-  using ransCoder_t = internal::cpp::SimpleEncoder<coder_T, stream_T, lowerBound_V>;
+  using ransCoder_t = internal::cpp::SimpleEncoder<coder_T, stream_T>;
 
  public:
-  using simpleEncoderSymbol_t = internal::cpp::EncoderSymbol<coder_T>;
-  using encoderSymbolTable_t = typename internal::SymbolTable<simpleEncoderSymbol_t>;
+  using encoderSymbolTable_t = typename internal::SymbolTable<internal::cpp::DecoderSymbol>;
 
   using coder_t = coder_T;
   using stream_t = stream_T;
@@ -58,7 +57,6 @@ class SimpleEncoder : public internal::EncoderBase<coder_T, stream_T, source_T>
   inline size_t getAlphabetRangeBits() const noexcept { return mSymbolTable.getAlphabetRangeBits(); }
   inline symbol_t getMinSymbol() const noexcept { return mSymbolTable.getMinSymbol(); }
   inline symbol_t getMaxSymbol() const noexcept { return mSymbolTable.getMaxSymbol(); }
-  inline size_t getEncoderBranchingCount() const noexcept { return mRansCoder.getBranchingCount(); };
 
   template <typename stream_IT, typename source_IT, std::enable_if_t<internal::isCompatibleIter_v<source_T, source_IT>, bool> = true>
   stream_IT process(source_IT inputBegin, source_IT inputEnd, stream_IT outputBegin);
@@ -68,9 +66,9 @@ class SimpleEncoder : public internal::EncoderBase<coder_T, stream_T, source_T>
   ransCoder_t mRansCoder{0};
 };
 
-template <typename coder_T, typename stream_T, typename source_T, uint8_t lowerBound_V>
+template <typename coder_T, typename stream_T, typename source_T>
 template <typename stream_IT, typename source_IT, std::enable_if_t<internal::isCompatibleIter_v<source_T, source_IT>, bool>>
-stream_IT SimpleEncoder<coder_T, stream_T, source_T, lowerBound_V>::process(source_IT inputBegin, source_IT inputEnd, stream_IT outputBegin)
+stream_IT SimpleEncoder<coder_T, stream_T, source_T>::process(source_IT inputBegin, source_IT inputEnd, stream_IT outputBegin)
 {
   using namespace internal;
   LOG(trace) << "start encoding";
