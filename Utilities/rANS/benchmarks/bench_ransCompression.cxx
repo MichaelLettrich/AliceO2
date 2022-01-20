@@ -11,26 +11,6 @@
 #include "rANS/SimpleDecoder.h"
 #include "rANS/rans.h"
 
-template <typename conder_T, typename stream_T>
-struct LowerBound : public std::integral_constant<uint8_t, 0> {
-};
-
-template <>
-struct LowerBound<uint32_t, uint8_t> : public std::integral_constant<uint8_t, 24> {
-};
-template <>
-struct LowerBound<uint32_t, uint16_t> : public std::integral_constant<uint8_t, 16> {
-};
-template <>
-struct LowerBound<uint64_t, uint8_t> : public std::integral_constant<uint8_t, 56> {
-};
-template <>
-struct LowerBound<uint64_t, uint16_t> : public std::integral_constant<uint8_t, 48> {
-};
-template <>
-struct LowerBound<uint64_t, uint32_t> : public std::integral_constant<uint8_t, 32> {
-};
-
 inline constexpr size_t SourceSize = o2::rans::internal::pow2(24) + 3;
 
 double_t computeExpectedCodewordLength(const o2::rans::FrequencyTable& frequencies, const o2::rans::RenormedFrequencyTable& rescaled)
@@ -83,15 +63,13 @@ struct Fixture : public benchmark::Fixture {
 template <typename coder_T, typename stream_T, typename source_T>
 void ransCompressionBenchmark(benchmark::State& st, const std::vector<source_T>& sourceMessage)
 {
-  constexpr uint8_t lowerBound = LowerBound<coder_T, stream_T>::value;
-
   const size_t SymbolTablePrecision = st.range(0);
 
   o2::rans::FrequencyTable frequencies = o2::rans::makeFrequencyTableFromSamples(std::begin(sourceMessage), std::end(sourceMessage));
   o2::rans::RenormedFrequencyTable rescaledFrequencies = o2::rans::renorm(frequencies, SymbolTablePrecision);
 
-  o2::rans::SimpleEncoder<coder_T, stream_T, source_T, lowerBound> encoder{rescaledFrequencies};
-  o2::rans::SimpleDecoder<coder_T, stream_T, source_T, lowerBound> decoder{rescaledFrequencies};
+  o2::rans::SimpleEncoder<coder_T, stream_T, source_T> encoder{rescaledFrequencies};
+  o2::rans::SimpleDecoder<coder_T, stream_T, source_T> decoder{rescaledFrequencies};
 
   std::vector<stream_T> encodeBuffer{};
   std::vector<source_T> decodeBuffer{};
@@ -122,7 +100,6 @@ void ransCompressionBenchmark(benchmark::State& st, const std::vector<source_T>&
   st.counters["ExpectedCodewordLength"] = computeExpectedCodewordLength(frequencies, rescaledFrequencies);
   st.counters["LowerBound"] = sourceMessage.size() * (static_cast<double>(st.counters["Entropy"]) / 8);
   st.counters["CompressionWRTEntropy"] = st.counters["CompressedSize"] / st.counters["LowerBound"];
-  st.counters["BranchingFactor"] = static_cast<double>(encoder.getEncoderBranchingCount()) / sourceMessage.size();
 };
 
 BENCHMARK_TEMPLATE_DEFINE_F(Fixture, ransCompression_64_32_8, uint64_t, uint32_t, uint8_t)

@@ -38,7 +38,7 @@ namespace o2
 namespace rans
 {
 
-template <typename coder_T, typename stream_T, typename source_T, uint8_t lowerBound_V>
+template <typename coder_T, typename stream_T, typename source_T>
 class SimpleDecoder : public internal::DecoderBase<coder_T, stream_T, source_T>
 {
  public:
@@ -48,12 +48,12 @@ class SimpleDecoder : public internal::DecoderBase<coder_T, stream_T, source_T>
   void process(stream_IT inputEnd, source_IT outputBegin, size_t messageLength) const;
 
  private:
-  using ransDecoder_t = internal::cpp::SimpleDecoder<coder_T, stream_T, lowerBound_V>;
+  using ransDecoder_t = internal::cpp::SimpleDecoder<coder_T, stream_T>;
 };
 
-template <typename coder_T, typename stream_T, typename source_T, uint8_t lowerBound_V>
+template <typename coder_T, typename stream_T, typename source_T>
 template <typename stream_IT, typename source_IT, std::enable_if_t<internal::isCompatibleIter_v<stream_T, stream_IT>, bool>>
-void SimpleDecoder<coder_T, stream_T, source_T, lowerBound_V>::process(stream_IT inputEnd, source_IT outputBegin, size_t messageLength) const
+void SimpleDecoder<coder_T, stream_T, source_T>::process(stream_IT inputEnd, source_IT outputBegin, size_t messageLength) const
 {
   using namespace internal;
   LOG(trace) << "start decoding";
