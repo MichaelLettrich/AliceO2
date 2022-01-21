@@ -37,7 +37,11 @@ namespace o2
 namespace rans
 {
 
-template <typename coder_T, typename stream_T, typename source_T>
+template <typename coder_T,
+          typename stream_T,
+          typename source_T,
+          uint8_t nStreams_V = 4,
+          uint8_t nHardwareStreams_V = 2>
 class SIMDDecoder : public internal::DecoderBase<coder_T, stream_T, source_T>
 {
  public:
@@ -45,7 +49,6 @@ class SIMDDecoder : public internal::DecoderBase<coder_T, stream_T, source_T>
 
   template <typename stream_IT,
             typename source_IT,
-            int nStreams_V = 8,
             std::enable_if_t<internal::isCompatibleIter_v<stream_T, stream_IT>, bool> = true>
   void process(stream_IT inputEnd, source_IT outputBegin, size_t messageLength) const;
 
@@ -53,12 +56,11 @@ class SIMDDecoder : public internal::DecoderBase<coder_T, stream_T, source_T>
   using ransDecoder_t = internal::simd::Decoder<coder_T, stream_T>;
 };
 
-template <typename coder_T, typename stream_T, typename source_T>
+template <typename coder_T, typename stream_T, typename source_T, uint8_t nStreams_V, uint8_t nHardwareStreams_V>
 template <typename stream_IT,
           typename source_IT,
-          int nStreams_V,
           std::enable_if_t<internal::isCompatibleIter_v<stream_T, stream_IT>, bool>>
-void SIMDDecoder<coder_T, stream_T, source_T>::process(stream_IT inputEnd, source_IT outputBegin, size_t messageLength) const
+void SIMDDecoder<coder_T, stream_T, source_T, nStreams_V, nHardwareStreams_V>::process(stream_IT inputEnd, source_IT outputBegin, size_t messageLength) const
 {
   using namespace internal;
   LOG(trace) << "start decoding";
