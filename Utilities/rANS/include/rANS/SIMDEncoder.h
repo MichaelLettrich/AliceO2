@@ -38,7 +38,8 @@ namespace rans
 template <typename coder_T,
           typename stream_T,
           typename source_T,
-          uint8_t nStreams_V = 8>
+          uint8_t nStreams_V = 4,
+          uint8_t nHardwareStreams_V = 2>
 class SIMDEncoder
 {
  protected:
@@ -62,17 +63,16 @@ class SIMDEncoder
   size_t mSymbolTablePrecision{};
 
   //TODO(milettri): make this depend on hardware
-  static constexpr size_t nHardwareStreams_V = 4;
   static constexpr size_t nInterleavedStreams_V = nStreams_V / nHardwareStreams_V;
   static constexpr internal::simd::SIMDWidth simdWidth = internal::simd::getSimdWidth<coder_T>(nHardwareStreams_V);
   using ransCoder_t = typename internal::simd::Encoder<simdWidth>;
 };
 
-template <typename coder_T, typename stream_T, typename source_T, uint8_t nStreams_V>
+template <typename coder_T, typename stream_T, typename source_T, uint8_t nStreams_V, uint8_t nHardwareStreams_V>
 template <typename stream_IT,
           typename source_IT,
           std::enable_if_t<internal::isCompatibleIter_v<source_T, source_IT>, bool>>
-stream_IT SIMDEncoder<coder_T, stream_T, source_T, nStreams_V>::process(source_IT inputBegin, source_IT inputEnd, stream_IT outputBegin) const
+stream_IT SIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareStreams_V>::process(source_IT inputBegin, source_IT inputEnd, stream_IT outputBegin) const
 {
   using namespace internal;
   LOG(trace) << "start encoding";
