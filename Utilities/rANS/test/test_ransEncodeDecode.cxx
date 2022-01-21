@@ -135,7 +135,7 @@ struct EncodeDecode : public EncodeDecodeBase<o2::rans::Encoder, o2::rans::Decod
 };
 
 template <typename coder_T, typename stream_T, typename source_V>
-using simdEncoder_t = o2::rans::SIMDEncoder<coder_T, stream_T, source_V, 8>;
+using simdEncoder_t = o2::rans::SIMDEncoder<coder_T, stream_T, source_V>;
 
 template <typename coder_T, class dictString_T, class testString_T>
 struct EncodeDecodeSIMD : public EncodeDecodeBase<simdEncoder_t, o2::rans::SIMDDecoder, coder_T, dictString_T, testString_T> {
