@@ -17,8 +17,8 @@ o2_add_library(rANS
 #target_compile_definitions(${targetName} PUBLIC O2_RANS_PRINT_PROCESSED_DATA)
 target_compile_options(${targetName} PUBLIC -mavx2 -mfma)
 if(${ENABLE_VTUNE_PROFILER})
-  target_compile_definitions(${librans} PUBLIC ENABLE_VTUNE_PROFILER)
-  target_link_libraries(${librans} PUBLIC PkgConfig::Vtune)
+  target_compile_definitions(${targetName} PUBLIC ENABLE_VTUNE_PROFILER)
+  target_link_libraries(${targetName} PUBLIC PkgConfig::Vtune)
 endif()
 
 o2_add_test(SIMDEncoder
@@ -90,8 +90,21 @@ o2_add_executable(Compression
                   IS_BENCHMARK
                   TARGETVARNAME ransCompressionBenchmark
                   PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
-  target_compile_options(${ransCompressionBenchmark} PRIVATE  -march=native -fopenmp)
+  target_compile_options(${ransCompressionBenchmark} PRIVATE -O3  -march=native -fopenmp)
   target_link_libraries(${ransCompressionBenchmark} PRIVATE -ltbb)
+
+o2_add_executable(Encoder
+                  SOURCES benchmarks/bench_ransEncoder.cxx
+                  COMPONENT_NAME rANS
+                  IS_BENCHMARK
+  TARGETVARNAME ransEncoderBenchmark
+  PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
+target_compile_options(${ransEncoderBenchmark} PRIVATE  -O3 -march=native -fopenmp)
+target_link_libraries(${ransEncoderBenchmark} PRIVATE -ltbb)
+if(${ENABLE_VTUNE_PROFILER})
+target_compile_definitions(${ransEncoderBenchmark} PRIVATE ENABLE_VTUNE_PROFILER)
+target_link_libraries(${ransEncoderBenchmark} PRIVATE PkgConfig::Vtune)
+endif()
 
 o2_add_executable(Encode
                   SOURCES benchmarks/bench_ransEncode.cxx
