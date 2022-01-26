@@ -193,16 +193,16 @@ void encodeSIMD(benchmark::State& s)
   }(1ul << 37);
 
   const size_t messageLength = states.size() * elementCount_v<epi64_t<SIMDWidth_V>>;
+  const pd_t<SIMDWidth_V> normalization{static_cast<double>(pow2(24))};
 
   for (auto _ : s) {
 #ifdef ENABLE_VTUNE_PROFILER
     __itt_resume();
 #endif
-    [&frequencies = frequencies, &cumulative = cumulative, &states = states]() {
+    [&frequencies = frequencies, &cumulative = cumulative, &states = states, &normalization]() {
       for (size_t i = 0; i < frequencies.size(); ++i) {
         const auto frequency = simd::int32ToDouble<SIMDWidth_V>(frequencies[i]);
         const auto cumul = simd::int32ToDouble<SIMDWidth_V>(cumulative[i]);
-        const double normalization = 1 << 24;
         auto newState = simd::ransEncode(states[i], frequency, cumul, normalization);
         states[i] = newState;
       }
