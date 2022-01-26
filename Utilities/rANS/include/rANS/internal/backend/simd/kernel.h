@@ -303,7 +303,7 @@ inline std::tuple<pd_t<SIMDWidth::AVX512>, pd_t<SIMDWidth::AVX512>> divMod(const
 //
 // rans Encode
 //
-inline epi64_t<SIMDWidth::SSE> ransEncode(const epi64_t<SIMDWidth::SSE>& state, const pd_t<SIMDWidth::SSE>& frequency, const pd_t<SIMDWidth::SSE>& cumulative, uint32_t normalization) noexcept
+inline epi64_t<SIMDWidth::SSE> ransEncode(const epi64_t<SIMDWidth::SSE>& state, const pd_t<SIMDWidth::SSE>& frequency, const pd_t<SIMDWidth::SSE>& cumulative, const pd_t<SIMDWidth::SSE>& normalization) noexcept
 {
 #if !defined(NDEBUG)
   for (auto i : state) {
@@ -314,7 +314,9 @@ inline epi64_t<SIMDWidth::SSE> ransEncode(const epi64_t<SIMDWidth::SSE>& state, 
   auto [div, mod] = divMod(uint64ToDouble(state), frequency);
   auto divReg = load(div);
   auto modReg = load(mod);
-  auto newState = _mm_fmadd_pd(divReg, _mm_set1_pd(normalization), load(cumulative));
+  auto cumulativeReg = load(cumulative);
+  auto normalizationReg = load(normalization);
+  auto newState = _mm_fmadd_pd(normalizationReg, divReg, cumulativeReg);
   newState = _mm_add_pd(newState, modReg);
 
   return doubleToUint64(store(newState));
@@ -325,7 +327,7 @@ inline epi64_t<SIMDWidth::SSE> ransEncode(const epi64_t<SIMDWidth::SSE>& state, 
 //
 // rans Encode
 //
-inline epi64_t<SIMDWidth::AVX> ransEncode(const epi64_t<SIMDWidth::AVX>& state, const pd_t<SIMDWidth::AVX>& frequency, const pd_t<SIMDWidth::AVX>& cumulative, uint32_t normalization) noexcept
+inline epi64_t<SIMDWidth::AVX> ransEncode(const epi64_t<SIMDWidth::AVX>& state, const pd_t<SIMDWidth::AVX>& frequency, const pd_t<SIMDWidth::AVX>& cumulative, const pd_t<SIMDWidth::AVX>& normalization) noexcept
 {
 #if !defined(NDEBUG)
   for (auto i : state) {
@@ -336,7 +338,9 @@ inline epi64_t<SIMDWidth::AVX> ransEncode(const epi64_t<SIMDWidth::AVX>& state, 
   auto [div, mod] = divMod(uint64ToDouble(state), frequency);
   auto divReg = load(div);
   auto modReg = load(mod);
-  auto newState = _mm256_fmadd_pd(_mm256_set1_pd(normalization), divReg, load(cumulative));
+  auto cumulativeReg = load(cumulative);
+  auto normalizationReg = load(normalization);
+  auto newState = _mm256_fmadd_pd(normalizationReg, divReg, cumulativeReg);
   newState = _mm256_add_pd(newState, modReg);
 
   return doubleToUint64(store(newState));
@@ -348,12 +352,14 @@ inline epi64_t<SIMDWidth::AVX> ransEncode(const epi64_t<SIMDWidth::AVX>& state, 
 //
 // rans Encode
 //
-inline epi64_t<SIMDWidth::AVX512> ransEncode(const epi64_t<SIMDWidth::AVX512>& state, const pd_t<SIMDWidth::AVX512>& frequency, const pd_t<SIMDWidth::AVX512>& cumulative, uint32_t normalization) noexcept
+inline epi64_t<SIMDWidth::AVX512> ransEncode(const epi64_t<SIMDWidth::AVX512>& state, const pd_t<SIMDWidth::AVX512>& frequency, const pd_t<SIMDWidth::AVX512>& cumulative, const pd_t<SIMDWidth::AVX512>& normalization) noexcept
 {
   auto [div, mod] = divMod(uint64ToDouble(state), frequency);
   auto divReg = load(div);
   auto modReg = load(mod);
-  auto newState = _mm512_fmadd_pd(_mm512_set1_pd(normalization), divReg, load(cumulative));
+  auto cumulativeReg = load(cumulative);
+  auto normalizationReg = load(normalization);
+  auto newState = _mm512_fmadd_pd(normalizationReg, divReg, cumulativeReg);
   newState = _mm512_add_pd(newState, modReg);
 
   return doubleToUint64(store(newState));

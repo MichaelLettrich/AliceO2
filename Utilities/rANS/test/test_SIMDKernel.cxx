@@ -210,9 +210,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(simd_RansEncode, pd_T, pd_types)
     const epi64_T state{mState};
     const pd_T frequencyPD{mFrequency[i]};
     const pd_T cumulativePD{mCumulative[i]};
+    const pd_T normalizationPD{mNormalization};
     epi64_T result{0};
 
-    result = ransEncode(state, frequencyPD, cumulativePD, mNormalization);
+    result = ransEncode(state, frequencyPD, cumulativePD, normalizationPD);
 
     epi64_T correctStateVector{mResultState[i]};
 
