@@ -35,6 +35,44 @@ namespace o2
 namespace rans
 {
 
+namespace internal
+{
+template <typename source_IT, uint8_t nHardwareStreams_V>
+inline std::tuple<source_IT, std::array<internal::simd::Symbol, nHardwareStreams_V>> getSymbols(source_IT symbolIter, const internal::simd::SymbolTable& symbolTable) noexcept
+{
+  if constexpr (nHardwareStreams_V == 2) {
+    return {
+      symbolIter - 2,
+      {symbolTable[*(symbolIter - 2)],
+       symbolTable[*(symbolIter - 1)]}};
+  } else if constexpr (nHardwareStreams_V == 4) {
+    return {
+      symbolIter - 4,
+      {symbolTable[*(symbolIter - 4)],
+       symbolTable[*(symbolIter - 3)],
+       symbolTable[*(symbolIter - 2)],
+       symbolTable[*(symbolIter - 1)]}};
+  } else if constexpr (nHardwareStreams_V == 8) {
+    return {
+      symbolIter - 8,
+      {symbolTable[*(symbolIter - 8)],
+       symbolTable[*(symbolIter - 7)],
+       symbolTable[*(symbolIter - 6)],
+       symbolTable[*(symbolIter - 5)],
+       symbolTable[*(symbolIter - 4)],
+       symbolTable[*(symbolIter - 3)],
+       symbolTable[*(symbolIter - 2)],
+       symbolTable[*(symbolIter - 1)]}};
+  } else {
+    std::array<internal::simd::Symbol, nHardwareStreams_V> encoderSymbols{};
+    for (auto encSymbolIter = encoderSymbols.rbegin(); encSymbolIter != encoderSymbols.rend(); ++encSymbolIter) {
+      *encSymbolIter = symbolTable[*(--symbolIter)];
+    }
+    return {symbolIter, encoderSymbols};
+  }
+};
+} // namespace internal
+
 template <typename coder_T,
           typename stream_T,
           typename source_T,
@@ -97,12 +135,8 @@ stream_IT SIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareStreams_
   };
 
   auto encode = [this](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder) {
-    std::array<internal::simd::Symbol, nHardwareStreams_V> encoderSymbols{};
-    for (auto encSymbolIter = encoderSymbols.rbegin(); encSymbolIter != encoderSymbols.rend(); ++encSymbolIter) {
-      const source_T symbol = *(--symbolIter);
-      *encSymbolIter = (this->mSymbolTable)[symbol];
-    }
-    return std::tuple(symbolIter, coder.putSymbols(outputIter, encoderSymbols));
+    const auto [newSymbolIter, encoderSymbols] = getSymbols<source_IT, nHardwareStreams_V>(symbolIter, this->mSymbolTable);
+    return std::make_tuple(newSymbolIter, coder.putSymbols(outputIter, encoderSymbols));
   };
 
   // create coders
