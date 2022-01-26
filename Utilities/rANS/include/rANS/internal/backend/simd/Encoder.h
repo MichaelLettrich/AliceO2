@@ -50,7 +50,7 @@ class Encoder
   using state_t = uint64_t;
   inline static constexpr size_t nHardwareStreams = getElementCount<state_t>(simdWidth_V);
 
-  Encoder(size_t symbolTablePrecission);
+  Encoder(size_t symbolTablePrecision);
   Encoder() : Encoder{0} {};
 
   // Flushes the rANS encoder.
@@ -65,7 +65,8 @@ class Encoder
 
  private:
   epi64_t<simdWidth_V> mStates;
-  size_t mSymbolTablePrecission{};
+  size_t mSymbolTablePrecision{};
+  pd_t<simdWidth_V> mNSamples{};
 
   template <typename Stream_IT>
   Stream_IT putSymbol(Stream_IT outputIter, const Symbol& symbol, state_t& state);
@@ -87,10 +88,10 @@ class Encoder
 };
 
 template <SIMDWidth simdWidth_V>
-Encoder<simdWidth_V>::Encoder(size_t symbolTablePrecission) : mStates{LOWER_BOUND}, mSymbolTablePrecission{symbolTablePrecission}
+Encoder<simdWidth_V>::Encoder(size_t symbolTablePrecision) : mStates{LOWER_BOUND}, mSymbolTablePrecision{symbolTablePrecision}, mNSamples{static_cast<double>(pow2(mSymbolTablePrecision))}
 {
-  if (mSymbolTablePrecission > LOWER_BOUND) {
-    throw std::runtime_error(fmt::format("[{}]: SymbolTable Precision of {} Bits is larger than allowed by the rANS Encoder (max {} Bits)", __PRETTY_FUNCTION__, mSymbolTablePrecission, LOWER_BOUND));
+  if (mSymbolTablePrecision > LOWER_BOUND) {
+    throw std::runtime_error(fmt::format("[{}]: SymbolTable Precision of {} Bits is larger than allowed by the rANS Encoder (max {} Bits)", __PRETTY_FUNCTION__, mSymbolTablePrecision, LOWER_BOUND));
   }
 };
 
@@ -128,7 +129,7 @@ Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, const std::arra
 
   const auto [frequencies, cumulativeFrequencies] = aosToSoa(encodeSymbols);
   const auto [div, mod] = divMod(uint64ToDouble(mStates), int32ToDouble<simdWidth_V>(frequencies));
-  mStates = ransEncode(mStates, int32ToDouble<simdWidth_V>(frequencies), int32ToDouble<simdWidth_V>(cumulativeFrequencies), pow2(mSymbolTablePrecission));
+  mStates = ransEncode(mStates, int32ToDouble<simdWidth_V>(frequencies), int32ToDouble<simdWidth_V>(cumulativeFrequencies), mNSamples);
 
   return streamPosition;
 } // namespace fp64
@@ -155,7 +156,7 @@ Stream_IT Encoder<simdWidth_V>::putSymbol(Stream_IT outputIter, const Symbol& sy
   const auto [x, streamPos] = renorm(state, outputIter, symbol.getFrequency());
 
   // x = C(s,x)
-  state = ((x / symbol.getFrequency()) << mSymbolTablePrecission) + (x % symbol.getFrequency()) + symbol.getCumulative();
+  state = ((x / symbol.getFrequency()) << mSymbolTablePrecision) + (x % symbol.getFrequency()) + symbol.getCumulative();
   return streamPos;
 }
 
@@ -178,7 +179,7 @@ template <SIMDWidth simdWidth_V>
 template <typename Stream_IT>
 inline auto Encoder<simdWidth_V>::renorm(state_t state, Stream_IT outputIter, uint32_t frequency) -> std::tuple<state_t, Stream_IT>
 {
-  state_t maxState = ((LOWER_BOUND >> mSymbolTablePrecission) << STREAM_BITS) * frequency; // this turns into a shift.
+  state_t maxState = ((LOWER_BOUND >> mSymbolTablePrecision) << STREAM_BITS) * frequency; // this turns into a shift.
   if (state >= maxState) {
     ++outputIter;
     *outputIter = static_cast<stream_t>(state);
