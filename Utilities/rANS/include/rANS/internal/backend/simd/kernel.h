@@ -25,6 +25,7 @@
 #include "rANS/internal/backend/simd/Symbol.h"
 #include "rANS/internal/backend/simd/types.h"
 #include "rANS/internal/backend/simd/utils.h"
+#include "rANS/internal/helper.h"
 
 namespace o2
 {
@@ -412,6 +413,168 @@ inline std::tuple<epi32_t<SIMDWidth::AVX>, epi32_t<SIMDWidth::AVX>> aosToSoa(con
   auto res1Reg = _mm256_set_m128i(arr11Reg, arr01Reg);
 
   return {store<uint32_t>(res0Reg), store<uint32_t>(res1Reg)};
+};
+#endif /* __AVX2__ */
+
+inline __m128i cmpgeq_epi64(__m128i a, __m128i b) noexcept
+{
+  __m128i cmpGreater = _mm_cmpgt_epi64(a, b);
+  __m128i cmpEqual = _mm_cmpeq_epi64(a, b);
+  return _mm_or_si128(cmpGreater, cmpEqual);
+};
+
+#ifdef __AVX2__
+inline __m256i cmpgeq_epi64(__m256i a, __m256i b) noexcept
+{
+  __m256i cmpGreater = _mm256_cmpgt_epi64(a, b);
+  __m256i cmpEqual = _mm256_cmpeq_epi64(a, b);
+  return _mm256_or_si256(cmpGreater, cmpEqual);
+};
+#endif /* __AVX2__ */
+
+template <SIMDWidth width_V>
+inline epi64_t<width_V> cmpgeq_epi64(epi64_t<width_V> a, epi64_t<width_V> b) noexcept
+{
+  auto aVec = load(a);
+  auto bVec = load(b);
+  return store<uint64_t>(cmpgeq_epi64(aVec, bVec));
+};
+
+template <SIMDWidth width_V, uint64_t lowerBound_V, uint8_t streamBits_V>
+inline auto computeMaxState(__m128i frequencyVec, uint8_t symbolTablePrecisionBits) noexcept
+{
+  const uint64_t xmax = (lowerBound_V >> symbolTablePrecisionBits) << streamBits_V;
+  const uint8_t shift = log2UInt(xmax);
+  if constexpr (width_V == SIMDWidth::SSE) {
+    __m128i frequencyVecEpi64 = _mm_cvtepi32_epi64(frequencyVec);
+    return _mm_slli_epi64(frequencyVecEpi64, shift);
+  }
+  if constexpr (width_V == SIMDWidth::AVX) {
+    __m256i frequencyVecEpi64 = _mm256_cvtepi32_epi64(frequencyVec);
+    return _mm256_slli_epi64(frequencyVecEpi64, shift);
+  }
+};
+
+template <uint8_t streamBits_V>
+inline epi64_t<SIMDWidth::SSE> computeNewState(__m128i stateVec, __m128i cmpVec) noexcept
+{
+  //newState = (state >= maxState) ? state >> streamBits_V : state
+  __m128i newStateVec = _mm_srli_epi64(stateVec, streamBits_V);
+  newStateVec = _mm_blendv_epi8(stateVec, newStateVec, cmpVec);
+  return store<uint64_t>(newStateVec);
+};
+
+#ifdef __AVX2__
+template <uint8_t streamBits_V>
+inline epi64_t<SIMDWidth::AVX> computeNewState(__m256i stateVec, __m256i cmpVec) noexcept
+{
+  //newState = (state >= maxState) ? state >> streamBits_V : state
+  __m256i newStateVec = _mm256_srli_epi64(stateVec, streamBits_V);
+  newStateVec = _mm256_blendv_epi8(stateVec, newStateVec, cmpVec);
+  return store<uint64_t>(newStateVec);
+};
+#endif /* __AVX2__ */
+
+inline constexpr std::array<epi8_t<SIMDWidth::SSE>, 6>
+  SSEPermutationLUT{{
+    {0xFF_u8},                                                                                                                                        //0b0000 valid
+    {0x00_u8, 0x01_u8, 0x02_u8, 0x03_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8}, //0b0001 valid
+    {0xFF_u8},                                                                                                                                        //0b0010 invalid
+    {0xFF_u8},                                                                                                                                        //0b0011 invalid
+    {0x08_u8, 0x09_u8, 0x0A_u8, 0x0B_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8}, //0b0100 valid
+    {0x08_u8, 0x09_u8, 0x0A_u8, 0x0B_u8, 0x00_u8, 0x01_u8, 0x02_u8, 0x03_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8, 0xFF_u8}  //0b0101  valid
+  }};
+
+inline constexpr std::array<epi32_t<SIMDWidth::AVX>, 16>
+  AVXPermutationLUT{{
+    {0x0u, 0x1u, 0x2u, 0x3u, 0x0u, 0x1u, 0x2u, 0x3u}, //0b0000
+    {0x0u, 0x1u, 0x2u, 0x3u, 0x0u, 0x1u, 0x2u, 0x3u}, //0b0001
+    {0x1u, 0x0u, 0x2u, 0x3u, 0x0u, 0x1u, 0x2u, 0x3u}, //0b0010
+    {0x0u, 0x1u, 0x2u, 0x3u, 0x0u, 0x1u, 0x2u, 0x3u}, //0b0011
+    {0x2u, 0x1u, 0x0u, 0x3u, 0x0u, 0x1u, 0x2u, 0x3u}, //0b0100
+    {0x0u, 0x2u, 0x1u, 0x3u, 0x0u, 0x1u, 0x2u, 0x3u}, //0b0101
+    {0x1u, 0x2u, 0x0u, 0x3u, 0x0u, 0x1u, 0x2u, 0x3u}, //0b0110
+    {0x0u, 0x1u, 0x2u, 0x3u, 0x0u, 0x1u, 0x2u, 0x3u}, //0b0111
+    {0x3u, 0x0u, 0x0u, 0x0u, 0x0u, 0x1u, 0x2u, 0x3u}, //0b1000
+    {0x0u, 0x3u, 0x1u, 0x2u, 0x0u, 0x1u, 0x2u, 0x3u}, //0b1001
+    {0x1u, 0x3u, 0x0u, 0x2u, 0x0u, 0x1u, 0x2u, 0x3u}, //0b1010
+    {0x0u, 0x1u, 0x3u, 0x2u, 0x0u, 0x1u, 0x2u, 0x3u}, //0b1011
+    {0x2u, 0x3u, 0x0u, 0x1u, 0x0u, 0x1u, 0x2u, 0x3u}, //0b1100
+    {0x0u, 0x2u, 0x3u, 0x1u, 0x0u, 0x1u, 0x2u, 0x3u}, //0b1101
+    {0x1u, 0x2u, 0x3u, 0x0u, 0x0u, 0x1u, 0x2u, 0x3u}, //0b1110
+    {0x0u, 0x1u, 0x2u, 0x3u, 0x0u, 0x1u, 0x2u, 0x3u}  //0b1111
+  }};
+
+inline std::tuple<uint32_t, epi32_t<SIMDWidth::SSE>> streamOut(__m128i stateVec, __m128i cmpVec) noexcept
+{
+  constexpr epi32_t<SIMDWidth::SSE> extractionMask{0xFFFFFFFFu, 0x0u, 0xFFFFFFFFu, 0x0u};
+  __m128i extractionMaskVec = load(extractionMask);
+  __m128i streamOutMaskVec = _mm_and_si128(cmpVec, extractionMaskVec);
+  const uint32_t id = _mm_movemask_ps(_mm_castsi128_ps(streamOutMaskVec));
+
+  __m128i shuffleMaskVec = load(SSEPermutationLUT[id]);
+  __m128i streamOutVec = _mm_shuffle_epi8(stateVec, shuffleMaskVec);
+
+  return {_mm_popcnt_u32(id), store<uint32_t>(streamOutVec)};
+};
+
+#ifdef __AVX2__
+inline std::tuple<uint32_t, epi32_t<SIMDWidth::AVX>> streamOut(__m256i stateVec, __m256i cmpVec) noexcept
+{
+  constexpr epi32_t<SIMDWidth::AVX> extractionMask{0xFFFFFFFFu, 0x0u, 0xFFFFFFFFu, 0x0u, 0xFFFFFFFFu, 0x0u, 0xFFFFFFFFu, 0x0u};
+  __m256i extractionMaskVec = load(extractionMask);
+  __m256i streamOutMaskVec = _mm256_and_si256(cmpVec, extractionMaskVec);
+
+  // take [0,2,4,6]th element from uint32_t streamOutVector [0,1,2,3,4,5,6,7]
+  constexpr epi32_t<SIMDWidth::AVX> permutationMask{0x6u, 0x4u, 0x2u, 0x0u, 0x7u, 0x7u, 0x7u, 0x7u};
+  __m256i streamOutVec = _mm256_permutevar8x32_epi32(stateVec, load(permutationMask));
+  streamOutMaskVec = _mm256_permutevar8x32_epi32(streamOutMaskVec, load(permutationMask));
+  // condense streamOut Vector mask from SIMD vector into an integer ID
+  const uint32_t id = _mm256_movemask_ps(_mm256_castsi256_ps(streamOutMaskVec));
+  // use ID to fetch right reordering from permutation LUT and move data into the right order
+  streamOutVec = _mm256_castps_si256(_mm256_permutevar_ps(_mm256_castsi256_ps(streamOutVec), load(AVXPermutationLUT[id])));
+
+  return {_mm_popcnt_u32(id), store<uint32_t>(streamOutVec)};
+};
+#endif /* __AVX2__ */
+
+namespace impl
+{
+template <SIMDWidth width_V, typename output_IT, uint64_t lowerBound_V, uint8_t streamBits_V>
+inline auto ransRenorm(const epi64_t<width_V>& states, const epi32_t<SIMDWidth::SSE>& frequencies, uint8_t symbolTablePrecisionBits, output_IT outputIter) noexcept -> std::tuple<output_IT, epi64_t<width_V>>
+{
+  auto stateVec = load(states);
+  __m128i frequencyVec = load(frequencies);
+
+  // calculate maximum state
+  auto maxStateVec = computeMaxState<width_V, lowerBound_V, streamBits_V>(frequencyVec, symbolTablePrecisionBits);
+  //cmpVec = (state >= maxState)
+  auto cmpVec = cmpgeq_epi64(stateVec, maxStateVec);
+  //newState = (state >= maxState) ? state >> streamBits_V : state
+  epi64_t<width_V> newState = computeNewState<streamBits_V>(stateVec, cmpVec);
+
+  const auto [nStreamOutWords, streamOutResult] = streamOut(stateVec, cmpVec);
+
+  for (size_t i = 0; i < nStreamOutWords; ++i) {
+    *(++outputIter) = streamOutResult[i];
+  }
+
+  return std::make_tuple(outputIter, newState);
+};
+
+} // namespace impl
+
+template <typename output_IT, uint64_t lowerBound_V, uint8_t streamBits_V>
+inline auto ransRenorm(const epi64_t<SIMDWidth::SSE>& states, const epi32_t<SIMDWidth::SSE>& frequencies, uint8_t symbolTablePrecisionBits, output_IT outputIter) noexcept -> std::tuple<output_IT, epi64_t<SIMDWidth::SSE>>
+{
+  return impl::ransRenorm<SIMDWidth::SSE, output_IT, lowerBound_V, streamBits_V>(states, frequencies, symbolTablePrecisionBits, outputIter);
+};
+
+#ifdef __AVX2__
+template <typename output_IT, uint64_t lowerBound_V, uint8_t streamBits_V>
+inline auto ransRenorm(const epi64_t<SIMDWidth::AVX>& states, const epi32_t<SIMDWidth::SSE>& frequencies, uint8_t symbolTablePrecisionBits, output_IT outputIter) noexcept -> std::tuple<output_IT, epi64_t<SIMDWidth::AVX>>
+{
+  return impl::ransRenorm<SIMDWidth::AVX, output_IT, lowerBound_V, streamBits_V>(states, frequencies, symbolTablePrecisionBits, outputIter);
 };
 #endif /* __AVX2__ */
 

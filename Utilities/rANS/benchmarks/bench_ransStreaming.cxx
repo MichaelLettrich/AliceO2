@@ -45,24 +45,6 @@ inline constexpr size_t SYMBOL_TABLE_PRECISION_BITS = 22;
 inline constexpr size_t STREAM_BITS = toBits<stream_t>();
 inline constexpr size_t MAX_SHIFT = LOWER_BOUND_BITS - SYMBOL_TABLE_PRECISION_BITS + STREAM_BITS;
 
-alignas(16) inline constexpr std::array<std::array<uint8_t, 16>, 6> permutationLUT{{
-  {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, //0b0000 valid
-  {0x00, 0x01, 0x02, 0x03, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, //0b0001 valid
-  {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, //0b0010 invalid
-  {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, //0b0011 invalid
-  {0x08, 0x09, 0x0A, 0x0B, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, //0b0100 valid
-  {0x08, 0x09, 0x0A, 0x0B, 0x00, 0x01, 0x02, 0x03, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}  //0b0101  valid
-}};
-
-inline constexpr std::array<int, 6> nStreamElemsLUT{
-  0, //0b0000 valid
-  1, //0b0001 valid
-  0, //0b0010 invalid
-  0, //0b0011 invalid
-  1, //0b0100 valid
-  2  //0b0101  valid
-};
-
 struct Fixture : public benchmark::Fixture {
  public:
   void SetUp(const ::benchmark::State& state) override
@@ -120,49 +102,6 @@ inline auto renorm(ransState_t state, count_t frequency, output_IT outputIter) n
   return std::make_tuple(newOutputIT, newState);
 };
 
-template <typename output_IT>
-inline auto renorm(const epi64_t<SIMDWidth::SSE>& states, const epi32_t<SIMDWidth::SSE>& frequencies, output_IT outputIter) noexcept -> std::tuple<output_IT, epi64_t<SIMDWidth::SSE>>
-{
-  __m128i stateVec = _mm_load_si128(reinterpret_cast<__m128i const*>(states.data()));
-  __m128i frequencyVec = _mm_load_si128(reinterpret_cast<__m128i const*>(frequencies.data()));
-
-  // calculate maximum state
-  constexpr uint8_t shift = LOWER_BOUND_BITS - SYMBOL_TABLE_PRECISION_BITS + STREAM_BITS;
-  frequencyVec = _mm_cvtepi32_epi64(frequencyVec);
-  __m128i maxStateVec = _mm_slli_epi64(frequencyVec, shift);
-
-  //cmpVec = (state >= maxState)
-  __m128i cmpGreater = _mm_cmpgt_epi64(stateVec, maxStateVec);
-  __m128i cmpEqual = _mm_cmpeq_epi64(stateVec, maxStateVec);
-  __m128i cmpVec = _mm_or_si128(cmpGreater, cmpEqual);
-
-  //store new state
-  __m128i newStateVec = _mm_srli_epi64(stateVec, STREAM_BITS);
-  newStateVec = _mm_blendv_epi8(stateVec, newStateVec, cmpVec);
-  epi64_t<SIMDWidth::SSE> newState;
-  _mm_store_si128(reinterpret_cast<__m128i*>(newState.data()), newStateVec);
-
-  //stream out
-  constexpr epi32_t<SIMDWidth::SSE> extractionMask{0xFFFFFFFFu, 0x0u, 0xFFFFFFFFu, 0x0u};
-  __m128i extractionMaskVec = _mm_load_si128(reinterpret_cast<__m128i const*>(extractionMask.data()));
-  __m128i streamOutMaskVec = _mm_and_si128(cmpVec, extractionMaskVec);
-  const uint32_t id = _mm_movemask_ps(_mm_castsi128_ps(streamOutMaskVec));
-  __m128i shuffleMaskVec = _mm_load_si128(reinterpret_cast<__m128i const*>(permutationLUT[id].data()));
-
-  __m128i streamOutVec = _mm_and_si128(stateVec, streamOutMaskVec);
-  streamOutVec = _mm_shuffle_epi8(streamOutVec, shuffleMaskVec);
-  epi32_t<SIMDWidth::SSE> tmpStream;
-  _mm_store_si128(reinterpret_cast<__m128i*>(tmpStream.data()), streamOutVec);
-
-  output_IT newOutputIT = outputIter;
-  for (size_t i = 0; i < nStreamElemsLUT[id]; ++i) {
-    ++newOutputIT;
-    *newOutputIT = tmpStream[i];
-  }
-
-  return std::make_tuple(newOutputIT, newState);
-};
-
 BENCHMARK_F(Fixture, renorm)
 (benchmark::State& s)
 {
@@ -205,8 +144,7 @@ BENCHMARK_F(SSEFixture, renormSSE)
     for (size_t i = 0; i < nRepetitions / 2; ++i) {
       const epi32_t<SIMDWidth::SSE> frequency = frequencies[i];
       epi64_t<SIMDWidth::SSE> state = initialState;
-
-      std::tie(outputIter, state) = renorm(state, frequency, outputIter);
+      std::tie(outputIter, state) = ransRenorm<decltype(outputIter), (1ull << LOWER_BOUND_BITS), STREAM_BITS>(state, frequency, static_cast<uint8_t>(SYMBOL_TABLE_PRECISION_BITS), outputIter);
       benchmark::DoNotOptimize(state);
     }
     benchmark::DoNotOptimize(out.data());
