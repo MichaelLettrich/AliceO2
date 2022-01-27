@@ -49,7 +49,12 @@ inline constexpr size_t pow2(size_t n) noexcept
 
 inline constexpr uint32_t log2UInt(uint32_t x) noexcept
 {
-  return x > 0 ? sizeof(int) * 8 - __builtin_clz(x) - 1 : 0;
+  return x > 0 ? toBits(sizeof(uint32_t)) - __builtin_clz(x) - 1 : 0;
+}
+
+inline constexpr uint64_t log2UInt(uint64_t x) noexcept
+{
+  return x > 0 ? toBits(sizeof(uint64_t)) - __builtin_clzl(x) - 1 : 0;
 }
 
 template <typename T, std::enable_if_t<std::is_unsigned_v<T>, bool> = true>
