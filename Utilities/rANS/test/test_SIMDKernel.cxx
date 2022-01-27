@@ -25,6 +25,7 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/mpl/list.hpp>
 
+#include "rANS/rans.h"
 #include "rANS/internal/backend/simd/types.h"
 #include "rANS/internal/backend/simd/kernel.h"
 #include "rANS/internal/backend/simd/Symbol.h"
@@ -263,6 +264,280 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(simd_AosToSOA, sizes_T, aosToSoa_T)
     BOOST_CHECK_EQUAL(cumulative[i], mCumulative[i]);
   };
 }
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE(testcmpge)
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(simd_cmpgeq_epi64, epi64_T, epi64_types)
+{
+  using namespace o2::rans::internal::simd;
+
+  epi64_T a{0};
+  epi64_T b{1};
+  epi64_T res{0x0};
+  epi64_T res1 = cmpgeq_epi64(a, b);
+  BOOST_CHECK_EQUAL_COLLECTIONS(res1.begin(), res1.end(), res.begin(), res.end());
+
+  a = epi64_T{1};
+  b = epi64_T{1};
+  res = epi64_T{0xFFFFFFFFFFFFFFFF};
+  res1 = cmpgeq_epi64(a, b);
+  BOOST_CHECK_EQUAL_COLLECTIONS(res1.begin(), res1.end(), res.begin(), res.end());
+
+  a = epi64_T{1};
+  b = epi64_T{0};
+  res = epi64_T{0xFFFFFFFFFFFFFFFF};
+  res1 = cmpgeq_epi64(a, b);
+  BOOST_CHECK_EQUAL_COLLECTIONS(res1.begin(), res1.end(), res.begin(), res.end());
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+struct RenormFixture {
+
+  using count_t = typename o2::rans::count_t;
+  using ransState_t = uint64_t;
+  using stream_t = uint32_t;
+
+  RenormFixture() = default;
+
+  static constexpr size_t LowerBoundBits = 20;
+  static constexpr size_t LowerBound = 1ull << LowerBoundBits;
+  static constexpr uint8_t SymbolTablePrecisionBits = 16;
+  static constexpr size_t StreamBits = o2::rans::internal::toBits(sizeof(stream_t));
+
+  uint64_t computeLimitState(count_t frequency)
+  {
+    return (LowerBound >> SymbolTablePrecisionBits << StreamBits) * static_cast<uint64_t>(frequency);
+  };
+
+  template <typename stream_IT>
+  inline auto renorm(ransState_t state, stream_IT outputIter, count_t frequency)
+  {
+    ransState_t maxState = ((LowerBound >> SymbolTablePrecisionBits) << StreamBits) * frequency;
+    if (state >= maxState) {
+      *(++outputIter) = static_cast<stream_t>(state);
+      state >>= StreamBits;
+      assert(state < maxState);
+    }
+    return std::make_tuple(state, outputIter);
+  };
+
+  template <SIMDWidth width_V>
+  void runRenormingChecks(const epi64_t<width_V>& states, const epi32_t<SIMDWidth::SSE>& frequencies)
+  {
+    using namespace o2::rans::internal::simd;
+
+    const size_t nElems = getElementCount<ransState_t>(width_V);
+
+    std::vector<stream_t> streamOutBuffer = std::vector<stream_t>(nElems, 0);
+    std::vector<stream_t> controlBuffer = std::vector<stream_t>(nElems, 0);
+
+    auto [newstreamOutIter, newStates] = ransRenorm<decltype(streamOutBuffer.begin()),
+                                                    LowerBound,
+                                                    StreamBits>(states,
+                                                                frequencies,
+                                                                SymbolTablePrecisionBits,
+                                                                --streamOutBuffer.begin());
+
+    auto controlIter = --controlBuffer.begin();
+    epi64_t<width_V> controlStates;
+    for (size_t i = nElems; i-- > 0;) {
+      std::tie(controlStates[i], controlIter) = renorm(states[i], controlIter, frequencies[i]);
+    }
+    LOG(trace) << "newStates" << asHex(newStates);
+    LOG(trace) << "controlStates" << asHex(controlStates);
+    for (size_t i = 0; i < nElems; ++i) {
+      LOG(trace) << fmt::format("[{}]: {:#x}; {:#x}", i, streamOutBuffer[i], controlBuffer[i]);
+    }
+
+    BOOST_CHECK_EQUAL_COLLECTIONS(newStates.begin(), newStates.end(), controlStates.begin(), controlStates.end());
+    BOOST_CHECK_EQUAL_COLLECTIONS(streamOutBuffer.begin(), streamOutBuffer.end(), controlBuffer.begin(), controlBuffer.end());
+  }
+};
+
+BOOST_FIXTURE_TEST_SUITE(renorm, RenormFixture)
+
+BOOST_AUTO_TEST_CASE(renormSSE_)
+{
+  using namespace o2::rans::internal::simd;
+  runRenormingChecks<SIMDWidth::SSE>({LowerBound}, {0x1u, 0x1u, 0x0u, 0x0u});
+}
+BOOST_AUTO_TEST_CASE(renormSSE_01)
+{
+  using namespace o2::rans::internal::simd;
+  epi32_t<SIMDWidth::SSE> frequencies{0x1u, 0x3u, 0x0u, 0x0u};
+  runRenormingChecks<SIMDWidth::SSE>({LowerBound, computeLimitState(frequencies[1]) + 0xF3}, frequencies);
+}
+BOOST_AUTO_TEST_CASE(renormSSE_10)
+{
+  using namespace o2::rans::internal::simd;
+  epi32_t<SIMDWidth::SSE> frequencies{0x2u, 0x1u, 0x0u, 0x0u};
+  runRenormingChecks<SIMDWidth::SSE>({computeLimitState(frequencies[0]) + 0xF2, LowerBound}, frequencies);
+}
+BOOST_AUTO_TEST_CASE(renormSSE_11)
+{
+  using namespace o2::rans::internal::simd;
+  epi32_t<SIMDWidth::SSE> frequencies{0x2u, 0x3u, 0x0u, 0x0u};
+  runRenormingChecks<SIMDWidth::SSE>({computeLimitState(frequencies[0]) + 0xF2, computeLimitState(frequencies[1]) + 0xF3}, frequencies);
+}
+
+BOOST_AUTO_TEST_CASE(renormAVX_0000)
+{
+  using namespace o2::rans::internal::simd;
+  runRenormingChecks<SIMDWidth::AVX>({LowerBound, LowerBound, LowerBound, LowerBound}, {0x1u, 0x1u, 0x1u, 0x1u});
+}
+BOOST_AUTO_TEST_CASE(renormAVX_0001)
+{
+  using namespace o2::rans::internal::simd;
+  epi32_t<SIMDWidth::SSE> frequencies{0x1u, 0x1u, 0x1u, 0x5u};
+  runRenormingChecks<SIMDWidth::AVX>({LowerBound,
+                                      LowerBound,
+                                      LowerBound,
+                                      computeLimitState(frequencies[3]) + 0xF5},
+                                     frequencies);
+}
+BOOST_AUTO_TEST_CASE(renormAVX_0010)
+{
+  using namespace o2::rans::internal::simd;
+  epi32_t<SIMDWidth::SSE> frequencies{0x1u, 0x1u, 0x4u, 0x1u};
+  runRenormingChecks<SIMDWidth::AVX>({LowerBound,
+                                      LowerBound,
+                                      computeLimitState(frequencies[2]) + 0xF4,
+                                      LowerBound},
+                                     frequencies);
+}
+BOOST_AUTO_TEST_CASE(renormAVX_0011)
+{
+  using namespace o2::rans::internal::simd;
+  epi32_t<SIMDWidth::SSE> frequencies{0x1u, 0x1u, 0x4u, 0x5u};
+  runRenormingChecks<SIMDWidth::AVX>({LowerBound,
+                                      LowerBound,
+                                      computeLimitState(frequencies[2]) + 0xF4,
+                                      computeLimitState(frequencies[3]) + 0xF5},
+                                     frequencies);
+}
+BOOST_AUTO_TEST_CASE(renormAVX_0100)
+{
+  using namespace o2::rans::internal::simd;
+  epi32_t<SIMDWidth::SSE> frequencies{0x1u, 0x3u, 0x1u, 0x1u};
+  runRenormingChecks<SIMDWidth::AVX>({LowerBound,
+                                      computeLimitState(frequencies[1]) + 0xF3,
+                                      LowerBound,
+                                      LowerBound},
+                                     frequencies);
+}
+BOOST_AUTO_TEST_CASE(renormAVX_0101)
+{
+  using namespace o2::rans::internal::simd;
+  epi32_t<SIMDWidth::SSE> frequencies{0x1u, 0x3u, 0x1u, 0x5u};
+  runRenormingChecks<SIMDWidth::AVX>({LowerBound,
+                                      computeLimitState(frequencies[1]) + 0xF3,
+                                      LowerBound,
+                                      computeLimitState(frequencies[3]) + 0xF5},
+                                     frequencies);
+}
+BOOST_AUTO_TEST_CASE(renormAVX_0110)
+{
+  using namespace o2::rans::internal::simd;
+  epi32_t<SIMDWidth::SSE> frequencies{0x1u, 0x3u, 0x4u, 0x1u};
+  runRenormingChecks<SIMDWidth::AVX>({LowerBound,
+                                      computeLimitState(frequencies[1]) + 0xF3,
+                                      computeLimitState(frequencies[2]) + 0xF4,
+                                      LowerBound},
+                                     frequencies);
+}
+BOOST_AUTO_TEST_CASE(renormAVX_0111)
+{
+  using namespace o2::rans::internal::simd;
+  epi32_t<SIMDWidth::SSE> frequencies{0x1u, 0x3u, 0x4u, 0x5u};
+  runRenormingChecks<SIMDWidth::AVX>({LowerBound,
+                                      computeLimitState(frequencies[1]) + 0xF3,
+                                      computeLimitState(frequencies[2]) + 0xF4,
+                                      computeLimitState(frequencies[3]) + 0xF5},
+                                     frequencies);
+}
+BOOST_AUTO_TEST_CASE(renormAVX_1000)
+{
+  using namespace o2::rans::internal::simd;
+  epi32_t<SIMDWidth::SSE> frequencies{0x2u, 0x1u, 0x1u, 0x1u};
+  runRenormingChecks<SIMDWidth::AVX>({computeLimitState(frequencies[0]) + 0xF2,
+                                      LowerBound,
+                                      LowerBound,
+                                      LowerBound},
+                                     frequencies);
+}
+BOOST_AUTO_TEST_CASE(renormAVX_1001)
+{
+  using namespace o2::rans::internal::simd;
+  epi32_t<SIMDWidth::SSE> frequencies{0x2u, 0x1u, 0x1u, 0x5u};
+  runRenormingChecks<SIMDWidth::AVX>({computeLimitState(frequencies[0]) + 0xF2,
+                                      LowerBound,
+                                      LowerBound,
+                                      computeLimitState(frequencies[3]) + 0xF5},
+                                     frequencies);
+}
+BOOST_AUTO_TEST_CASE(renormAVX_1010)
+{
+  using namespace o2::rans::internal::simd;
+  epi32_t<SIMDWidth::SSE> frequencies{0x2u, 0x1u, 0x4u, 0x1u};
+  runRenormingChecks<SIMDWidth::AVX>({computeLimitState(frequencies[0]) + 0xF2,
+                                      LowerBound,
+                                      computeLimitState(frequencies[2]) + 0xF4,
+                                      LowerBound},
+                                     frequencies);
+}
+BOOST_AUTO_TEST_CASE(renormAVX_1011)
+{
+  using namespace o2::rans::internal::simd;
+  epi32_t<SIMDWidth::SSE> frequencies{0x2u, 0x1u, 04u, 0x5u};
+  runRenormingChecks<SIMDWidth::AVX>({computeLimitState(frequencies[0]) + 0xF2,
+                                      LowerBound,
+                                      computeLimitState(frequencies[2]) + 0xF4,
+                                      computeLimitState(frequencies[3]) + 0xF5},
+                                     frequencies);
+}
+BOOST_AUTO_TEST_CASE(renormAVX_1100)
+{
+  using namespace o2::rans::internal::simd;
+  epi32_t<SIMDWidth::SSE> frequencies{0x2u, 0x3u, 0x1u, 0x1u};
+  runRenormingChecks<SIMDWidth::AVX>({computeLimitState(frequencies[0]) + 0xF2,
+                                      computeLimitState(frequencies[1]) + 0xF3,
+                                      LowerBound,
+                                      LowerBound},
+                                     frequencies);
+}
+BOOST_AUTO_TEST_CASE(renormAVX_1101)
+{
+  using namespace o2::rans::internal::simd;
+  epi32_t<SIMDWidth::SSE> frequencies{0x2u, 0x3u, 0x1u, 0x5u};
+  runRenormingChecks<SIMDWidth::AVX>({computeLimitState(frequencies[0]) + 0xF2,
+                                      computeLimitState(frequencies[1]) + 0xF3,
+                                      LowerBound,
+                                      computeLimitState(frequencies[3]) + 0xF5},
+                                     frequencies);
+}
+BOOST_AUTO_TEST_CASE(renormAVX_1110)
+{
+  using namespace o2::rans::internal::simd;
+  epi32_t<SIMDWidth::SSE> frequencies{0x2u, 0x3u, 0x4u, 0x1u};
+  runRenormingChecks<SIMDWidth::AVX>({computeLimitState(frequencies[0]) + 0xF2,
+                                      computeLimitState(frequencies[1]) + 0xF3,
+                                      computeLimitState(frequencies[2]) + 0xF4,
+                                      LowerBound},
+                                     frequencies);
+}
+BOOST_AUTO_TEST_CASE(renormAVX_1111)
+{
+  using namespace o2::rans::internal::simd;
+  epi32_t<SIMDWidth::SSE> frequencies{0x2u, 0x3u, 0x4u, 0x5u};
+  runRenormingChecks<SIMDWidth::AVX>({computeLimitState(frequencies[0]) + 0xF2,
+                                      computeLimitState(frequencies[1]) + 0xF3,
+                                      computeLimitState(frequencies[2]) + 0xF4,
+                                      computeLimitState(frequencies[3]) + 0xF5},
+                                     frequencies);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 #endif /* __SSE__ */

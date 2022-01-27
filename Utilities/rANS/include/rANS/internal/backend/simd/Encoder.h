@@ -116,22 +116,29 @@ Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, const std::arra
     assert(symbol.getFrequency() != 0);
   }
 
-  // normalize in reverse direction for decoding to work propperly
-  Stream_IT streamPosition = [this, &encodeSymbols, outputIter]() {
-    auto streamIter = outputIter;
-    for (size_t i = nHardwareStreams; i-- > 0;) {
-      auto [tmpState, tmpStreamIter] = renorm(mStates[i], streamIter, encodeSymbols[i].getFrequency());
-      mStates[i] = tmpState;
-      streamIter = tmpStreamIter;
-    }
-    return streamIter;
-  }();
-
   const auto [frequencies, cumulativeFrequencies] = aosToSoa(encodeSymbols);
-  const auto [div, mod] = divMod(uint64ToDouble(mStates), int32ToDouble<simdWidth_V>(frequencies));
-  mStates = ransEncode(mStates, int32ToDouble<simdWidth_V>(frequencies), int32ToDouble<simdWidth_V>(cumulativeFrequencies), mNSamples);
 
-  return streamPosition;
+  if constexpr (simdWidth_V == SIMDWidth::SSE) {
+    const auto [streamPosition, newStates] = ransRenorm<Stream_IT, LOWER_BOUND, STREAM_BITS>(mStates, frequencies, static_cast<uint8_t>(mSymbolTablePrecision), outputIter);
+    const auto [div, mod] = divMod(uint64ToDouble(mStates), int32ToDouble<simdWidth_V>(frequencies));
+    mStates = ransEncode(newStates, int32ToDouble<simdWidth_V>(frequencies), int32ToDouble<simdWidth_V>(cumulativeFrequencies), mNSamples);
+    return streamPosition;
+  } else {
+    // normalize in reverse direction for decoding to work propperly
+    Stream_IT streamPosition = [this, &encodeSymbols, outputIter]() {
+      auto streamIter = outputIter;
+      for (size_t i = nHardwareStreams; i-- > 0;) {
+        auto [tmpState, tmpStreamIter] = renorm(mStates[i], streamIter, encodeSymbols[i].getFrequency());
+        mStates[i] = tmpState;
+        streamIter = tmpStreamIter;
+      }
+      return streamIter;
+    }();
+    const auto [div, mod] = divMod(uint64ToDouble(mStates), int32ToDouble<simdWidth_V>(frequencies));
+    mStates = ransEncode(mStates, int32ToDouble<simdWidth_V>(frequencies), int32ToDouble<simdWidth_V>(cumulativeFrequencies), mNSamples);
+    return streamPosition;
+  }
+
 } // namespace fp64
 
 template <SIMDWidth simdWidth_V>
