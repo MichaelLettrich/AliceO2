@@ -101,10 +101,7 @@ o2_add_executable(Encoder
   PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
 target_compile_options(${ransEncoderBenchmark} PRIVATE  -O3 -march=native -fopenmp)
 target_link_libraries(${ransEncoderBenchmark} PRIVATE -ltbb)
-if(${ENABLE_VTUNE_PROFILER})
-target_compile_definitions(${ransEncoderBenchmark} PRIVATE ENABLE_VTUNE_PROFILER)
-target_link_libraries(${ransEncoderBenchmark} PRIVATE PkgConfig::Vtune)
-endif()
+
 
 o2_add_executable(Encode
                   SOURCES benchmarks/bench_ransEncode.cxx
@@ -112,7 +109,8 @@ o2_add_executable(Encode
                   IS_BENCHMARK
                   TARGETVARNAME ransEncodeBenchmark
                   PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
-  target_compile_options(${ransEncodeBenchmark} PRIVATE -O3 -march=native)
+target_compile_options(${ransEncodeBenchmark} PRIVATE  -O3 -march=native -fopenmp)
+target_link_libraries(${ransEncodeBenchmark} PRIVATE -ltbb)
 
 o2_add_executable(SymbolTableAccess
                   SOURCES benchmarks/bench_ransSymbolTableAccess.cxx
@@ -120,7 +118,8 @@ o2_add_executable(SymbolTableAccess
                   IS_BENCHMARK
                   TARGETVARNAME ransSymbolTableAccessBenchmark
                   PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
-  target_compile_options(${ransSymbolTableAccessBenchmark} PRIVATE -O3 -march=native -fopenmp)
+target_compile_options(${ransSymbolTableAccessBenchmark} PRIVATE  -O3 -march=native -fopenmp)
+target_link_libraries(${ransSymbolTableAccessBenchmark} PRIVATE -ltbb)
 
 o2_add_executable(Streaming
                 SOURCES benchmarks/bench_ransStreaming.cxx
@@ -128,7 +127,12 @@ o2_add_executable(Streaming
                 IS_BENCHMARK
                 TARGETVARNAME ransStreamingBenchmark
                 PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
-  target_compile_options(${ransStreamingBenchmark} PRIVATE -O3 -march=native -fopenmp)
+  target_compile_options(${ransStreamingBenchmark} PRIVATE  -O2 -march=native -fopenmp)
+  target_link_libraries(${ransStreamingBenchmark} PRIVATE -ltbb)
+  if(${ENABLE_VTUNE_PROFILER})
+    target_compile_definitions(${ransStreamingBenchmark} PRIVATE ENABLE_VTUNE_PROFILER)
+    target_link_libraries(${ransStreamingBenchmark} PRIVATE PkgConfig::Vtune)
+  endif()
 #target_compile_options(${ransStreamingBenchmark} PRIVATE -O0 -ggdb -march=native -fopenmp)
 
 endif()
