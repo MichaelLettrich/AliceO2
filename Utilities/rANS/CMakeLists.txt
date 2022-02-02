@@ -128,7 +128,12 @@ o2_add_executable(Streaming
                 IS_BENCHMARK
                 TARGETVARNAME ransStreamingBenchmark
                 PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
-  target_compile_options(${ransStreamingBenchmark} PRIVATE -O3 -march=native -fopenmp)
+  target_compile_options(${ransStreamingBenchmark} PRIVATE  -O3 -march=native -fopenmp)
+  target_link_libraries(${ransStreamingBenchmark} PRIVATE -ltbb)
+  if(${ENABLE_VTUNE_PROFILER})
+    target_compile_definitions(${ransStreamingBenchmark} PRIVATE ENABLE_VTUNE_PROFILER)
+    target_link_libraries(${ransStreamingBenchmark} PRIVATE PkgConfig::Vtune)
+  endif()
 #target_compile_options(${ransStreamingBenchmark} PRIVATE -O0 -ggdb -march=native -fopenmp)
 
 endif()
