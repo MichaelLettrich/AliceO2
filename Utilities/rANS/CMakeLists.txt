@@ -133,9 +133,17 @@ o2_add_executable(Streaming
     target_compile_definitions(${ransStreamingBenchmark} PRIVATE ENABLE_VTUNE_PROFILER)
     target_link_libraries(${ransStreamingBenchmark} PRIVATE PkgConfig::Vtune)
   endif()
-#target_compile_options(${ransStreamingBenchmark} PRIVATE -O0 -ggdb -march=native -fopenmp)
 
 endif()
+
+o2_add_executable(SIMD
+                  SOURCES benchmarks/bench_ransSIMD.cxx
+                  COMPONENT_NAME rANS
+                  IS_BENCHMARK
+                  TARGETVARNAME ransSIMDBenchmark
+                  PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
+target_compile_options(${ransSIMDBenchmark} PRIVATE  -O3 -march=native -fopenmp)
+target_link_libraries(${ransSIMDBenchmark} PRIVATE -ltbb)
 
 o2_add_executable(rans-encode-decode-8
                   TARGETVARNAME targetName
