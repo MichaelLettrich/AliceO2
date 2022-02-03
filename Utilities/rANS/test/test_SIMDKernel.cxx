@@ -251,10 +251,9 @@ BOOST_FIXTURE_TEST_SUITE(testAostoSoa, AosToSoaFixture)
 BOOST_AUTO_TEST_CASE_TEMPLATE(simd_AosToSOA, sizes_T, aosToSoa_T)
 {
   constexpr sizes_T nElements;
-  std::array<o2::rans::internal::simd::Symbol, nElements()> aosPtrs;
-
+  std::array<const o2::rans::internal::simd::Symbol*, nElements()> aosPtrs{};
   for (size_t i = 0; i < nElements(); ++i) {
-    aosPtrs[i] = mSource[i];
+    aosPtrs[i] = &mSource[i];
   }
 
   auto [frequencies, cumulative] = aosToSoa(aosPtrs);

@@ -58,10 +58,10 @@ class Encoder
   Stream_IT flush(Stream_IT outputIter);
 
   template <typename Stream_IT>
-  Stream_IT putSymbols(Stream_IT outputIter, const std::array<Symbol, nHardwareStreams>& encodeSymbols);
+  Stream_IT putSymbols(Stream_IT outputIter, const std::array<const Symbol*, nHardwareStreams>& encodeSymbols);
 
   template <typename Stream_IT>
-  Stream_IT putSymbols(Stream_IT outputIter, const std::array<Symbol, nHardwareStreams>& encodeSymbols, size_t mask);
+  Stream_IT putSymbols(Stream_IT outputIter, const std::array<const Symbol*, nHardwareStreams>& encodeSymbols, size_t mask);
 
  private:
   epi64_t<simdWidth_V> mStates;
@@ -108,7 +108,7 @@ Stream_IT Encoder<simdWidth_V>::flush(Stream_IT iter)
 
 template <SIMDWidth simdWidth_V>
 template <typename Stream_IT>
-Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, const std::array<Symbol, nHardwareStreams>& encodeSymbols)
+Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, const std::array<const Symbol*, nHardwareStreams>& encodeSymbols)
 {
 
   // can't encode symbol with freq=0
@@ -126,12 +126,12 @@ Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, const std::arra
 
 template <SIMDWidth simdWidth_V>
 template <typename Stream_IT>
-Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, const std::array<Symbol, nHardwareStreams>& encodeSymbols, size_t mask)
+Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, const std::array<const Symbol*, nHardwareStreams>& encodeSymbols, size_t mask)
 {
   Stream_IT streamPos = outputIter;
 
   for (size_t i = mask; i-- > 0;) {
-    streamPos = putSymbol(streamPos, encodeSymbols[i], mStates[i]);
+    streamPos = putSymbol(streamPos, *encodeSymbols[i], mStates[i]);
   }
 
   return streamPos;
