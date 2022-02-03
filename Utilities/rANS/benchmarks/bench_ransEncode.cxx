@@ -150,16 +150,16 @@ struct SIMDFixture : public benchmark::Fixture {
     for (size_t i = 0; i < sourceMessage.size(); i += nElems) {
       if constexpr (width_V == o2::rans::internal::simd::SIMDWidth::SSE) {
         mSymbols.push_back({
-          symbolTable[sourceMessage[i]],
-          symbolTable[sourceMessage[i + 1]],
+          &symbolTable[sourceMessage[i]],
+          &symbolTable[sourceMessage[i + 1]],
         });
       }
       if constexpr (width_V == o2::rans::internal::simd::SIMDWidth::AVX) {
         mSymbols.push_back({
-          symbolTable[sourceMessage[i]],
-          symbolTable[sourceMessage[i + 1]],
-          symbolTable[sourceMessage[i + 2]],
-          symbolTable[sourceMessage[i + 3]],
+          &symbolTable[sourceMessage[i]],
+          &symbolTable[sourceMessage[i + 1]],
+          &symbolTable[sourceMessage[i + 2]],
+          &symbolTable[sourceMessage[i + 3]],
         });
       }
     }
@@ -171,7 +171,7 @@ struct SIMDFixture : public benchmark::Fixture {
   }
 
   static constexpr size_t nElems = o2::rans::internal::simd::getElementCount<ransState_t>(width_V);
-  std::vector<std::array<symbol_t, nElems>> mSymbols{};
+  std::vector<std::array<const symbol_t*, nElems>> mSymbols{};
   o2::rans::internal::simd::epi64_t<width_V> mState{getData<source_T>().getState()};
   o2::rans::internal::simd::pd_t<width_V> mNSamples{static_cast<double>(o2::rans::internal::pow2(
     getData<source_T>().getRenormedFrequencies().getRenormingBits()))};
@@ -195,7 +195,7 @@ ransState_t simpleEncode(ransState_t state, size_t symbolTablePrecision, const o
 template <o2::rans::internal::simd::SIMDWidth width_V>
 auto SIMDEncode(const o2::rans::internal::simd::epi64_t<width_V>& states,
                 const o2::rans::internal::simd::pd_t<width_V>& nSamples,
-                const std::array<o2::rans::internal::simd::Symbol, o2::rans::internal::simd::getElementCount<ransState_t>(width_V)>& symbols)
+                const std::array<const o2::rans::internal::simd::Symbol*, o2::rans::internal::simd::getElementCount<ransState_t>(width_V)>& symbols)
 {
   const auto [frequencies, cumulativeFrequencies] = o2::rans::internal::simd::aosToSoa(symbols);
   const auto [div, mod] = o2::rans::internal::simd::divMod(o2::rans::internal::simd::uint64ToDouble(states),
