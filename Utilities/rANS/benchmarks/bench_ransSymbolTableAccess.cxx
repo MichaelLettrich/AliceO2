@@ -14,411 +14,146 @@
 /// @brief
 
 #include <vector>
+#include <cstring>
 #include <random>
-#include <cmath>
-#include <utility>
+#include <algorithm>
+#include <execution>
+#include <iterator>
 
 #include <benchmark/benchmark.h>
 
 #include "rANS/utils.h"
 #include "rANS/rans.h"
 #include "rANS/internal/backend/simd/kernel.h"
+#include "rANS/internal/backend/simd/SymbolTable.h"
+#include "rANS/SIMDEncoder.h"
 
 #ifdef ENABLE_VTUNE_PROFILER
 #include <ittnotify.h>
 #endif
 
-using namespace o2::rans::internal;
-using namespace o2::rans::internal::simd;
+using count_t = uint32_t;
+using ransState_t = uint64_t;
+using stream_t = uint32_t;
 
-class RANSData
+inline constexpr size_t MessageSize = 1ull << 22;
+
+template <typename source_T>
+class SymbolTableData
 {
  public:
-  using source_T = uint16_t;
-
-  RANSData()
+  explicit SymbolTableData(size_t messageSize)
   {
-    mSourceMessage = [this] {
-      std::mt19937 mt(0); // same seed we want always the same distrubution of random numbers;
-      std::binomial_distribution<source_T> dist(this->mMax, this->mProbability);
+    std::mt19937 mt(0); // same seed we want always the same distrubution of random numbers;
+    const size_t draws = std::min(1ul << 20, static_cast<size_t>(std::numeric_limits<source_T>::max()));
+    const double probability = 0.5;
+    std::binomial_distribution<source_T> dist(draws, probability);
+    const size_t sourceSize = messageSize / sizeof(source_T);
+    mSourceMessage.resize(sourceSize);
+    std::generate(std::execution::par_unseq, mSourceMessage.begin(), mSourceMessage.end(), [&dist, &mt]() { return dist(mt); });
 
-      std::vector<source_T> symbols(this->mMax);
-      for (size_t i = 0; i < mNSymbols; ++i) {
-        symbols.push_back(dist(mt));
-      }
-      return symbols;
-    }();
+    mRenormedFrequencies = o2::rans::renorm(o2::rans::makeFrequencyTableFromSamples(std::begin(mSourceMessage), std::end(mSourceMessage)));
   };
 
-  auto buildFrequencyTable() const
-  {
-    using namespace o2::rans;
+  const auto& getSourceMessage() const { return mSourceMessage; };
+  const auto& getRenormedFrequencies() const { return mRenormedFrequencies; };
 
-    // build a symbol table
-    FrequencyTable frequencyTable{};
-    frequencyTable.addSamples(std::begin(mSourceMessage), std::end(mSourceMessage), 0, mMax);
-    return renorm(std::move(frequencyTable), mRescalingBits);
-  };
-
-  inline const auto& getSourceMessage() const noexcept { return mSourceMessage; };
-
-  inline source_T getMin() const noexcept { return mMin; };
-  inline source_T getMax() const noexcept { return mMax; };
-
- protected:
-  static constexpr source_T mMin{0};
-  static constexpr source_T mMax{std::numeric_limits<source_T>::max()};
-  static constexpr size_t mRescalingBits = 24;
-  static constexpr size_t mNSymbols = 1ul << 24;
-  static constexpr double mProbability = 0.3;
+ private:
   std::vector<source_T> mSourceMessage{};
+  o2::rans::RenormedFrequencyTable mRenormedFrequencies{};
 };
 
-class RANSDataFixture : public RANSData, public benchmark::Fixture
+const SymbolTableData<uint8_t> Data8(MessageSize);
+const SymbolTableData<uint16_t> Data16(MessageSize);
+const SymbolTableData<uint32_t> Data32(MessageSize);
+
+template <typename T>
+const auto& getData()
 {
- public:
-  using source_T = uint16_t;
-
-  void SetUp(const ::benchmark::State& state) override{};
-
-  void TearDown(const ::benchmark::State& state) override{};
+  if constexpr (std::is_same_v<uint8_t, T>) {
+    return Data8;
+  } else if constexpr (std::is_same_v<uint16_t, T>) {
+    return Data16;
+  } else {
+    return Data32;
+  }
 };
 
-BENCHMARK_F(RANSDataFixture, accessSOA)
-(benchmark::State& s)
+template <typename source_T>
+static void ransSymbolTableAccessLight(benchmark::State& st)
 {
   using namespace o2::rans;
-  using coder_T = uint64_t;
-  const auto frequencyTable = buildFrequencyTable();
-  std::vector<uint32_t> frequencies;
-  std::vector<uint32_t> cumulative;
 
-  uint32_t cumulatedFrequency = 0;
-  for (auto frequency : frequencyTable) {
-    frequencies.push_back(frequency);
-    cumulative.push_back(cumulatedFrequency);
-    cumulatedFrequency += frequency;
-  }
+  const auto& data = getData<source_T>();
 
-  std::array<uint64_t, 4> states{0, 0, 0, 0};
+  internal::SymbolTable<internal::cpp::DecoderSymbol> symbolTable(data.getRenormedFrequencies());
 
-  for (auto _ : s) {
-
-    for (size_t i = 0; i < mSourceMessage.size(); i += 4) {
-#pragma omp simd
-      for (size_t j = 0; j < 4; ++j) {
-        const auto sourceSymbol = mSourceMessage[i + j];
-        states[j] += frequencies[sourceSymbol - mMin] + cumulative[sourceSymbol - mMin];
-      }
+  for (auto _ : st) {
+    for (size_t i = 0; i < data.getSourceMessage().size(); ++i) {
+      benchmark::DoNotOptimize(symbolTable[data.getSourceMessage()[i]]);
+      benchmark::ClobberMemory();
     }
-    benchmark::DoNotOptimize(states.data());
   }
 
-  s.SetItemsProcessed(int64_t(s.iterations()) * mSourceMessage.size());
-  s.SetBytesProcessed(int64_t(s.iterations()) * mSourceMessage.size() * sizeof(source_T));
+  st.SetItemsProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size());
+  st.SetBytesProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size() * sizeof(source_T));
 };
 
-BENCHMARK_F(RANSDataFixture, accessAOS)
-(benchmark::State& s)
+template <typename source_T>
+static void ransSymbolTableAccessHeavy(benchmark::State& st)
 {
   using namespace o2::rans;
-  using symbol_T = internal::simd::Symbol;
-  using coder_T = uint64_t;
-  const auto frequencyTable = buildFrequencyTable();
-  std::vector<symbol_T> symbolTable;
 
-  uint32_t cumulatedFrequency = 0;
-  for (auto frequency : frequencyTable) {
-    symbolTable.emplace_back(frequency, cumulatedFrequency);
-    cumulatedFrequency += frequency;
-  }
+  const auto& data = getData<source_T>();
 
-  std::array<uint64_t, 4> states{0, 0, 0, 0};
+  internal::SymbolTable<internal::cpp::EncoderSymbol<ransState_t>> symbolTable(data.getRenormedFrequencies());
 
-  for (auto _ : s) {
-
-    for (size_t i = 0; i < mSourceMessage.size(); i += 4) {
-#pragma omp simd
-      for (size_t j = 0; j < 4; ++j) {
-        const auto sourceSymbol = mSourceMessage[i + j];
-        const auto symbol = symbolTable[sourceSymbol - mMin];
-        states[j] += symbol.getFrequency() + symbol.getCumulative();
-      }
+  for (auto _ : st) {
+    for (size_t i = 0; i < data.getSourceMessage().size(); ++i) {
+      benchmark::DoNotOptimize(symbolTable[data.getSourceMessage()[i]]);
+      benchmark::ClobberMemory();
     }
-    benchmark::DoNotOptimize(states.data());
   }
 
-  s.SetItemsProcessed(int64_t(s.iterations()) * mSourceMessage.size());
-  s.SetBytesProcessed(int64_t(s.iterations()) * mSourceMessage.size() * sizeof(source_T));
+  st.SetItemsProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size());
+  st.SetBytesProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size() * sizeof(source_T));
 };
 
-BENCHMARK_F(RANSDataFixture, accessLightSymbolTable)
-(benchmark::State& s)
+template <typename source_T, o2::rans::internal::simd::SIMDWidth width_V>
+static void ransSymbolTableAccessSIMD(benchmark::State& st)
 {
   using namespace o2::rans;
-  using symbol_T = internal::simd::Symbol;
-  using coder_T = uint64_t;
-  const internal::SymbolTable<symbol_T> symbolTable{buildFrequencyTable()};
+  static constexpr size_t nElems = o2::rans::internal::simd::getElementCount<ransState_t>(width_V);
 
-  std::array<uint64_t, 4> states{0, 0, 0, 0};
+  const auto& data = getData<source_T>();
 
-  for (auto _ : s) {
+  internal::simd::SymbolTable symbolTable(data.getRenormedFrequencies());
 
-    for (size_t i = 0; i < mSourceMessage.size(); i += 4) {
-#pragma omp simd
-      for (size_t j = 0; j < 4; ++j) {
-        const auto sourceSymbol = mSourceMessage[i + j];
-        const auto encoderSymbol = symbolTable[sourceSymbol];
-        states[j] += encoderSymbol.getFrequency() + encoderSymbol.getCumulative();
-      }
+  for (auto _ : st) {
+    for (size_t i = 0; i < data.getSourceMessage().size(); i += nElems) {
+      benchmark::DoNotOptimize(internal::getSymbols<const source_T*, nElems>(&(data.getSourceMessage()[i]), symbolTable));
+      benchmark::ClobberMemory();
     }
-    benchmark::DoNotOptimize(states.data());
   }
 
-  s.SetItemsProcessed(int64_t(s.iterations()) * mSourceMessage.size());
-  s.SetBytesProcessed(int64_t(s.iterations()) * mSourceMessage.size() * sizeof(source_T));
+  st.SetItemsProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size());
+  st.SetBytesProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size() * sizeof(source_T));
 };
 
-BENCHMARK_F(RANSDataFixture, accessHeavySymbolTable)
-(benchmark::State& s)
-{
-  using namespace o2::rans;
-  using symbol_T = internal::cpp::EncoderSymbol<uint64_t>;
-  using coder_T = uint64_t;
-  const internal::SymbolTable<symbol_T> symbolTable{buildFrequencyTable()};
+BENCHMARK_TEMPLATE1(ransSymbolTableAccessLight, uint8_t);
+BENCHMARK_TEMPLATE1(ransSymbolTableAccessLight, uint16_t);
+BENCHMARK_TEMPLATE1(ransSymbolTableAccessLight, uint32_t);
 
-  std::array<uint64_t, 4> states{0, 0, 0, 0};
+BENCHMARK_TEMPLATE1(ransSymbolTableAccessHeavy, uint8_t);
+BENCHMARK_TEMPLATE1(ransSymbolTableAccessHeavy, uint16_t);
+BENCHMARK_TEMPLATE1(ransSymbolTableAccessHeavy, uint32_t);
 
-  for (auto _ : s) {
+BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint8_t, o2::rans::internal::simd::SIMDWidth::SSE);
+BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint16_t, o2::rans::internal::simd::SIMDWidth::SSE);
+BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint32_t, o2::rans::internal::simd::SIMDWidth::SSE);
 
-    for (size_t i = 0; i < mSourceMessage.size(); i += 4) {
-#pragma omp simd
-      for (size_t j = 0; j < 4; ++j) {
-        const auto sourceSymbol = mSourceMessage[i + j];
-        const auto encoderSymbol = symbolTable[sourceSymbol];
-        states[j] += encoderSymbol.getFrequency() + encoderSymbol.getBias();
-      }
-    }
-    benchmark::DoNotOptimize(states.data());
-  }
-
-  s.SetItemsProcessed(int64_t(s.iterations()) * mSourceMessage.size());
-  s.SetBytesProcessed(int64_t(s.iterations()) * mSourceMessage.size() * sizeof(source_T));
-};
-
-inline std::pair<simd::epi32_t<simd::SIMDWidth::SSE>, simd::epi32_t<simd::SIMDWidth::SSE>> aosToSoaSSE(const uint32_t* in0, const uint32_t* in1) noexcept
-{
-
-  __m128i in0vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in0));
-  __m128i in1vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in1));
-
-  __m128i resvec0 = _mm_unpacklo_epi32(in0vec, in1vec);
-  __m128i resvec1 = _mm_shuffle_epi32(resvec0, _MM_SHUFFLE(0, 0, 3, 2));
-
-  simd::epi32_t<simd::SIMDWidth::SSE> outvec0;
-  simd::epi32_t<simd::SIMDWidth::SSE> outvec1;
-  _mm_store_si128(reinterpret_cast<__m128i*>(outvec0.data()), resvec0);
-  _mm_store_si128(reinterpret_cast<__m128i*>(outvec1.data()), resvec1);
-
-  return {outvec0, outvec1};
-};
-
-inline simd::epi64_t<simd::SIMDWidth::SSE> add(const simd::epi32_t<simd::SIMDWidth::SSE>& in0, const simd::epi32_t<simd::SIMDWidth::SSE>& in1, const simd::epi64_t<simd::SIMDWidth::SSE>& in2) noexcept
-{
-  __m128i in0vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in0.data()));
-  __m128i in1vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in1.data()));
-  __m128i in2vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in2.data()));
-
-  __m128i result = _mm_add_epi32(in0vec, in1vec);
-  result = _mm_cvtepi32_epi64(result);
-  result = _mm_add_epi64(result, in2vec);
-
-  simd::epi64_t<simd::SIMDWidth::SSE> resultvec;
-  _mm_store_si128(reinterpret_cast<__m128i*>(resultvec.data()), result);
-  return resultvec;
-};
-
-void accessAOSsse(benchmark::State& s)
-{
-  using namespace o2::rans;
-  using namespace o2::rans::internal;
-
-  using epi64_t = simd::epi64_t<simd::SIMDWidth::SSE>;
-  using epi32_t = simd::epi32_t<simd::SIMDWidth::SSE>;
-  using pd_t = simd::pd_t<simd::SIMDWidth::SSE>;
-
-  using source_T = typename RANSData::source_T;
-  using coder_T = uint64_t;
-
-  RANSData data;
-  const auto& sourceMessage = data.getSourceMessage();
-  const auto frequencyTable = data.buildFrequencyTable();
-  std::vector<simd::Symbol> symbolTable;
-
-  uint32_t cumulatedFrequency = 0;
-  for (auto frequency : frequencyTable) {
-    symbolTable.emplace_back(frequency, cumulatedFrequency);
-    cumulatedFrequency += frequency;
-  }
-  epi64_t states{0};
-
-  for (auto _ : s) {
-#ifdef ENABLE_VTUNE_PROFILER
-    __itt_resume();
-#endif
-    for (size_t i = 0; i < sourceMessage.size(); i += elementCount_v<epi64_t>) {
-
-      std::array<const uint32_t*, 2> symbols;
-      for (size_t j = 0; j < elementCount_v<epi64_t>; ++j) {
-        const auto sourceSymbol = sourceMessage[i + j];
-        const auto tableIndex = sourceSymbol - data.getMin();
-        symbols[j] = symbolTable[tableIndex].data();
-      }
-
-      const auto [freqs, cumuls] = aosToSoaSSE(symbols[0], symbols[1]);
-      states = add(freqs, cumuls, states);
-    }
-    benchmark::DoNotOptimize(states.data());
-#ifdef ENABLE_VTUNE_PROFILER
-    __itt_pause();
-#endif
-  }
-
-  s.SetItemsProcessed(int64_t(s.iterations()) * sourceMessage.size());
-  s.SetBytesProcessed(int64_t(s.iterations()) * sourceMessage.size() * sizeof(source_T));
-};
-
-// inline std::pair<simdepi32_t<AVX>, simdepi32_t<AVX>> aosToSOA4(const Symbol* base, const uint64_t* index) noexcept
-// {
-//   __m256i indexVec = _mm256_load_si256(reinterpret_cast<__m256i const*>(index));
-//   __m256i data = _mm256_i64gather_epi64(reinterpret_cast<const long long int*>(base), indexVec, 8);
-
-//   //simdepi32_t<AVX512>shuffleMask{0u,2u,4u,6u,1u,3u,5u,7u};
-//   // __m256i shuffleMaskVec = _mm256_load_si256(reinterpret_cast<__m256i const*>(shuffleMask.data()));
-
-//   data = _mm256_shuffle_epi32(data, _MM_SHUFFLE(3, 1, 2, 0));
-//   //data = _mm256_permutevar8x32_epi32(data,shuffleMaskVec);
-//   __m128i lo = _mm256_extractf128_si256(data, 0);
-//   __m128i hi = _mm256_extractf128_si256(data, 1);
-
-//   __m128i resvec0 = _mm_unpacklo_epi64(lo, hi);
-//   __m128i resvec1 = _mm_unpackhi_epi64(lo, hi);
-
-//   simdepi32_t<AVX> outvec0;
-//   simdepi32_t<AVX> outvec1;
-//   _mm_store_si128(reinterpret_cast<__m128i*>(outvec0.data()), resvec0);
-//   _mm_store_si128(reinterpret_cast<__m128i*>(outvec1.data()), resvec1);
-
-//   return {outvec0, outvec1};
-// };
-
-inline std::pair<epi32_t<SIMDWidth::AVX>, epi32_t<SIMDWidth::AVX>> aosToSOA4(const Symbol* base, const uint64_t* index) noexcept
-{
-  __m256i indexVec = _mm256_load_si256(reinterpret_cast<__m256i const*>(index));
-  __m256i data = _mm256_i64gather_epi64(reinterpret_cast<const long long int*>(base), indexVec, 8);
-
-  //epi32_t<SIMDWidth::AVX>shuffleMask{0u,2u,4u,6u,1u,3u,5u,7u};
-  // __m256i shuffleMaskVec = _mm256_load_si256(reinterpret_cast<__m256i const*>(shuffleMask.data()));
-
-  data = _mm256_shuffle_epi32(data, _MM_SHUFFLE(3, 1, 2, 0));
-  //data = _mm256_permutevar8x32_epi32(data,shuffleMaskVec);
-  __m128i lo = _mm256_extractf128_si256(data, 0);
-  __m128i hi = _mm256_extractf128_si256(data, 1);
-
-  __m128i resvec0 = _mm_unpacklo_epi64(lo, hi);
-  __m128i resvec1 = _mm_unpackhi_epi64(lo, hi);
-
-  epi32_t<SIMDWidth::AVX> outvec0;
-  epi32_t<SIMDWidth::AVX> outvec1;
-  _mm_store_si128(reinterpret_cast<__m128i*>(outvec0.data()), resvec0);
-  _mm_store_si128(reinterpret_cast<__m128i*>(outvec1.data()), resvec1);
-
-  return {outvec0, outvec1};
-};
-
-inline std::pair<epi32_t<SIMDWidth::SSE>, epi32_t<SIMDWidth::SSE>> aosToSOAavx(const uint32_t* in0, const uint32_t* in1, const uint32_t* in2, const uint32_t* in3) noexcept
-{
-  __m128i in0vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in0));
-  __m128i in1vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in1));
-  __m128i in2vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in2));
-  __m128i in3vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in3));
-
-  __m128i merged0 = _mm_unpacklo_epi32(in0vec, in1vec);
-  __m128i merged1 = _mm_unpacklo_epi32(in2vec, in3vec);
-  __m128i resvec0 = _mm_unpacklo_epi64(merged0, merged1);
-  __m128i resvec1 = _mm_unpackhi_epi64(merged0, merged1);
-
-  epi32_t<SIMDWidth::SSE> outvec0;
-  epi32_t<SIMDWidth::SSE> outvec1;
-  _mm_store_si128(reinterpret_cast<__m128i*>(outvec0.data()), resvec0);
-  _mm_store_si128(reinterpret_cast<__m128i*>(outvec1.data()), resvec1);
-
-  return {outvec0, outvec1};
-};
-
-inline epi64_t<SIMDWidth::AVX> add(const epi32_t<SIMDWidth::SSE>& in0, const epi32_t<SIMDWidth::SSE>& in1, const epi64_t<SIMDWidth::AVX>& in2) noexcept
-{
-  __m128i in0vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in0.data()));
-  __m128i in1vec = _mm_load_si128(reinterpret_cast<__m128i const*>(in1.data()));
-  __m256i in2vec = _mm256_load_si256(reinterpret_cast<__m256i const*>(in2.data()));
-
-  __m128i tmp = _mm_add_epi32(in0vec, in1vec);
-  __m256i result = _mm256_cvtepi32_epi64(tmp);
-  result = _mm256_add_epi64(result, in2vec);
-
-  epi64_t<SIMDWidth::AVX> resultvec;
-  _mm256_store_si256(reinterpret_cast<__m256i*>(resultvec.data()), result);
-  return resultvec;
-};
-
-void accessAOSavx(benchmark::State& s)
-{
-  using namespace o2::rans;
-  using namespace o2::rans::internal;
-
-  using source_T = typename RANSData::source_T;
-  using coder_T = uint64_t;
-
-  RANSData data;
-  const auto& sourceMessage = data.getSourceMessage();
-  const auto frequencyTable = data.buildFrequencyTable();
-  std::vector<simd::Symbol> symbolTable;
-
-  uint32_t cumulatedFrequency = 0;
-  for (auto frequency : frequencyTable) {
-    symbolTable.emplace_back(frequency, cumulatedFrequency);
-    cumulatedFrequency += frequency;
-  }
-  simd::epi64_t<SIMDWidth::AVX> states{0};
-
-  for (auto _ : s) {
-#ifdef ENABLE_VTUNE_PROFILER
-    __itt_resume();
-#endif
-    const size_t nParallelElements = simd::elementCount_v<simd::epi64_t<simd::SIMDWidth::AVX>>;
-    for (size_t i = 0; i < sourceMessage.size(); i += nParallelElements) {
-
-      std::array<const uint32_t*, 4> symbols;
-      for (size_t j = 0; j < nParallelElements; ++j) {
-        const auto sourceSymbol = sourceMessage[i + j];
-        const auto tableIndex = sourceSymbol - data.getMin();
-        symbols[j] = symbolTable[tableIndex].data();
-      }
-
-      const auto [freqs, cumuls] = aosToSOAavx(symbols[0], symbols[1], symbols[2], symbols[3]);
-      states = add(freqs, cumuls, states);
-    }
-    benchmark::DoNotOptimize(states.data());
-#ifdef ENABLE_VTUNE_PROFILER
-    __itt_pause();
-#endif
-  }
-
-  s.SetItemsProcessed(int64_t(s.iterations()) * sourceMessage.size());
-  s.SetBytesProcessed(int64_t(s.iterations()) * sourceMessage.size() * sizeof(source_T));
-};
-
-BENCHMARK(accessAOSsse);
-BENCHMARK(accessAOSavx);
+BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint8_t, o2::rans::internal::simd::SIMDWidth::AVX);
+BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint16_t, o2::rans::internal::simd::SIMDWidth::AVX);
+BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint32_t, o2::rans::internal::simd::SIMDWidth::AVX);
 
 BENCHMARK_MAIN();
