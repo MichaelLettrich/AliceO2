@@ -118,7 +118,8 @@ o2_add_executable(SymbolTableAccess
                   IS_BENCHMARK
                   TARGETVARNAME ransSymbolTableAccessBenchmark
                   PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
-  target_compile_options(${ransSymbolTableAccessBenchmark} PRIVATE -O3 -march=native -fopenmp)
+target_compile_options(${ransSymbolTableAccessBenchmark} PRIVATE  -O3 -march=native -fopenmp)
+target_link_libraries(${ransSymbolTableAccessBenchmark} PRIVATE -ltbb)
 
 o2_add_executable(Streaming
                 SOURCES benchmarks/bench_ransStreaming.cxx
