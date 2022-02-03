@@ -368,10 +368,10 @@ inline epi64_t<SIMDWidth::AVX512> ransEncode(const epi64_t<SIMDWidth::AVX512>& s
 
 #endif /* __AVX_512F_ */
 
-inline std::tuple<simd::epi32_t<simd::SIMDWidth::SSE>, simd::epi32_t<simd::SIMDWidth::SSE>> aosToSoa(const std::array<Symbol, 2>& in) noexcept
+inline std::tuple<simd::epi32_t<simd::SIMDWidth::SSE>, simd::epi32_t<simd::SIMDWidth::SSE>> aosToSoa(const std::array<const Symbol*, 2>& in) noexcept
 {
-  __m128i in0Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[0].data()));
-  __m128i in1Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[1].data()));
+  __m128i in0Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[0]->data()));
+  __m128i in1Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[1]->data()));
 
   __m128i res0Reg = _mm_unpacklo_epi32(in0Reg, in1Reg);
   __m128i res1Reg = _mm_shuffle_epi32(res0Reg, _MM_SHUFFLE(0, 0, 3, 2));
@@ -381,12 +381,12 @@ inline std::tuple<simd::epi32_t<simd::SIMDWidth::SSE>, simd::epi32_t<simd::SIMDW
 
 #ifdef __AVX2__
 
-inline std::tuple<epi32_t<SIMDWidth::SSE>, epi32_t<SIMDWidth::SSE>> aosToSoa(const std::array<Symbol, 4>& in) noexcept
+inline std::tuple<epi32_t<SIMDWidth::SSE>, epi32_t<SIMDWidth::SSE>> aosToSoa(const std::array<const Symbol*, 4>& in) noexcept
 {
-  __m128i in0Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[0].data()));
-  __m128i in1Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[1].data()));
-  __m128i in2Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[2].data()));
-  __m128i in3Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[3].data()));
+  __m128i in0Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[0]->data()));
+  __m128i in1Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[1]->data()));
+  __m128i in2Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[2]->data()));
+  __m128i in3Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[3]->data()));
 
   __m128i merged0Reg = _mm_unpacklo_epi32(in0Reg, in1Reg);
   __m128i merged1Reg = _mm_unpacklo_epi32(in2Reg, in3Reg);
@@ -396,10 +396,10 @@ inline std::tuple<epi32_t<SIMDWidth::SSE>, epi32_t<SIMDWidth::SSE>> aosToSoa(con
   return {store<uint32_t>(res0Reg), store<uint32_t>(res1Reg)};
 };
 
-inline std::tuple<epi32_t<SIMDWidth::AVX>, epi32_t<SIMDWidth::AVX>> aosToSoa(const std::array<Symbol, 8>& in) noexcept
+inline std::tuple<epi32_t<SIMDWidth::AVX>, epi32_t<SIMDWidth::AVX>> aosToSoa(const std::array<const Symbol*, 8>& in) noexcept
 {
-  std::array<Symbol, 4> first{in[0], in[1], in[2], in[3]};
-  std::array<Symbol, 4> second{in[4], in[5], in[6], in[7]};
+  std::array<const Symbol*, 4> first{in[0], in[1], in[2], in[3]};
+  std::array<const Symbol*, 4> second{in[4], in[5], in[6], in[7]};
 
   auto [arr00, arr01] = aosToSoa(first);
   auto [arr10, arr11] = aosToSoa(second);
