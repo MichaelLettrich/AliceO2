@@ -38,38 +38,39 @@ namespace rans
 namespace internal
 {
 template <typename source_IT, uint8_t nHardwareStreams_V>
-inline std::tuple<source_IT, std::array<internal::simd::Symbol, nHardwareStreams_V>> getSymbols(source_IT symbolIter, const internal::simd::SymbolTable& symbolTable) noexcept
+inline std::tuple<source_IT, std::array<const internal::simd::Symbol*, nHardwareStreams_V>> getSymbols(source_IT symbolIter, const internal::simd::SymbolTable& symbolTable) noexcept
 {
   if constexpr (nHardwareStreams_V == 2) {
     return {
       symbolIter - 2,
-      {symbolTable[*(symbolIter - 2)],
-       symbolTable[*(symbolIter - 1)]}};
+      {&symbolTable[*(symbolIter - 2)],
+       &symbolTable[*(symbolIter - 1)]}};
   } else if constexpr (nHardwareStreams_V == 4) {
     return {
       symbolIter - 4,
-      {symbolTable[*(symbolIter - 4)],
-       symbolTable[*(symbolIter - 3)],
-       symbolTable[*(symbolIter - 2)],
-       symbolTable[*(symbolIter - 1)]}};
+      {&symbolTable[*(symbolIter - 4)],
+       &symbolTable[*(symbolIter - 3)],
+       &symbolTable[*(symbolIter - 2)],
+       &symbolTable[*(symbolIter - 1)]}};
   } else if constexpr (nHardwareStreams_V == 8) {
     return {
       symbolIter - 8,
-      {symbolTable[*(symbolIter - 8)],
-       symbolTable[*(symbolIter - 7)],
-       symbolTable[*(symbolIter - 6)],
-       symbolTable[*(symbolIter - 5)],
-       symbolTable[*(symbolIter - 4)],
-       symbolTable[*(symbolIter - 3)],
-       symbolTable[*(symbolIter - 2)],
-       symbolTable[*(symbolIter - 1)]}};
-  } else {
-    std::array<internal::simd::Symbol, nHardwareStreams_V> encoderSymbols{};
-    for (auto encSymbolIter = encoderSymbols.rbegin(); encSymbolIter != encoderSymbols.rend(); ++encSymbolIter) {
-      *encSymbolIter = symbolTable[*(--symbolIter)];
-    }
-    return {symbolIter, encoderSymbols};
+      {&symbolTable[*(symbolIter - 8)],
+       &symbolTable[*(symbolIter - 7)],
+       &symbolTable[*(symbolIter - 6)],
+       &symbolTable[*(symbolIter - 5)],
+       &symbolTable[*(symbolIter - 4)],
+       &symbolTable[*(symbolIter - 3)],
+       &symbolTable[*(symbolIter - 2)],
+       &symbolTable[*(symbolIter - 1)]}};
   }
+  // else {
+  //   std::array<internal::simd::Symbol, nHardwareStreams_V> encoderSymbols{};
+  //   for (auto encSymbolIter = encoderSymbols.rbegin(); encSymbolIter != encoderSymbols.rend(); ++encSymbolIter) {
+  //     *encSymbolIter = symbolTable[*(--symbolIter)];
+  //   }
+  //   return {symbolIter, encoderSymbols};
+  // }
 };
 } // namespace internal
 
@@ -126,10 +127,10 @@ stream_IT SIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareStreams_
   source_IT inputIT = inputEnd;
 
   auto maskedEncode = [this](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder, size_t nActiveStreams = nHardwareStreams_V) {
-    std::array<internal::simd::Symbol, nHardwareStreams_V> encoderSymbols{};
+    std::array<const internal::simd::Symbol*, nHardwareStreams_V> encoderSymbols{};
     for (auto encSymbolIter = encoderSymbols.rend() - nActiveStreams; encSymbolIter != encoderSymbols.rend(); ++encSymbolIter) {
       const source_T symbol = *(--symbolIter);
-      *encSymbolIter = (this->mSymbolTable)[symbol];
+      *encSymbolIter = &(this->mSymbolTable)[symbol];
     }
     return std::tuple(symbolIter, coder.putSymbols(outputIter, encoderSymbols, nActiveStreams));
   };
@@ -175,9 +176,12 @@ stream_IT SIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareStreams_
   // main encoder loop
   LOG(trace) << "main loop";
   for (size_t i = 0; i < nMainLoopIterations; ++i) {
-    for (coderIter = std::rbegin(interleavedCoders); coderIter != std::rend(interleavedCoders); ++coderIter) {
-      std::tie(inputIT, outputIter) = encode(inputIT, outputIter, *coderIter);
+    for (size_t interleavedCoderIdx = nInterleavedStreams_V; interleavedCoderIdx-- > 0;) {
+      std::tie(inputIT, outputIter) = encode(inputIT, outputIter, interleavedCoders[interleavedCoderIdx]);
     }
+    // for (coderIter = std::rbegin(interleavedCoders); coderIter != std::rend(interleavedCoders); ++coderIter) {
+    //   std::tie(inputIT, outputIter) = encode(inputIT, outputIter, *coderIter);
+    // }
   }
 
   LOG(trace) << "flushing";
