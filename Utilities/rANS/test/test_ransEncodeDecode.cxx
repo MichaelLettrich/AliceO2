@@ -135,10 +135,31 @@ struct EncodeDecode : public EncodeDecodeBase<o2::rans::Encoder, o2::rans::Decod
 };
 
 template <typename coder_T, typename stream_T, typename source_V>
-using simdEncoder_t = o2::rans::SIMDEncoder<coder_T, stream_T, source_V>;
+using simdEncoderSSE_t = o2::rans::SIMDEncoder<coder_T, stream_T, source_V, 4, 2>;
+
+template <typename coder_T, typename stream_T, typename source_V>
+using simdDecoderSSE_t = o2::rans::SIMDDecoder<coder_T, stream_T, source_V, 4, 2>;
 
 template <typename coder_T, class dictString_T, class testString_T>
-struct EncodeDecodeSIMD : public EncodeDecodeBase<simdEncoder_t, o2::rans::SIMDDecoder, coder_T, dictString_T, testString_T> {
+struct EncodeDecodeSSE : public EncodeDecodeBase<simdEncoderSSE_t, simdDecoderSSE_t, coder_T, dictString_T, testString_T> {
+  void encode() override
+  {
+    BOOST_CHECK_NO_THROW(this->encoder.process(std::begin(this->source.data), std::end(this->source.data), std::back_inserter(this->encodeBuffer)));
+  };
+  void decode() override
+  {
+    BOOST_CHECK_NO_THROW(this->decoder.process(this->encodeBuffer.end(), std::back_inserter(this->decodeBuffer), this->source.data.size()));
+  };
+};
+
+template <typename coder_T, typename stream_T, typename source_V>
+using simdEncoderAVX_t = o2::rans::SIMDEncoder<coder_T, stream_T, source_V, 8, 4>;
+
+template <typename coder_T, typename stream_T, typename source_V>
+using simdDecoderAVX_t = o2::rans::SIMDDecoder<coder_T, stream_T, source_V, 8, 4>;
+
+template <typename coder_T, class dictString_T, class testString_T>
+struct EncodeDecodeAVX : public EncodeDecodeBase<simdEncoderAVX_t, simdDecoderAVX_t, coder_T, dictString_T, testString_T> {
   void encode() override
   {
     BOOST_CHECK_NO_THROW(this->encoder.process(std::begin(this->source.data), std::end(this->source.data), std::back_inserter(this->encodeBuffer)));
@@ -185,8 +206,10 @@ using testCase_t = boost::mpl::vector<EncodeDecode<uint32_t, EmptyTestString, Em
                                       EncodeDecode<uint64_t, EmptyTestString, EmptyTestString>,
                                       EncodeDecode<uint32_t, FullTestString, FullTestString>,
                                       EncodeDecode<uint64_t, FullTestString, FullTestString>,
-                                      EncodeDecodeSIMD<uint64_t, EmptyTestString, EmptyTestString>,
-                                      EncodeDecodeSIMD<uint64_t, FullTestString, FullTestString>,
+                                      EncodeDecodeSSE<uint64_t, EmptyTestString, EmptyTestString>,
+                                      EncodeDecodeSSE<uint64_t, FullTestString, FullTestString>,
+                                      EncodeDecodeAVX<uint64_t, EmptyTestString, EmptyTestString>,
+                                      EncodeDecodeAVX<uint64_t, FullTestString, FullTestString>,
                                       EncodeDecodeLiteral<uint32_t, EmptyTestString, EmptyTestString>,
                                       EncodeDecodeLiteral<uint64_t, EmptyTestString, EmptyTestString>,
                                       EncodeDecodeLiteral<uint32_t, FullTestString, FullTestString>,
