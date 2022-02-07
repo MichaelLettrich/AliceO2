@@ -40,6 +40,9 @@ __extension__ using uint128_t = unsigned __int128;
 
 inline constexpr size_t MessageSize = 1ull << 22;
 
+using namespace o2::rans;
+using namespace o2::rans::internal::simd;
+
 template <typename source_T>
 class SymbolTableData
 {
@@ -90,17 +93,17 @@ ransState_t encode(ransState_t state, const o2::rans::internal::cpp::EncoderSymb
   return state + symbol.getBias() + quotient * symbol.getFrequencyComplement();
 };
 
-template <o2::rans::internal::simd::SIMDWidth width_V>
-auto SIMDEncode(const o2::rans::internal::simd::epi64_t<width_V>& states,
-                const o2::rans::internal::simd::pd_t<width_V>& nSamples,
-                const std::array<const o2::rans::internal::simd::Symbol*, o2::rans::internal::simd::getElementCount<ransState_t>(width_V)>& symbols)
+template <SIMDWidth width_V>
+auto SIMDEncode(const epi64_t<width_V>& states,
+                const pd_t<width_V>& nSamples,
+                const std::array<const Symbol*, getElementCount<ransState_t>(width_V)>& symbols)
 {
-  const auto [frequencies, cumulativeFrequencies] = o2::rans::internal::simd::aosToSoa(symbols);
-  const auto [div, mod] = o2::rans::internal::simd::divMod(o2::rans::internal::simd::uint64ToDouble(states),
-                                                           o2::rans::internal::simd::int32ToDouble<width_V>(frequencies));
+  const auto [frequencies, cumulativeFrequencies] = aosToSoa(symbols);
+  const auto [div, mod] = divMod(uint64ToDouble(states),
+                                 int32ToDouble<width_V>(frequencies));
   return ransEncode(states,
-                    o2::rans::internal::simd::int32ToDouble<width_V>(frequencies),
-                    o2::rans::internal::simd::int32ToDouble<width_V>(cumulativeFrequencies),
+                    int32ToDouble<width_V>(frequencies),
+                    int32ToDouble<width_V>(cumulativeFrequencies),
                     nSamples);
 };
 
@@ -124,15 +127,15 @@ static void rans(benchmark::State& st)
   st.SetBytesProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size() * sizeof(source_T));
 };
 
-template <typename source_T, o2::rans::internal::simd::SIMDWidth width_V>
+template <typename source_T, SIMDWidth width_V>
 static void ransSIMD(benchmark::State& st)
 {
-  static constexpr size_t nElems = o2::rans::internal::simd::getElementCount<ransState_t>(width_V);
+  static constexpr size_t nElems = getElementCount<ransState_t>(width_V);
   const auto& data = getData<source_T>();
 
-  o2::rans::internal::simd::SymbolTable symbolTable(data.getRenormedFrequencies());
-  const o2::rans::internal::simd::epi64_t<width_V> states{1ull << 20};
-  o2::rans::internal::simd::pd_t<width_V> nSamples{static_cast<double>(o2::rans::internal::pow2(
+  SymbolTable symbolTable(data.getRenormedFrequencies());
+  const epi64_t<width_V> states{1ull << 20};
+  pd_t<width_V> nSamples{static_cast<double>(o2::rans::internal::pow2(
     getData<source_T>().getRenormedFrequencies().getRenormingBits()))};
 
 #ifdef ENABLE_VTUNE_PROFILER
@@ -152,16 +155,118 @@ static void ransSIMD(benchmark::State& st)
   st.SetBytesProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size() * sizeof(source_T));
 };
 
+inline epi32_t<SIMDWidth::SSE> getUpper(epi32_t<SIMDWidth::SSE> a)
+{
+  auto upper = store<uint32_t>(_mm_bsrli_si128(load(a), 8));
+  // LOG(info) << "a:" << asHex(a);
+  // LOG(info) << "upper:" << asHex(upper);
+  return upper;
+};
+
+template <typename source_T>
+static void ransSSE(benchmark::State& st)
+{
+  static constexpr size_t nElems = getElementCount<count_t>(SIMDWidth::SSE);
+  const auto& data = getData<source_T>();
+
+  SymbolTable symbolTable(data.getRenormedFrequencies());
+  const epi64_t<SIMDWidth::SSE> states{1ull << 20};
+  pd_t<SIMDWidth::SSE> nSamples{static_cast<double>(o2::rans::internal::pow2(
+    getData<source_T>().getRenormedFrequencies().getRenormingBits()))};
+
+  // #ifdef ENABLE_VTUNE_PROFILER
+  //   __itt_resume();
+  // #endif
+  for (auto _ : st) {
+    for (size_t i = 0; i < data.getSourceMessage().size(); i += nElems) {
+      auto [it, symbols] = o2::rans::internal::getSymbols<const source_T*, nElems>(&(data.getSourceMessage()[i]), symbolTable);
+      const auto [frequencies, cumulativeFrequencies] = aosToSoa(symbols);
+      const auto frequenciesUpper = getUpper(frequencies);
+      const auto cumulativeUpper = getUpper(cumulativeFrequencies);
+
+      const auto [divLower, modLower] = divMod(uint64ToDouble(states),
+                                               int32ToDouble<SIMDWidth::SSE>(frequencies));
+      const auto [divUpper, modUpper] = divMod(uint64ToDouble(states),
+                                               int32ToDouble<SIMDWidth::SSE>(frequenciesUpper));
+      benchmark::DoNotOptimize(ransEncode(states,
+                                          int32ToDouble<SIMDWidth::SSE>(frequencies),
+                                          int32ToDouble<SIMDWidth::SSE>(cumulativeFrequencies),
+                                          nSamples));
+      benchmark::DoNotOptimize(ransEncode(states,
+                                          int32ToDouble<SIMDWidth::SSE>(frequenciesUpper),
+                                          int32ToDouble<SIMDWidth::SSE>(cumulativeUpper),
+                                          nSamples));
+    }
+  }
+  // #ifdef ENABLE_VTUNE_PROFILER
+  //   __itt_pause();
+  // #endif
+
+  st.SetItemsProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size());
+  st.SetBytesProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size() * sizeof(source_T));
+};
+
+template <typename source_T>
+static void ransAVX(benchmark::State& st)
+{
+  static constexpr size_t nElems = getElementCount<count_t>(SIMDWidth::AVX);
+  const auto& data = getData<source_T>();
+
+  SymbolTable symbolTable(data.getRenormedFrequencies());
+  const epi64_t<SIMDWidth::AVX> states{1ull << 20};
+  pd_t<SIMDWidth::AVX> nSamples{static_cast<double>(o2::rans::internal::pow2(
+    getData<source_T>().getRenormedFrequencies().getRenormingBits()))};
+
+#ifdef ENABLE_VTUNE_PROFILER
+  __itt_resume();
+#endif
+  for (auto _ : st) {
+    for (size_t i = 0; i < data.getSourceMessage().size(); i += 8) {
+      auto [itLower, symbolsLower] = o2::rans::internal::getSymbols<const source_T*, 4>(&(data.getSourceMessage()[i]), symbolTable);
+      const auto [frequenciesLower, cumulativeFrequenciesLower] = aosToSoa(symbolsLower);
+      auto [itUpper, symbolsUpper] = o2::rans::internal::getSymbols<const source_T*, 4>(&(data.getSourceMessage()[i + 4]), symbolTable);
+      const auto [frequenciesUpper, cumulativeFrequenciesUpper] = aosToSoa(symbolsLower);
+
+      const auto [divLower, modLower] = divMod(uint64ToDouble(states),
+                                               int32ToDouble<SIMDWidth::AVX>(frequenciesLower));
+      const auto [divUpper, modUpper] = divMod(uint64ToDouble(states),
+                                               int32ToDouble<SIMDWidth::AVX>(frequenciesUpper));
+      benchmark::DoNotOptimize(ransEncode(states,
+                                          int32ToDouble<SIMDWidth::AVX>(frequenciesLower),
+                                          int32ToDouble<SIMDWidth::AVX>(cumulativeFrequenciesLower),
+                                          nSamples));
+      benchmark::DoNotOptimize(ransEncode(states,
+                                          int32ToDouble<SIMDWidth::AVX>(frequenciesUpper),
+                                          int32ToDouble<SIMDWidth::AVX>(cumulativeFrequenciesUpper),
+                                          nSamples));
+    }
+  }
+#ifdef ENABLE_VTUNE_PROFILER
+  __itt_pause();
+#endif
+
+  st.SetItemsProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size());
+  st.SetBytesProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size() * sizeof(source_T));
+};
+
 BENCHMARK_TEMPLATE1(rans, uint8_t);
 BENCHMARK_TEMPLATE1(rans, uint16_t);
 BENCHMARK_TEMPLATE1(rans, uint32_t);
 
-BENCHMARK_TEMPLATE2(ransSIMD, uint8_t, o2::rans::internal::simd::SIMDWidth::SSE);
-BENCHMARK_TEMPLATE2(ransSIMD, uint16_t, o2::rans::internal::simd::SIMDWidth::SSE);
-BENCHMARK_TEMPLATE2(ransSIMD, uint32_t, o2::rans::internal::simd::SIMDWidth::SSE);
+BENCHMARK_TEMPLATE2(ransSIMD, uint8_t, SIMDWidth::SSE);
+BENCHMARK_TEMPLATE2(ransSIMD, uint16_t, SIMDWidth::SSE);
+BENCHMARK_TEMPLATE2(ransSIMD, uint32_t, SIMDWidth::SSE);
 
-BENCHMARK_TEMPLATE2(ransSIMD, uint8_t, o2::rans::internal::simd::SIMDWidth::AVX);
-BENCHMARK_TEMPLATE2(ransSIMD, uint16_t, o2::rans::internal::simd::SIMDWidth::AVX);
-BENCHMARK_TEMPLATE2(ransSIMD, uint32_t, o2::rans::internal::simd::SIMDWidth::AVX);
+BENCHMARK_TEMPLATE2(ransSIMD, uint8_t, SIMDWidth::AVX);
+BENCHMARK_TEMPLATE2(ransSIMD, uint16_t, SIMDWidth::AVX);
+BENCHMARK_TEMPLATE2(ransSIMD, uint32_t, SIMDWidth::AVX);
+
+BENCHMARK_TEMPLATE1(ransSSE, uint8_t);
+BENCHMARK_TEMPLATE1(ransSSE, uint16_t);
+BENCHMARK_TEMPLATE1(ransSSE, uint32_t);
+
+BENCHMARK_TEMPLATE1(ransAVX, uint8_t);
+BENCHMARK_TEMPLATE1(ransAVX, uint16_t);
+BENCHMARK_TEMPLATE1(ransAVX, uint32_t);
 
 BENCHMARK_MAIN();
