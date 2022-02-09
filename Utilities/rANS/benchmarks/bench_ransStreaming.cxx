@@ -188,9 +188,9 @@ static void ransRenormingBenchmarkSIMD(benchmark::State& st, fixture_T& fixture)
 {
   std::vector<stream_t> out(fixture.mFrequencies.size() * 4);
 
-#ifdef ENABLE_VTUNE_PROFILER
-  __itt_resume();
-#endif
+  // #ifdef ENABLE_VTUNE_PROFILER
+  //   __itt_resume();
+  // #endif
   for (auto _ : st) {
     auto outIter = out.begin();
     auto newState = fixture.mState;
@@ -198,6 +198,33 @@ static void ransRenormingBenchmarkSIMD(benchmark::State& st, fixture_T& fixture)
       std::tie(outIter, newState) = o2::rans::internal::simd::ransRenorm<decltype(outIter),
                                                                          LowerBound,
                                                                          StreamBits>(fixture.mState, fixture.mFrequencies[i], fixture.mRenormingBits, outIter);
+    }
+    benchmark::ClobberMemory();
+  };
+  // #ifdef ENABLE_VTUNE_PROFILER
+  //   __itt_pause();
+  // #endif
+
+  st.SetItemsProcessed(int64_t(st.iterations()) * getData<typename fixture_T::source_t>().getSourceMessage().size());
+  st.SetBytesProcessed(int64_t(st.iterations()) * getData<typename fixture_T::source_t>().getSourceMessage().size() * sizeof(typename fixture_T::source_t));
+};
+
+template <class fixture_T>
+static void ransRenormingBenchmarkInterleavedSIMD(benchmark::State& st, fixture_T& fixture)
+{
+  std::vector<stream_t> out(fixture.mFrequencies.size() * 4);
+
+#ifdef ENABLE_VTUNE_PROFILER
+  __itt_resume();
+#endif
+  for (auto _ : st) {
+    auto outIter = out.data();
+    std::array<decltype(fixture.mState), 2> newState{fixture.mState, fixture.mState};
+    std::array<decltype(fixture.mState), 2> state{fixture.mState, fixture.mState};
+    for (size_t i = 0; i < fixture.mFrequencies.size(); i += 2) {
+      std::tie(outIter, newState) = o2::rans::internal::simd::ransRenorm<decltype(outIter),
+                                                                         LowerBound,
+                                                                         StreamBits>(state.data(), &fixture.mFrequencies[i], fixture.mRenormingBits, outIter);
     }
     benchmark::ClobberMemory();
   };
@@ -260,7 +287,25 @@ BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormAVX_16, uint16_t, o2::rans::inter
 BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormAVX_32, uint32_t, o2::rans::internal::simd::SIMDWidth::AVX)
 (benchmark::State& st)
 {
-  ransRenormingBenchmarkSIMD(st, *this);
+  ransRenormingBenchmarkInterleavedSIMD(st, *this);
+};
+
+BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormInterleavedAVX_8, uint8_t, o2::rans::internal::simd::SIMDWidth::AVX)
+(benchmark::State& st)
+{
+  ransRenormingBenchmarkInterleavedSIMD(st, *this);
+};
+
+BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormInterleavedAVX_16, uint16_t, o2::rans::internal::simd::SIMDWidth::AVX)
+(benchmark::State& st)
+{
+  ransRenormingBenchmarkInterleavedSIMD(st, *this);
+};
+
+BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormInterleavedAVX_32, uint32_t, o2::rans::internal::simd::SIMDWidth::AVX)
+(benchmark::State& st)
+{
+  ransRenormingBenchmarkInterleavedSIMD(st, *this);
 };
 
 BENCHMARK_REGISTER_F(Fixture, renorm_8);
@@ -274,5 +319,9 @@ BENCHMARK_REGISTER_F(SIMDFixture, renormSSE_32);
 BENCHMARK_REGISTER_F(SIMDFixture, renormAVX_8);
 BENCHMARK_REGISTER_F(SIMDFixture, renormAVX_16);
 BENCHMARK_REGISTER_F(SIMDFixture, renormAVX_32);
+
+BENCHMARK_REGISTER_F(SIMDFixture, renormInterleavedAVX_8);
+BENCHMARK_REGISTER_F(SIMDFixture, renormInterleavedAVX_16);
+BENCHMARK_REGISTER_F(SIMDFixture, renormInterleavedAVX_32);
 
 BENCHMARK_MAIN();

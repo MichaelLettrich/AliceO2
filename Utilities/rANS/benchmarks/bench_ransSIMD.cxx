@@ -211,33 +211,46 @@ static void ransAVX(benchmark::State& st)
 {
   static constexpr size_t nElems = getElementCount<count_t>(SIMDWidth::AVX);
   const auto& data = getData<source_T>();
+  const auto renormingBits = getData<source_T>().getRenormedFrequencies().getRenormingBits();
 
   SymbolTable symbolTable(data.getRenormedFrequencies());
-  const epi64_t<SIMDWidth::AVX> states{1ull << 20};
-  pd_t<SIMDWidth::AVX> nSamples{static_cast<double>(o2::rans::internal::pow2(
-    getData<source_T>().getRenormedFrequencies().getRenormingBits()))};
+  const std::array<epi64_t<SIMDWidth::AVX>, 2> states{{{1ull << 50}, {1ull << 20}}};
+  pd_t<SIMDWidth::AVX> nSamples{static_cast<double>(o2::rans::internal::pow2(renormingBits))};
+
+  std::array<epi32_t<SIMDWidth::SSE>, 2> frequencies;
+  std::array<epi32_t<SIMDWidth::SSE>, 2> cumulativeFrequencies;
+  std::array<epi64_t<SIMDWidth::AVX>, 2> newStates{{{1ull << 50}, {1ull << 20}}};
+
+  std::vector<stream_t> out(data.getSourceMessage().size() * 4);
 
 #ifdef ENABLE_VTUNE_PROFILER
   __itt_resume();
 #endif
   for (auto _ : st) {
-    for (size_t i = 0; i < data.getSourceMessage().size(); i += 8) {
-      auto [itLower, symbolsLower] = o2::rans::internal::getSymbols<const source_T*, 4>(&(data.getSourceMessage()[i]), symbolTable);
-      const auto [frequenciesLower, cumulativeFrequenciesLower] = aosToSoa(symbolsLower);
-      auto [itUpper, symbolsUpper] = o2::rans::internal::getSymbols<const source_T*, 4>(&(data.getSourceMessage()[i + 4]), symbolTable);
-      const auto [frequenciesUpper, cumulativeFrequenciesUpper] = aosToSoa(symbolsLower);
+    auto outIter = out.data();
 
-      const auto [divLower, modLower] = divMod(uint64ToDouble(states),
-                                               int32ToDouble<SIMDWidth::AVX>(frequenciesLower));
-      const auto [divUpper, modUpper] = divMod(uint64ToDouble(states),
-                                               int32ToDouble<SIMDWidth::AVX>(frequenciesUpper));
-      benchmark::DoNotOptimize(ransEncode(states,
-                                          int32ToDouble<SIMDWidth::AVX>(frequenciesLower),
-                                          int32ToDouble<SIMDWidth::AVX>(cumulativeFrequenciesLower),
+    for (size_t i = 0; i < data.getSourceMessage().size(); i += 8) {
+
+      auto [itLower, symbolsLower] = o2::rans::internal::getSymbols<const source_T*, 4>(&(data.getSourceMessage()[i]), symbolTable);
+      std::tie(frequencies[0], cumulativeFrequencies[0]) = aosToSoa(symbolsLower);
+      auto [itUpper, symbolsUpper] = o2::rans::internal::getSymbols<const source_T*, 4>(&(data.getSourceMessage()[i + 4]), symbolTable);
+      std::tie(frequencies[1], cumulativeFrequencies[1]) = aosToSoa(symbolsLower);
+
+      std::tie(outIter, newStates) = o2::rans::internal::simd::ransRenorm<decltype(outIter),
+                                                                          1ull << 20,
+                                                                          32>(states.data(), frequencies.data(), renormingBits, outIter);
+
+      const auto [divLower, modLower] = divMod(uint64ToDouble(newStates[0]),
+                                               int32ToDouble<SIMDWidth::AVX>(frequencies[0]));
+      const auto [divUpper, modUpper] = divMod(uint64ToDouble(newStates[1]),
+                                               int32ToDouble<SIMDWidth::AVX>(frequencies[1]));
+      benchmark::DoNotOptimize(ransEncode(states[0],
+                                          int32ToDouble<SIMDWidth::AVX>(frequencies[0]),
+                                          int32ToDouble<SIMDWidth::AVX>(cumulativeFrequencies[0]),
                                           nSamples));
-      benchmark::DoNotOptimize(ransEncode(states,
-                                          int32ToDouble<SIMDWidth::AVX>(frequenciesUpper),
-                                          int32ToDouble<SIMDWidth::AVX>(cumulativeFrequenciesUpper),
+      benchmark::DoNotOptimize(ransEncode(states[1],
+                                          int32ToDouble<SIMDWidth::AVX>(frequencies[1]),
+                                          int32ToDouble<SIMDWidth::AVX>(cumulativeFrequencies[1]),
                                           nSamples));
     }
   }
