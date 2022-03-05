@@ -28,6 +28,13 @@ o2_add_test(SIMDEncoder
             COMPONENT_NAME rANS
             LABELS utils)
 
+o2_add_test(SIMDTypes
+            NAME SIMDTypes
+            SOURCES test/test_SIMDTypes.cxx
+            PUBLIC_LINK_LIBRARIES O2::rANS
+            COMPONENT_NAME rANS
+            LABELS utils)
+
 o2_add_test(Iterators
             NAME Iterators
             SOURCES test/test_ransIterators.cxx
