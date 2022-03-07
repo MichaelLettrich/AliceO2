@@ -128,6 +128,17 @@ class alignas(getAlignment(width_V)) AlignedArray
   T mData[size_V]{};
 };
 
+namespace impl
+{
+template <typename From, typename To>
+struct isArrayConvertible : public std::bool_constant<std::is_convertible_v<From (*)[], To (*)[]>> {
+};
+
+template <typename From, typename To>
+inline constexpr bool isArrayConvertible_v = isArrayConvertible<From, To>::value;
+
+} // namespace impl
+
 template <class element_T, size_t extent_V>
 class ArrayView
 {
@@ -147,16 +158,16 @@ class ArrayView
 
   inline constexpr ArrayView(element_type (&array)[extent_V]) noexcept : mBegin{array} {};
 
-  template <typename T, std::enable_if_t<std::is_convertible_v<T (*)[], element_type (*)[]>, bool> = true>
+  template <typename T, std::enable_if_t<impl::isArrayConvertible_v<T, element_type>, bool> = true>
   inline constexpr ArrayView(std::array<T, extent_V>& array) noexcept : mBegin{static_cast<pointer>(array.data())} {};
 
-  template <class T, std::enable_if_t<std::is_convertible_v<const T (*)[], element_type (*)[]>, bool> = true>
+  template <class T, std::enable_if_t<impl::isArrayConvertible_v<const T, element_type>, bool> = true>
   inline constexpr ArrayView(const std::array<T, extent_V>& array) noexcept : mBegin{static_cast<pointer>(array.data())} {};
 
-  template <class T, SIMDWidth width_V, std::enable_if_t<std::is_convertible_v<T (*)[], element_type (*)[]>, bool> = true>
+  template <class T, SIMDWidth width_V, std::enable_if_t<impl::isArrayConvertible_v<T, element_type>, bool> = true>
   inline constexpr ArrayView(AlignedArray<T, width_V, extent_V>& array) noexcept : mBegin{static_cast<pointer>(array.data())} {};
 
-  template <class T, SIMDWidth width_V, std::enable_if_t<std::is_convertible_v<const T (*)[], element_type (*)[]>, bool> = true>
+  template <class T, SIMDWidth width_V, std::enable_if_t<impl::isArrayConvertible_v<const T, element_type>, bool> = true>
   inline constexpr ArrayView(const AlignedArray<T, width_V, extent_V>& array) noexcept : mBegin{static_cast<pointer>(array.data())} {};
 
   inline constexpr iterator begin() const noexcept
@@ -205,6 +216,17 @@ ArrayView(AlignedArray<T, width_V, extent_V>&) -> ArrayView<T, extent_V>;
 template <class T, SIMDWidth width_V, size_t extent_V>
 ArrayView(const AlignedArray<T, width_V, extent_V>&) -> ArrayView<const T, extent_V>;
 
+namespace impl
+{
+
+template <typename T>
+inline constexpr size_t simdViewSize(SIMDWidth width, size_t extent) noexcept
+{
+  return getElementCount<T>(width) * extent;
+}
+
+} // namespace impl
+
 template <class element_T, SIMDWidth width_V, size_t extent_V, bool aligned_V = true>
 class SIMDView
 {
@@ -224,37 +246,40 @@ class SIMDView
   using iterator = SIMDView::Iterator;
   using reverse_iterator = std::reverse_iterator<iterator>;
 
- private:
-  inline static constexpr size_type getSize() noexcept { return getElementCount<element_type>(width_V) * extent_V; };
-
  public:
   inline constexpr SIMDView(pointer ptr, size_t size) : mBegin{ptr}
   {
-    assert(size == getSize());
+    assert(size == extent_V);
   };
 
-  inline constexpr SIMDView(element_type (&array)[getSize()]) : mBegin{array} { checkAlignment(mBegin); };
+  inline constexpr SIMDView(element_type (&array)[impl::simdViewSize<element_type>(width_V, extent_V)]) : mBegin{array} { checkAlignment(mBegin); };
 
-  template <typename T, std::enable_if_t<std::is_convertible_v<T (*)[], element_type (*)[]>, bool> = true>
-  inline constexpr SIMDView(std::array<T, getSize()>& array) : mBegin{static_cast<pointer>(array.data())}
+  template <typename T, std::enable_if_t<impl::isArrayConvertible_v<T, element_type>, bool> = true>
+  inline constexpr SIMDView(std::array<T, impl::simdViewSize<element_type>(width_V, extent_V)>& array) : mBegin{static_cast<pointer>(array.data())}
   {
     checkAlignment(mBegin);
   };
 
-  template <class T, std::enable_if_t<std::is_convertible_v<const T (*)[], element_type (*)[]>, bool> = true>
-  inline constexpr SIMDView(const std::array<T, getSize()>& array) : mBegin{static_cast<pointer>(array.data())}
+  template <class T, std::enable_if_t<impl::isArrayConvertible_v<const T, element_type>, bool> = true>
+  inline constexpr SIMDView(const std::array<T, impl::simdViewSize<element_type>(width_V, extent_V)>& array) : mBegin{static_cast<pointer>(array.data())}
   {
     checkAlignment(mBegin);
   };
 
-  template <class T, size_t size_V, std::enable_if_t<std::is_convertible_v<T (*)[], element_type (*)[]> && size_V == getSize(), bool> = true>
-  inline constexpr SIMDView(AlignedArray<T, width_V, size_V>& array) : mBegin{static_cast<pointer>(array.data())} {};
+  template <class T, size_t size_V, std::enable_if_t<impl::isArrayConvertible_v<T, element_type>, bool> = true>
+  inline constexpr SIMDView(AlignedArray<T, width_V, size_V>& array) : mBegin{static_cast<pointer>(array.data())}
+  {
+    static_assert(size_V == impl::simdViewSize<element_type>(width_V, extent_V));
+  };
 
-  template <class T, size_t size_V, std::enable_if_t<std::is_convertible_v<const T (*)[], element_type (*)[]> && size_V == getSize(), bool> = true>
-  inline constexpr SIMDView(const AlignedArray<T, width_V, size_V>& array) : mBegin{static_cast<pointer>(array.data())} {};
+  template <class T, size_t size_V, std::enable_if_t<impl::isArrayConvertible_v<const T, element_type>, bool> = true>
+  inline constexpr SIMDView(const AlignedArray<T, width_V, size_V>& array) : mBegin{static_cast<pointer>(array.data())}
+  {
+    static_assert(size_V == impl::simdViewSize<element_type>(width_V, extent_V));
+  };
 
   inline constexpr iterator begin() const noexcept { return iterator{mBegin}; };
-  inline constexpr iterator end() const noexcept { return iterator{mBegin + getSize()}; };
+  inline constexpr iterator end() const noexcept { return iterator{mBegin + impl::simdViewSize<element_type>(width_V, extent_V)}; };
   inline constexpr reverse_iterator rbegin() const noexcept { return std::reverse_iterator(this->end()); };
   inline constexpr reverse_iterator rend() const noexcept { return std::reverse_iterator(this->begin()); };
 
@@ -283,7 +308,10 @@ class SIMDView
     return SIMDView<element_type, width_V, count_V, aligned_V>{mBegin + (offset_V * getElementCount<element_type>(width_V)), count_V};
   };
 
-  inline constexpr operator ArrayView<element_type, getSize()>() const noexcept { return {mBegin, getSize()}; };
+  inline constexpr operator ArrayView<element_type, impl::simdViewSize<element_type>(width_V, extent_V)>() const noexcept
+  {
+    return {mBegin, impl::simdViewSize<element_type>(width_V, extent_V)};
+  };
 
   inline constexpr operator SIMDView<element_T, width_V, extent_V, false>() const
   {
@@ -413,6 +441,14 @@ class SIMDView
     };
   };
 };
+
+// seems not to work with GCC 10.x
+// //Type deduction guides
+// template <class T, SIMDWidth width_V, size_t extent_V>
+// SIMDView(AlignedArray<T, width_V, extent_V>&) -> SIMDView<T, width_V, (extent_V / getElementCount<T>(width_V)), true>;
+
+// template <class T, SIMDWidth width_V, size_t extent_V>
+// SIMDView(const AlignedArray<T, width_V, extent_V>&) -> SIMDView<const T, width_V, (extent_V / getElementCount<T>(width_V)), true>;
 
 template <typename T>
 struct simdWidth;
