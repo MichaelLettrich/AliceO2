@@ -118,8 +118,8 @@ Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, ArrayView<const
 
   auto [frequencies, cumulativeFrequencies] = aosToSoa(encodeSymbols);
 
-  const auto [streamPosition, newStates] = ransRenorm<Stream_IT, LOWER_BOUND, STREAM_BITS>(makeCSView(mStates), makeCSView(frequencies), static_cast<uint8_t>(mSymbolTablePrecision), outputIter);
-  mStates = ransEncode(makeCSView(newStates), int32ToDouble<simdWidth_V>(makeCSView(frequencies)), int32ToDouble<simdWidth_V>(makeCSView(cumulativeFrequencies)), mNSamples);
+  const auto [streamPosition, newStates] = ransRenorm<Stream_IT, LOWER_BOUND, STREAM_BITS>(toConstSimdView(mStates), toConstSimdView(frequencies), static_cast<uint8_t>(mSymbolTablePrecision), outputIter);
+  mStates = ransEncode(toConstSimdView(newStates), int32ToDouble<simdWidth_V>(toConstSimdView(frequencies)), int32ToDouble<simdWidth_V>(toConstSimdView(cumulativeFrequencies)), mNSamples);
   return streamPosition;
 }
 
