@@ -25,6 +25,7 @@
 #include "rANS/utils.h"
 #include "rANS/rans.h"
 #include "rANS/internal/backend/simd/kernel.h"
+#include "rANS/internal/backend/simd/types.h"
 
 #ifdef ENABLE_VTUNE_PROFILER
 #include <ittnotify.h>
@@ -34,9 +35,11 @@ using count_t = uint32_t;
 using ransState_t = uint64_t;
 using stream_t = uint32_t;
 
+using namespace o2::rans::internal;
+
 inline constexpr size_t MessageSize = 1ull << 22;
 inline constexpr size_t LowerBound = 1ul << 20;
-inline constexpr size_t StreamBits = o2::rans::internal::toBits(sizeof(stream_t));
+inline constexpr size_t StreamBits = toBits(sizeof(stream_t));
 
 template <typename source_T>
 class RenormingData
@@ -113,12 +116,10 @@ struct Fixture : public benchmark::Fixture {
   size_t mRenormingBits = getData<source_T>().getRenormedFrequencies().getRenormingBits();
 };
 
-template <typename source_T, o2::rans::internal::simd::SIMDWidth width_V>
+template <typename source_T, simd::SIMDWidth width_V>
 struct SIMDFixture : public benchmark::Fixture {
 
   using source_t = source_T;
-  using epi32_t = typename o2::rans::internal::simd::epi32_t<o2::rans::internal::simd::SIMDWidth::SSE>;
-  using epi64_t = typename o2::rans::internal::simd::epi64_t<width_V>;
 
   void
     SetUp(const ::benchmark::State& state) final
@@ -127,13 +128,13 @@ struct SIMDFixture : public benchmark::Fixture {
     const auto& frequencyTable = getData<source_T>().getRenormedFrequencies();
 
     for (size_t i = 0; i < sourceMessage.size(); i += nElems) {
-      if constexpr (width_V == o2::rans::internal::simd::SIMDWidth::SSE) {
+      if constexpr (width_V == simd::SIMDWidth::SSE) {
         mFrequencies.emplace_back(frequencyTable[sourceMessage[i]],
                                   frequencyTable[sourceMessage[i + 1]],
                                   0x0u,
                                   0x0u);
       }
-      if constexpr (width_V == o2::rans::internal::simd::SIMDWidth::AVX) {
+      if constexpr (width_V == simd::SIMDWidth::AVX) {
         mFrequencies.emplace_back(frequencyTable[sourceMessage[i]],
                                   frequencyTable[sourceMessage[i + 1]],
                                   frequencyTable[sourceMessage[i + 2]],
@@ -147,9 +148,55 @@ struct SIMDFixture : public benchmark::Fixture {
     mFrequencies.clear();
   }
 
-  static constexpr size_t nElems = o2::rans::internal::simd::getElementCount<ransState_t>(width_V);
-  std::vector<epi32_t> mFrequencies{};
-  epi64_t mState{getData<source_T>().getState()};
+  static constexpr size_t nElems = simd::getElementCount<ransState_t>(width_V);
+  std::vector<simd::epi32_t<simd::SIMDWidth::SSE>> mFrequencies{};
+  simd::epi64_t<width_V> mState{getData<source_T>().getState()};
+  uint8_t mRenormingBits = getData<source_T>().getRenormedFrequencies().getRenormingBits();
+};
+
+template <typename source_T, simd::SIMDWidth width_V>
+struct InterleavedSIMDFixture : public benchmark::Fixture {
+
+  using source_t = source_T;
+
+  void
+    SetUp(const ::benchmark::State& state) final
+  {
+    const auto& sourceMessage = getData<source_T>().getSourceMessage();
+    const auto& frequencyTable = getData<source_T>().getRenormedFrequencies();
+
+    for (size_t i = 0; i < sourceMessage.size(); i += 2 * nElems) {
+      if constexpr (width_V == simd::SIMDWidth::SSE) {
+        mFrequencies.emplace_back(frequencyTable[sourceMessage[i + 0]],
+                                  frequencyTable[sourceMessage[i + 1]],
+                                  0x0u,
+                                  0x0u,
+                                  frequencyTable[sourceMessage[i + 2]],
+                                  frequencyTable[sourceMessage[i + 3]],
+                                  0x0u,
+                                  0x0u);
+      }
+      if constexpr (width_V == simd::SIMDWidth::AVX) {
+        mFrequencies.emplace_back(frequencyTable[sourceMessage[i + 0]],
+                                  frequencyTable[sourceMessage[i + 1]],
+                                  frequencyTable[sourceMessage[i + 2]],
+                                  frequencyTable[sourceMessage[i + 3]],
+                                  frequencyTable[sourceMessage[i + 4]],
+                                  frequencyTable[sourceMessage[i + 5]],
+                                  frequencyTable[sourceMessage[i + 6]],
+                                  frequencyTable[sourceMessage[i + 7]]);
+      }
+    }
+  }
+
+  void TearDown(const ::benchmark::State& state) final
+  {
+    mFrequencies.clear();
+  }
+
+  static constexpr size_t nElems = simd::getElementCount<ransState_t>(width_V);
+  std::vector<simd::epi32_t<simd::SIMDWidth::SSE, 2>> mFrequencies{};
+  simd::epi64_t<width_V, 2> mState{getData<source_T>().getState()};
   uint8_t mRenormingBits = getData<source_T>().getRenormedFrequencies().getRenormingBits();
 };
 
@@ -195,9 +242,9 @@ static void ransRenormingBenchmarkSIMD(benchmark::State& st, fixture_T& fixture)
     auto outIter = out.begin();
     auto newState = fixture.mState;
     for (size_t i = 0; i < fixture.mFrequencies.size(); ++i) {
-      std::tie(outIter, newState) = o2::rans::internal::simd::ransRenorm<decltype(outIter),
-                                                                         LowerBound,
-                                                                         StreamBits>(fixture.mState, fixture.mFrequencies[i], fixture.mRenormingBits, outIter);
+      std::tie(outIter, newState) = simd::ransRenorm<decltype(outIter),
+                                                     LowerBound,
+                                                     StreamBits>(simd::makeCSView(fixture.mState), simd::makeCSView(fixture.mFrequencies[i]), fixture.mRenormingBits, outIter);
     }
     benchmark::ClobberMemory();
   };
@@ -219,12 +266,12 @@ static void ransRenormingBenchmarkInterleavedSIMD(benchmark::State& st, fixture_
 #endif
   for (auto _ : st) {
     auto outIter = out.data();
-    std::array<decltype(fixture.mState), 2> newState{fixture.mState, fixture.mState};
-    std::array<decltype(fixture.mState), 2> state{fixture.mState, fixture.mState};
+
+    auto newState = fixture.mState;
     for (size_t i = 0; i < fixture.mFrequencies.size(); i += 2) {
-      std::tie(outIter, newState) = o2::rans::internal::simd::ransRenorm<decltype(outIter),
-                                                                         LowerBound,
-                                                                         StreamBits>(state.data(), &fixture.mFrequencies[i], fixture.mRenormingBits, outIter);
+      std::tie(outIter, newState) = simd::ransRenorm<decltype(outIter),
+                                                     LowerBound,
+                                                     StreamBits>(simd::makeCSView(fixture.mState), simd::makeCSView(fixture.mFrequencies[i]), fixture.mRenormingBits, outIter);
     }
     benchmark::ClobberMemory();
   };
@@ -254,55 +301,55 @@ BENCHMARK_TEMPLATE_DEFINE_F(Fixture, renorm_32, uint32_t)
   ransRenormingBenchmark(st, *this);
 };
 
-BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormSSE_8, uint8_t, o2::rans::internal::simd::SIMDWidth::SSE)
+BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormSSE_8, uint8_t, simd::SIMDWidth::SSE)
 (benchmark::State& st)
 {
   ransRenormingBenchmarkSIMD(st, *this);
 };
 
-BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormSSE_16, uint16_t, o2::rans::internal::simd::SIMDWidth::SSE)
+BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormSSE_16, uint16_t, simd::SIMDWidth::SSE)
 (benchmark::State& st)
 {
   ransRenormingBenchmarkSIMD(st, *this);
 };
 
-BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormSSE_32, uint32_t, o2::rans::internal::simd::SIMDWidth::SSE)
+BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormSSE_32, uint32_t, simd::SIMDWidth::SSE)
 (benchmark::State& st)
 {
   ransRenormingBenchmarkSIMD(st, *this);
 };
 
-BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormAVX_8, uint8_t, o2::rans::internal::simd::SIMDWidth::AVX)
+BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormAVX_8, uint8_t, simd::SIMDWidth::AVX)
 (benchmark::State& st)
 {
   ransRenormingBenchmarkSIMD(st, *this);
 };
 
-BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormAVX_16, uint16_t, o2::rans::internal::simd::SIMDWidth::AVX)
+BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormAVX_16, uint16_t, simd::SIMDWidth::AVX)
 (benchmark::State& st)
 {
   ransRenormingBenchmarkSIMD(st, *this);
 };
 
-BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormAVX_32, uint32_t, o2::rans::internal::simd::SIMDWidth::AVX)
+BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormAVX_32, uint32_t, simd::SIMDWidth::AVX)
+(benchmark::State& st)
+{
+  ransRenormingBenchmarkSIMD(st, *this);
+};
+
+BENCHMARK_TEMPLATE_DEFINE_F(InterleavedSIMDFixture, renormInterleavedAVX_8, uint8_t, simd::SIMDWidth::AVX)
 (benchmark::State& st)
 {
   ransRenormingBenchmarkInterleavedSIMD(st, *this);
 };
 
-BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormInterleavedAVX_8, uint8_t, o2::rans::internal::simd::SIMDWidth::AVX)
+BENCHMARK_TEMPLATE_DEFINE_F(InterleavedSIMDFixture, renormInterleavedAVX_16, uint16_t, simd::SIMDWidth::AVX)
 (benchmark::State& st)
 {
   ransRenormingBenchmarkInterleavedSIMD(st, *this);
 };
 
-BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormInterleavedAVX_16, uint16_t, o2::rans::internal::simd::SIMDWidth::AVX)
-(benchmark::State& st)
-{
-  ransRenormingBenchmarkInterleavedSIMD(st, *this);
-};
-
-BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormInterleavedAVX_32, uint32_t, o2::rans::internal::simd::SIMDWidth::AVX)
+BENCHMARK_TEMPLATE_DEFINE_F(InterleavedSIMDFixture, renormInterleavedAVX_32, uint32_t, simd::SIMDWidth::AVX)
 (benchmark::State& st)
 {
   ransRenormingBenchmarkInterleavedSIMD(st, *this);
@@ -320,8 +367,8 @@ BENCHMARK_REGISTER_F(SIMDFixture, renormAVX_8);
 BENCHMARK_REGISTER_F(SIMDFixture, renormAVX_16);
 BENCHMARK_REGISTER_F(SIMDFixture, renormAVX_32);
 
-BENCHMARK_REGISTER_F(SIMDFixture, renormInterleavedAVX_8);
-BENCHMARK_REGISTER_F(SIMDFixture, renormInterleavedAVX_16);
-BENCHMARK_REGISTER_F(SIMDFixture, renormInterleavedAVX_32);
+BENCHMARK_REGISTER_F(InterleavedSIMDFixture, renormInterleavedAVX_8);
+BENCHMARK_REGISTER_F(InterleavedSIMDFixture, renormInterleavedAVX_16);
+BENCHMARK_REGISTER_F(InterleavedSIMDFixture, renormInterleavedAVX_32);
 
 BENCHMARK_MAIN();
