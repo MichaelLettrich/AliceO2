@@ -442,13 +442,25 @@ class SIMDView
   };
 };
 
-// seems not to work with GCC 10.x
+// seems not to work with GCC 10.x, so provide factory functions instead
 // //Type deduction guides
 // template <class T, SIMDWidth width_V, size_t extent_V>
 // SIMDView(AlignedArray<T, width_V, extent_V>&) -> SIMDView<T, width_V, (extent_V / getElementCount<T>(width_V)), true>;
 
 // template <class T, SIMDWidth width_V, size_t extent_V>
 // SIMDView(const AlignedArray<T, width_V, extent_V>&) -> SIMDView<const T, width_V, (extent_V / getElementCount<T>(width_V)), true>;
+
+template <typename T, SIMDWidth width_V, size_t extent_V>
+inline constexpr SIMDView<T, width_V, (extent_V / getElementCount<T>(width_V)), true> makeSView(AlignedArray<T, width_V, extent_V>& array) noexcept
+{
+  return {array};
+}
+
+template <typename T, SIMDWidth width_V, size_t extent_V>
+inline constexpr SIMDView<const T, width_V, (extent_V / getElementCount<T>(width_V)), true> makeCSView(const AlignedArray<T, width_V, extent_V>& array) noexcept
+{
+  return {array};
+}
 
 template <typename T>
 struct simdWidth;
@@ -480,6 +492,28 @@ template <SIMDWidth width_V, size_t size_V = 1>
 using epi16_t = AlignedArray<uint16_t, width_V, getElementCount<uint16_t>(width_V) * size_V>;
 template <SIMDWidth width_V, size_t size_V = 1>
 using epi8_t = AlignedArray<uint8_t, width_V, getElementCount<uint8_t>(width_V) * size_V>;
+
+template <SIMDWidth width_V, size_t size_V = 1>
+using pdV_t = SIMDView<double_t, width_V, size_V>;
+template <SIMDWidth width_V, size_t size_V = 1>
+using epi64V_t = SIMDView<uint64_t, width_V, size_V>;
+template <SIMDWidth width_V, size_t size_V = 1>
+using epi32V_t = SIMDView<uint32_t, width_V, size_V>;
+template <SIMDWidth width_V, size_t size_V = 1>
+using epi16V_t = SIMDView<uint16_t, width_V, size_V>;
+template <SIMDWidth width_V, size_t size_V = 1>
+using epi8V_t = SIMDView<uint8_t, width_V, size_V>;
+
+template <SIMDWidth width_V, size_t size_V = 1>
+using pdcV_t = SIMDView<const double_t, width_V, size_V>;
+template <SIMDWidth width_V, size_t size_V = 1>
+using epi64cV_t = SIMDView<const uint64_t, width_V, size_V>;
+template <SIMDWidth width_V, size_t size_V = 1>
+using epi32cV_t = SIMDView<const uint32_t, width_V, size_V>;
+template <SIMDWidth width_V, size_t size_V = 1>
+using epi16cV_t = SIMDView<const uint16_t, width_V, size_V>;
+template <SIMDWidth width_V, size_t size_V = 1>
+using epi8cV_t = SIMDView<const uint8_t, width_V, size_V>;
 
 template <SIMDWidth width_V, size_t size_V>
 using pdVec_t = AlignedArray<double_t, width_V, size_V>;

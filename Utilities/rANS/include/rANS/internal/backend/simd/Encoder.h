@@ -58,10 +58,10 @@ class Encoder
   Stream_IT flush(Stream_IT outputIter);
 
   template <typename Stream_IT>
-  Stream_IT putSymbols(Stream_IT outputIter, const std::array<const Symbol*, nHardwareStreams>& encodeSymbols);
+  Stream_IT putSymbols(Stream_IT outputIter, ArrayView<const Symbol*, nHardwareStreams> encodeSymbols);
 
   template <typename Stream_IT>
-  Stream_IT putSymbols(Stream_IT outputIter, const std::array<const Symbol*, nHardwareStreams>& encodeSymbols, size_t mask);
+  Stream_IT putSymbols(Stream_IT outputIter, ArrayView<const Symbol*, nHardwareStreams> encodeSymbols, size_t mask);
 
  private:
   epi64_t<simdWidth_V> mStates;
@@ -108,7 +108,7 @@ Stream_IT Encoder<simdWidth_V>::flush(Stream_IT iter)
 
 template <SIMDWidth simdWidth_V>
 template <typename Stream_IT>
-Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, const std::array<const Symbol*, nHardwareStreams>& encodeSymbols)
+Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, ArrayView<const Symbol*, nHardwareStreams> encodeSymbols)
 {
 
   // can't encode symbol with freq=0
@@ -116,17 +116,16 @@ Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, const std::arra
     assert(symbol.getFrequency() != 0);
   }
 
-  const auto [frequencies, cumulativeFrequencies] = aosToSoa(encodeSymbols);
+  auto [frequencies, cumulativeFrequencies] = aosToSoa(encodeSymbols);
 
-  const auto [streamPosition, newStates] = ransRenorm<Stream_IT, LOWER_BOUND, STREAM_BITS>(mStates, frequencies, static_cast<uint8_t>(mSymbolTablePrecision), outputIter);
-  const auto [div, mod] = divMod(uint64ToDouble(mStates), int32ToDouble<simdWidth_V>(frequencies));
-  mStates = ransEncode(newStates, int32ToDouble<simdWidth_V>(frequencies), int32ToDouble<simdWidth_V>(cumulativeFrequencies), mNSamples);
+  const auto [streamPosition, newStates] = ransRenorm<Stream_IT, LOWER_BOUND, STREAM_BITS>(makeCSView(mStates), makeCSView(frequencies), static_cast<uint8_t>(mSymbolTablePrecision), outputIter);
+  mStates = ransEncode(makeCSView(newStates), int32ToDouble<simdWidth_V>(makeCSView(frequencies)), int32ToDouble<simdWidth_V>(makeCSView(cumulativeFrequencies)), mNSamples);
   return streamPosition;
 }
 
 template <SIMDWidth simdWidth_V>
 template <typename Stream_IT>
-Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, const std::array<const Symbol*, nHardwareStreams>& encodeSymbols, size_t mask)
+Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, ArrayView<const Symbol*, nHardwareStreams> encodeSymbols, size_t mask)
 {
   Stream_IT streamPos = outputIter;
 

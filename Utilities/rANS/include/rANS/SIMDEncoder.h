@@ -136,7 +136,7 @@ stream_IT SIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareStreams_
   };
 
   auto encode = [this](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder) {
-    const auto [newSymbolIter, encoderSymbols] = getSymbols<source_IT, nHardwareStreams_V>(symbolIter, this->mSymbolTable);
+    auto [newSymbolIter, encoderSymbols] = getSymbols<source_IT, nHardwareStreams_V>(symbolIter, this->mSymbolTable);
     return std::make_tuple(newSymbolIter, coder.putSymbols(outputIter, encoderSymbols));
   };
 

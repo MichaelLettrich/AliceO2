@@ -37,9 +37,11 @@ using stream_t = uint32_t;
 
 __extension__ using uint128_t = unsigned __int128;
 
+using namespace o2::rans::internal;
+
 inline constexpr size_t MessageSize = 1ull << 22;
 inline constexpr size_t LowerBound = 1ul << 20;
-inline constexpr size_t StreamBits = o2::rans::internal::toBits(sizeof(stream_t));
+inline constexpr size_t StreamBits = toBits(sizeof(stream_t));
 
 template <typename source_T>
 class SymbolTableData
@@ -95,12 +97,12 @@ const auto& getData()
 template <typename source_T>
 struct SimpleFixture : public benchmark::Fixture {
   using source_t = source_T;
-  using symbol_t = o2::rans::internal::cpp::DecoderSymbol;
+  using symbol_t = cpp::DecoderSymbol;
 
   void SetUp(const ::benchmark::State& state) final
   {
     const auto& sourceMessage = getData<source_T>().getSourceMessage();
-    o2::rans::internal::SymbolTable<symbol_t> symbolTable{getData<source_T>().getRenormedFrequencies()};
+    SymbolTable<symbol_t> symbolTable{getData<source_T>().getRenormedFrequencies()};
     for (auto& symbol : sourceMessage) {
       mSymbols.push_back(symbolTable[symbol]);
     }
@@ -118,12 +120,12 @@ struct SimpleFixture : public benchmark::Fixture {
 template <typename source_T>
 struct Fixture : public benchmark::Fixture {
   using source_t = source_T;
-  using symbol_t = o2::rans::internal::cpp::EncoderSymbol<ransState_t>;
+  using symbol_t = cpp::EncoderSymbol<ransState_t>;
 
   void SetUp(const ::benchmark::State& state) final
   {
     const auto& sourceMessage = getData<source_T>().getSourceMessage();
-    o2::rans::internal::SymbolTable<symbol_t> symbolTable{getData<source_T>().getRenormedFrequencies()};
+    SymbolTable<symbol_t> symbolTable{getData<source_T>().getRenormedFrequencies()};
     for (auto& symbol : sourceMessage) {
       mSymbols.push_back(symbolTable[symbol]);
     }
@@ -138,23 +140,23 @@ struct Fixture : public benchmark::Fixture {
   size_t mRenormingBits = getData<source_T>().getRenormedFrequencies().getRenormingBits();
 };
 
-template <typename source_T, o2::rans::internal::simd::SIMDWidth width_V>
+template <typename source_T, simd::SIMDWidth width_V>
 struct SIMDFixture : public benchmark::Fixture {
   using source_t = source_T;
-  using symbol_t = o2::rans::internal::simd::Symbol;
+  using symbol_t = simd::Symbol;
 
   void SetUp(const ::benchmark::State& state) final
   {
     const auto& sourceMessage = getData<source_T>().getSourceMessage();
-    o2::rans::internal::simd::SymbolTable symbolTable{getData<source_T>().getRenormedFrequencies()};
+    simd::SymbolTable symbolTable{getData<source_T>().getRenormedFrequencies()};
     for (size_t i = 0; i < sourceMessage.size(); i += nElems) {
-      if constexpr (width_V == o2::rans::internal::simd::SIMDWidth::SSE) {
+      if constexpr (width_V == simd::SIMDWidth::SSE) {
         mSymbols.push_back({
           &symbolTable[sourceMessage[i]],
           &symbolTable[sourceMessage[i + 1]],
         });
       }
-      if constexpr (width_V == o2::rans::internal::simd::SIMDWidth::AVX) {
+      if constexpr (width_V == simd::SIMDWidth::AVX) {
         mSymbols.push_back({
           &symbolTable[sourceMessage[i]],
           &symbolTable[sourceMessage[i + 1]],
@@ -170,14 +172,14 @@ struct SIMDFixture : public benchmark::Fixture {
     mSymbols.clear();
   }
 
-  static constexpr size_t nElems = o2::rans::internal::simd::getElementCount<ransState_t>(width_V);
+  static constexpr size_t nElems = simd::getElementCount<ransState_t>(width_V);
   std::vector<std::array<const symbol_t*, nElems>> mSymbols{};
-  o2::rans::internal::simd::epi64_t<width_V> mState{getData<source_T>().getState()};
-  o2::rans::internal::simd::pd_t<width_V> mNSamples{static_cast<double>(o2::rans::internal::pow2(
+  simd::epi64_t<width_V> mState{getData<source_T>().getState()};
+  simd::pd_t<width_V> mNSamples{static_cast<double>(pow2(
     getData<source_T>().getRenormedFrequencies().getRenormingBits()))};
 };
 
-ransState_t encode(ransState_t state, const o2::rans::internal::cpp::EncoderSymbol<ransState_t>& symbol)
+ransState_t encode(ransState_t state, const cpp::EncoderSymbol<ransState_t>& symbol)
 {
   // x = C(s,x)
   ransState_t quotient = static_cast<ransState_t>((static_cast<uint128_t>(state) * symbol.getReciprocalFrequency()) >> 64);
@@ -186,23 +188,21 @@ ransState_t encode(ransState_t state, const o2::rans::internal::cpp::EncoderSymb
   return state + symbol.getBias() + quotient * symbol.getFrequencyComplement();
 };
 
-ransState_t simpleEncode(ransState_t state, size_t symbolTablePrecision, const o2::rans::internal::cpp::DecoderSymbol& symbol)
+ransState_t simpleEncode(ransState_t state, size_t symbolTablePrecision, const cpp::DecoderSymbol& symbol)
 {
   // x = C(s,x)
   return ((state / symbol.getFrequency()) << symbolTablePrecision) + symbol.getCumulative() + (state % symbol.getFrequency());
 };
 
-template <o2::rans::internal::simd::SIMDWidth width_V>
-auto SIMDEncode(const o2::rans::internal::simd::epi64_t<width_V>& states,
-                const o2::rans::internal::simd::pd_t<width_V>& nSamples,
-                const std::array<const o2::rans::internal::simd::Symbol*, o2::rans::internal::simd::getElementCount<ransState_t>(width_V)>& symbols)
+template <simd::SIMDWidth width_V>
+auto SIMDEncode(simd::epi64cV_t<width_V> states,
+                simd::pdcV_t<width_V> nSamples,
+                simd::ArrayView<const simd::Symbol*, simd::getElementCount<ransState_t>(width_V)> symbols)
 {
-  const auto [frequencies, cumulativeFrequencies] = o2::rans::internal::simd::aosToSoa(symbols);
-  const auto [div, mod] = o2::rans::internal::simd::divMod(o2::rans::internal::simd::uint64ToDouble(states),
-                                                           o2::rans::internal::simd::int32ToDouble<width_V>(frequencies));
+  auto [frequencies, cumulativeFrequencies] = simd::aosToSoa(symbols);
   return ransEncode(states,
-                    o2::rans::internal::simd::int32ToDouble<width_V>(frequencies),
-                    o2::rans::internal::simd::int32ToDouble<width_V>(cumulativeFrequencies),
+                    simd::int32ToDouble<width_V>(simd::makeCSView(frequencies)),
+                    simd::int32ToDouble<width_V>(simd::makeCSView(cumulativeFrequencies)),
                     nSamples);
 };
 
@@ -234,7 +234,7 @@ static void ransEncodeBenchmark(benchmark::State& st, Fixture<source_T>& fixture
   st.SetBytesProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size() * sizeof(source_T));
 };
 
-template <typename source_T, o2::rans::internal::simd::SIMDWidth width_V>
+template <typename source_T, simd::SIMDWidth width_V>
 static void ransSIMDEncodeBenchmark(benchmark::State& st, SIMDFixture<source_T, width_V>& fixture)
 {
 #ifdef ENABLE_VTUNE_PROFILER
@@ -242,7 +242,7 @@ static void ransSIMDEncodeBenchmark(benchmark::State& st, SIMDFixture<source_T, 
 #endif
   for (auto _ : st) {
     for (size_t i = 0; i < fixture.mSymbols.size(); ++i) {
-      auto newStates = SIMDEncode(fixture.mState, fixture.mNSamples, fixture.mSymbols[i]);
+      auto newStates = SIMDEncode(simd::makeCSView(fixture.mState), simd::makeCSView(fixture.mNSamples), fixture.mSymbols[i]);
       benchmark::DoNotOptimize(newStates);
       benchmark::ClobberMemory();
     }
@@ -287,37 +287,37 @@ BENCHMARK_TEMPLATE_DEFINE_F(Fixture, encode_32, uint32_t)
   ransEncodeBenchmark(st, *this);
 };
 
-BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, encodeSSE_8, uint8_t, o2::rans::internal::simd::SIMDWidth::SSE)
+BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, encodeSSE_8, uint8_t, simd::SIMDWidth::SSE)
 (benchmark::State& st)
 {
   ransSIMDEncodeBenchmark(st, *this);
 };
 
-BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, encodeSSE_16, uint16_t, o2::rans::internal::simd::SIMDWidth::SSE)
+BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, encodeSSE_16, uint16_t, simd::SIMDWidth::SSE)
 (benchmark::State& st)
 {
   ransSIMDEncodeBenchmark(st, *this);
 };
 
-BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, encodeSSE_32, uint32_t, o2::rans::internal::simd::SIMDWidth::SSE)
+BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, encodeSSE_32, uint32_t, simd::SIMDWidth::SSE)
 (benchmark::State& st)
 {
   ransSIMDEncodeBenchmark(st, *this);
 };
 
-BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, encodeAVX_8, uint8_t, o2::rans::internal::simd::SIMDWidth::AVX)
+BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, encodeAVX_8, uint8_t, simd::SIMDWidth::AVX)
 (benchmark::State& st)
 {
   ransSIMDEncodeBenchmark(st, *this);
 };
 
-BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, encodeAVX_16, uint16_t, o2::rans::internal::simd::SIMDWidth::AVX)
+BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, encodeAVX_16, uint16_t, simd::SIMDWidth::AVX)
 (benchmark::State& st)
 {
   ransSIMDEncodeBenchmark(st, *this);
 };
 
-BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, encodeAVX_32, uint32_t, o2::rans::internal::simd::SIMDWidth::AVX)
+BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, encodeAVX_32, uint32_t, simd::SIMDWidth::AVX)
 (benchmark::State& st)
 {
   ransSIMDEncodeBenchmark(st, *this);
