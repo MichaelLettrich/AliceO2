@@ -35,16 +35,6 @@ namespace internal
 {
 namespace simd
 {
-// template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-// inline __m128i load(const AlignedArray<T, SIMDWidth::SSE>& v) noexcept
-// {
-//   return _mm_load_si128(reinterpret_cast<const __m128i*>(v.data()));
-// };
-
-// inline __m128d load(const AlignedArray<double, SIMDWidth::SSE>& v) noexcept
-// {
-//   return _mm_load_pd(v.data());
-// };
 
 template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
 inline __m128i load(SIMDView<const T, SIMDWidth::SSE, 1> view) noexcept
@@ -58,17 +48,6 @@ inline __m128d load(pdcV_t<SIMDWidth::SSE> view) noexcept
 };
 
 #ifdef __AVX2__
-
-// template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-// inline __m256i load(const AlignedArray<T, SIMDWidth::AVX>& v) noexcept
-// {
-//   return _mm256_load_si256(reinterpret_cast<const __m256i*>(v.data()));
-// };
-
-// inline __m256d load(const AlignedArray<double_t, SIMDWidth::AVX>& v) noexcept
-// {
-//   return _mm256_load_pd(v.data());
-// };
 
 template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
 inline __m256i load(SIMDView<const T, SIMDWidth::AVX, 1> view) noexcept
@@ -112,18 +91,15 @@ inline AlignedArray<double_t, SIMDWidth::SSE> store(__m128d inVec) noexcept
   return out;
 };
 
-template <typename T, size_t extent_V, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-inline void store(__m128i inVec, SIMDView<T, SIMDWidth::SSE, extent_V, true> view, size_t idx = 0)
+template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
+inline void store(__m128i inVec, SIMDView<T, SIMDWidth::SSE, 1, true> view) noexcept
 {
-  assert(idx < extent_V);
-  _mm_store_si128(reinterpret_cast<__m128i*>(&(view[idx])), inVec);
+  _mm_store_si128(reinterpret_cast<__m128i*>(view.data()), inVec);
 };
 
-template <size_t extent_V>
-inline void store(__m128d inVec, SIMDView<double_t, SIMDWidth::SSE, extent_V, true> view, size_t idx = 0)
+inline void store(__m128d inVec, SIMDView<double_t, SIMDWidth::SSE, 1, true> view) noexcept
 {
-  assert(idx < extent_V);
-  _mm_store_pd(&(view[idx]), inVec);
+  _mm_store_pd(view.data(), inVec);
 };
 
 #ifdef __AVX2__
@@ -143,18 +119,15 @@ inline AlignedArray<double_t, SIMDWidth::AVX> store(__m256d inVec) noexcept
   return out;
 };
 
-template <typename T, size_t extent_V, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-inline void store(__m256i inVec, SIMDView<T, SIMDWidth::AVX, extent_V, true> view, size_t idx = 0)
+template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
+inline void store(__m256i inVec, SIMDView<T, SIMDWidth::AVX, 1, true> view) noexcept
 {
-  assert(idx < extent_V);
-  _mm256_store_si256(reinterpret_cast<__m256i*>(&(view[idx])), inVec);
+  _mm256_store_si256(reinterpret_cast<__m256i*>(view.data()), inVec);
 };
 
-template <size_t extent_V>
-inline void store(__m256d inVec, SIMDView<double_t, SIMDWidth::AVX, extent_V, true> view, size_t idx = 0)
+inline void store(__m256d inVec, SIMDView<double_t, SIMDWidth::AVX, 1, true> view) noexcept
 {
-  assert(idx < extent_V);
-  _mm256_store_pd(&(view[idx]), inVec);
+  _mm256_store_pd(view.data(), inVec);
 };
 
 #endif /* __AVX2__ */
@@ -363,8 +336,8 @@ inline epi64_t<SIMDWidth::SSE> ransEncode(epi64cV_t<SIMDWidth::SSE> state, pdcV_
 #endif
 
   auto [div, mod] = divMod(uint64ToDouble(state), frequency);
-  auto divReg = load(makeCSView(div));
-  auto modReg = load(makeCSView(mod));
+  auto divReg = load(toConstSimdView(div));
+  auto modReg = load(toConstSimdView(mod));
   auto cumulativeReg = load(cumulative);
   auto normalizationReg = load(normalization);
   auto newState = _mm_fmadd_pd(normalizationReg, divReg, cumulativeReg);
@@ -489,8 +462,8 @@ inline std::tuple<epi32_t<SIMDWidth::AVX>, epi32_t<SIMDWidth::AVX>> aosToSoa(Arr
   auto [arr00, arr01] = aosToSoa(in.subView<0, 4>());
   auto [arr10, arr11] = aosToSoa(in.subView<4, 4>());
 
-  auto res0Reg = _mm256_set_m128i(load(makeCSView(arr10)), load(makeCSView(arr00)));
-  auto res1Reg = _mm256_set_m128i(load(makeCSView(arr11)), load(makeCSView(arr01)));
+  auto res0Reg = _mm256_set_m128i(load(toConstSimdView(arr10)), load(toConstSimdView(arr00)));
+  auto res1Reg = _mm256_set_m128i(load(toConstSimdView(arr11)), load(toConstSimdView(arr01)));
 
   return {store<uint32_t>(res0Reg), store<uint32_t>(res1Reg)};
 };
@@ -878,11 +851,11 @@ inline constexpr std::array<uint32_t, 256> AVXInterleavedPermutationLUT{
 inline std::tuple<uint32_t, epi32_t<SIMDWidth::SSE>> streamOut(__m128i stateVec, __m128i cmpVec) noexcept
 {
   constexpr epi32_t<SIMDWidth::SSE> extractionMask{0xFFFFFFFFu, 0x0u, 0xFFFFFFFFu, 0x0u};
-  __m128i extractionMaskVec = load(makeCSView(extractionMask));
+  __m128i extractionMaskVec = load(toConstSimdView(extractionMask));
   __m128i streamOutMaskVec = _mm_and_si128(cmpVec, extractionMaskVec);
   const uint32_t id = _mm_movemask_ps(_mm_castsi128_ps(streamOutMaskVec));
 
-  __m128i shuffleMaskVec = load(makeCSView(SSEPermutationLUT[id]));
+  __m128i shuffleMaskVec = load(toConstSimdView(SSEPermutationLUT[id]));
   __m128i streamOutVec = _mm_shuffle_epi8(stateVec, shuffleMaskVec);
 
   return {_mm_popcnt_u32(id), store<uint32_t>(streamOutVec)};
@@ -892,17 +865,17 @@ inline std::tuple<uint32_t, epi32_t<SIMDWidth::SSE>> streamOut(__m128i stateVec,
 inline std::tuple<uint32_t, epi32_t<SIMDWidth::AVX>> streamOut(__m256i stateVec, __m256i cmpVec) noexcept
 {
   constexpr epi32_t<SIMDWidth::AVX> extractionMask{0xFFFFFFFFu, 0x0u, 0xFFFFFFFFu, 0x0u, 0xFFFFFFFFu, 0x0u, 0xFFFFFFFFu, 0x0u};
-  __m256i extractionMaskVec = load(makeCSView(extractionMask));
+  __m256i extractionMaskVec = load(toConstSimdView(extractionMask));
   __m256i streamOutMaskVec = _mm256_and_si256(cmpVec, extractionMaskVec);
 
   // take [0,2,4,6]th element from uint32_t streamOutVector [0,1,2,3,4,5,6,7]
   constexpr epi32_t<SIMDWidth::AVX> permutationMask{0x6u, 0x4u, 0x2u, 0x0u, 0x7u, 0x7u, 0x7u, 0x7u};
-  __m256i streamOutVec = _mm256_permutevar8x32_epi32(stateVec, load(makeCSView(permutationMask)));
-  streamOutMaskVec = _mm256_permutevar8x32_epi32(streamOutMaskVec, load(makeCSView(permutationMask)));
+  __m256i streamOutVec = _mm256_permutevar8x32_epi32(stateVec, load(toConstSimdView(permutationMask)));
+  streamOutMaskVec = _mm256_permutevar8x32_epi32(streamOutMaskVec, load(toConstSimdView(permutationMask)));
   // condense streamOut Vector mask from SIMD vector into an integer ID
   const uint32_t id = _mm256_movemask_ps(_mm256_castsi256_ps(streamOutMaskVec));
   // use ID to fetch right reordering from permutation LUT and move data into the right order
-  streamOutVec = _mm256_castps_si256(_mm256_permutevar_ps(_mm256_castsi256_ps(streamOutVec), load(makeCSView(AVXPermutationLUT[id]))));
+  streamOutVec = _mm256_castps_si256(_mm256_permutevar_ps(_mm256_castsi256_ps(streamOutVec), load(toConstSimdView(AVXPermutationLUT[id]))));
 
   return {_mm_popcnt_u32(id), store<uint32_t>(streamOutVec)};
 };
@@ -927,10 +900,10 @@ inline std::tuple<uint32_t, epi32_t<SIMDWidth::AVX>> streamOut(__m256i* stateVec
   __m256i permutationMask = _mm256_set1_epi32(AVXInterleavedPermutationLUT[id]);
   //  std::cout <<"permutationMask "<< asHex(store<uint32_t>(permutationMask)) << "\n";
   constexpr epi32_t<SIMDWidth::AVX> mask{0xF0000000u, 0x0F000000u, 0x00F00000u, 0x000F0000u, 0x0000F000u, 0x00000F00u, 0x000000F0u, 0x0000000Fu};
-  permutationMask = _mm256_and_si256(permutationMask, load(makeCSView(mask)));
+  permutationMask = _mm256_and_si256(permutationMask, load(toConstSimdView(mask)));
   //  std::cout <<"permutationMask "<< asHex(store<uint32_t>(permutationMask)) << "\n";
   constexpr epi32_t<SIMDWidth::AVX> shift{28u, 24u, 20u, 16u, 12u, 8u, 4u, 0u};
-  permutationMask = _mm256_srlv_epi32(permutationMask, load(makeCSView(shift)));
+  permutationMask = _mm256_srlv_epi32(permutationMask, load(toConstSimdView(shift)));
   //  std::cout <<"permutationMask "<< asHex(store<uint32_t>(permutationMask)) << "\n";
   auto streamOutVec = _mm256_permutevar8x32_epi32(statesFused, permutationMask);
 
@@ -999,8 +972,8 @@ inline auto ransRenorm(epi64cV_t<SIMDWidth::AVX, 2> states, epi32cV_t<SIMDWidth:
   cmpVec[1] = cmpgeq_epi64(stateVec[1], maxStateVec[1]);
   //newState = (state >= maxState) ? state >> streamBits_V : state
   epi64_t<SIMDWidth::AVX, 2> newState;
-  computeNewState<streamBits_V>(stateVec[0], cmpVec[0], makeSView(newState).subView<0, 1>());
-  computeNewState<streamBits_V>(stateVec[1], cmpVec[1], makeSView(newState).subView<1, 1>());
+  computeNewState<streamBits_V>(stateVec[0], cmpVec[0], toSIMDView(newState).subView<0, 1>());
+  computeNewState<streamBits_V>(stateVec[1], cmpVec[1], toSIMDView(newState).subView<1, 1>());
 
   const auto [nStreamOutWords, streamOutResult] = streamOut(stateVec, cmpVec);
 

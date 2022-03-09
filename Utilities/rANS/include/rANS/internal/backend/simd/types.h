@@ -451,13 +451,13 @@ class SIMDView
 // SIMDView(const AlignedArray<T, width_V, extent_V>&) -> SIMDView<const T, width_V, (extent_V / getElementCount<T>(width_V)), true>;
 
 template <typename T, SIMDWidth width_V, size_t extent_V>
-inline constexpr SIMDView<T, width_V, (extent_V / getElementCount<T>(width_V)), true> makeSView(AlignedArray<T, width_V, extent_V>& array) noexcept
+inline constexpr SIMDView<T, width_V, (extent_V / getElementCount<T>(width_V)), true> toSIMDView(AlignedArray<T, width_V, extent_V>& array) noexcept
 {
   return {array};
 }
 
 template <typename T, SIMDWidth width_V, size_t extent_V>
-inline constexpr SIMDView<const T, width_V, (extent_V / getElementCount<T>(width_V)), true> makeCSView(const AlignedArray<T, width_V, extent_V>& array) noexcept
+inline constexpr SIMDView<const T, width_V, (extent_V / getElementCount<T>(width_V)), true> toConstSimdView(const AlignedArray<T, width_V, extent_V>& array) noexcept
 {
   return {array};
 }

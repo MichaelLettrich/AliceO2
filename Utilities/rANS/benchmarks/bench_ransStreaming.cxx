@@ -244,7 +244,7 @@ static void ransRenormingBenchmarkSIMD(benchmark::State& st, fixture_T& fixture)
     for (size_t i = 0; i < fixture.mFrequencies.size(); ++i) {
       std::tie(outIter, newState) = simd::ransRenorm<decltype(outIter),
                                                      LowerBound,
-                                                     StreamBits>(simd::makeCSView(fixture.mState), simd::makeCSView(fixture.mFrequencies[i]), fixture.mRenormingBits, outIter);
+                                                     StreamBits>(simd::toConstSimdView(fixture.mState), simd::toConstSimdView(fixture.mFrequencies[i]), fixture.mRenormingBits, outIter);
     }
     benchmark::ClobberMemory();
   };
@@ -271,7 +271,7 @@ static void ransRenormingBenchmarkInterleavedSIMD(benchmark::State& st, fixture_
     for (size_t i = 0; i < fixture.mFrequencies.size(); i += 2) {
       std::tie(outIter, newState) = simd::ransRenorm<decltype(outIter),
                                                      LowerBound,
-                                                     StreamBits>(simd::makeCSView(fixture.mState), simd::makeCSView(fixture.mFrequencies[i]), fixture.mRenormingBits, outIter);
+                                                     StreamBits>(simd::toConstSimdView(fixture.mState), simd::toConstSimdView(fixture.mFrequencies[i]), fixture.mRenormingBits, outIter);
     }
     benchmark::ClobberMemory();
   };
