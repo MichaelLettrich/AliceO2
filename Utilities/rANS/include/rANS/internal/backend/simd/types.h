@@ -189,7 +189,7 @@ class ArrayView
   inline constexpr bool empty() const noexcept { return this->size() == 0ull; };
 
   template <size_t offset_V, size_t count_V>
-  inline constexpr ArrayView<element_type, count_V> subView() const
+  inline constexpr ArrayView<element_type, count_V> subView() const noexcept
   {
     static_assert(count_V <= extent_V);
     static_assert(count_V <= (extent_V - offset_V));
@@ -457,7 +457,7 @@ inline constexpr SIMDView<T, width_V, (extent_V / getElementCount<T>(width_V)), 
 }
 
 template <typename T, SIMDWidth width_V, size_t extent_V>
-inline constexpr SIMDView<const T, width_V, (extent_V / getElementCount<T>(width_V)), true> toConstSimdView(const AlignedArray<T, width_V, extent_V>& array) noexcept
+inline constexpr SIMDView<const T, width_V, (extent_V / getElementCount<T>(width_V)), true> toConstSIMDView(const AlignedArray<T, width_V, extent_V>& array) noexcept
 {
   return {array};
 }
@@ -532,8 +532,8 @@ inline constexpr std::int8_t operator"" _i8(unsigned long long int value) { retu
 inline constexpr std::uint16_t operator"" _u16(unsigned long long int value) { return static_cast<uint16_t>(value); };
 inline constexpr std::int16_t operator"" _i16(unsigned long long int value) { return static_cast<int16_t>(value); };
 
-template <typename T, SIMDWidth width_V>
-std::ostream& operator<<(std::ostream& stream, const AlignedArray<T, width_V>& vec)
+template <typename T, SIMDWidth width_V, size_t size_V>
+std::ostream& operator<<(std::ostream& stream, const AlignedArray<T, width_V, size_V>& vec)
 {
   stream << "[";
   for (const auto& elem : vec) {
@@ -543,8 +543,8 @@ std::ostream& operator<<(std::ostream& stream, const AlignedArray<T, width_V>& v
   return stream;
 };
 
-template <typename T, SIMDWidth width_V>
-std::string asHex(const AlignedArray<T, width_V>& vec)
+template <typename T, SIMDWidth width_V, size_t size_V>
+std::string asHex(const AlignedArray<T, width_V, size_V>& vec)
 {
   std::stringstream ss;
   ss << "[";

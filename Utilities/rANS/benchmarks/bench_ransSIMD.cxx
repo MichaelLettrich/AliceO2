@@ -100,8 +100,8 @@ auto SIMDEncode(simd::epi64cV_t<width_V> states,
 {
   const auto [frequencies, cumulativeFrequencies] = simd::aosToSoa(symbols);
   return simd::ransEncode(states,
-                          simd::int32ToDouble<width_V>(simd::toConstSimdView(frequencies)),
-                          simd::int32ToDouble<width_V>(simd::toConstSimdView(cumulativeFrequencies)),
+                          simd::int32ToDouble<width_V>(simd::toConstSIMDView(frequencies)),
+                          simd::int32ToDouble<width_V>(simd::toConstSIMDView(cumulativeFrequencies)),
                           nSamples);
 };
 
@@ -142,7 +142,7 @@ static void ransSIMD(benchmark::State& st)
   for (auto _ : st) {
     for (size_t i = 0; i < data.getSourceMessage().size(); i += nElems) {
       auto [it, symbols] = getSymbols<const source_T*, nElems>(&(data.getSourceMessage()[i]), symbolTable);
-      benchmark::DoNotOptimize(SIMDEncode(simd::toConstSimdView(states), simd::toConstSimdView(nSamples), symbols));
+      benchmark::DoNotOptimize(SIMDEncode(simd::toConstSIMDView(states), simd::toConstSIMDView(nSamples), symbols));
     }
   }
 #ifdef ENABLE_VTUNE_PROFILER
@@ -151,14 +151,6 @@ static void ransSIMD(benchmark::State& st)
 
   st.SetItemsProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size());
   st.SetBytesProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size() * sizeof(source_T));
-};
-
-inline simd::epi32_t<simd::SIMDWidth::SSE> getUpper(simd::epi32cV_t<simd::SIMDWidth::SSE> a)
-{
-  auto upper = simd::store<uint32_t>(_mm_bsrli_si128(load(a), 8));
-  // LOG(info) << "a:" << asHex(a);
-  // LOG(info) << "upper:" << asHex(upper);
-  return upper;
 };
 
 template <typename source_T>
@@ -182,14 +174,14 @@ static void ransSSE(benchmark::State& st)
       const auto frequenciesUpper = getUpper(frequencies);
       const auto cumulativeUpper = getUpper(cumulativeFrequencies);
 
-      benchmark::DoNotOptimize(simd::ransEncode(simd::toConstSimdView(states),
-                                                simd::int32ToDouble<simd::SIMDWidth::SSE>(simd::toConstSimdView(frequencies)),
-                                                simd::int32ToDouble<simd::SIMDWidth::SSE>(simd::toConstSimdView(cumulativeFrequencies)),
-                                                simd::toConstSimdView(nSamples)));
-      benchmark::DoNotOptimize(simd::ransEncode(simd::toConstSimdView(states),
-                                                simd::int32ToDouble<simd::SIMDWidth::SSE>(simd::toConstSimdView(frequenciesUpper)),
-                                                simd::int32ToDouble<simd::SIMDWidth::SSE>(simd::toConstSimdView(cumulativeUpper)),
-                                                simd::toConstSimdView(nSamples)));
+      benchmark::DoNotOptimize(simd::ransEncode(simd::toConstSIMDView(states),
+                                                simd::int32ToDouble<simd::SIMDWidth::SSE>(simd::toConstSIMDView(frequencies)),
+                                                simd::int32ToDouble<simd::SIMDWidth::SSE>(simd::toConstSIMDView(cumulativeFrequencies)),
+                                                simd::toConstSIMDView(nSamples)));
+      benchmark::DoNotOptimize(simd::ransEncode(simd::toConstSIMDView(states),
+                                                simd::int32ToDouble<simd::SIMDWidth::SSE>(simd::toConstSIMDView(frequenciesUpper)),
+                                                simd::int32ToDouble<simd::SIMDWidth::SSE>(simd::toConstSIMDView(cumulativeUpper)),
+                                                simd::toConstSIMDView(nSamples)));
     }
   }
   // #ifdef ENABLE_VTUNE_PROFILER
@@ -233,15 +225,15 @@ static void ransAVX(benchmark::State& st)
 
       std::tie(outIter, newStates) = simd::ransRenorm<decltype(outIter),
                                                       1ull << 20,
-                                                      32>(simd::toConstSimdView(states), simd::toConstSimdView(frequencies), renormingBits, outIter);
-      benchmark::DoNotOptimize(simd::ransEncode(simd::toConstSimdView(states).subView<0, 1>(),
-                                                simd::int32ToDouble<simd::SIMDWidth::AVX>(simd::toConstSimdView(frequencies).subView<0, 1>()),
-                                                simd::int32ToDouble<simd::SIMDWidth::AVX>(simd::toConstSimdView(cumulatedFrequencies).subView<0, 1>()),
-                                                simd::toConstSimdView(nSamples)));
-      benchmark::DoNotOptimize(simd::ransEncode(simd::toConstSimdView(states).subView<1, 1>(),
-                                                simd::int32ToDouble<simd::SIMDWidth::AVX>(simd::toConstSimdView(frequencies).subView<1, 1>()),
-                                                simd::int32ToDouble<simd::SIMDWidth::AVX>(simd::toConstSimdView(cumulatedFrequencies).subView<1, 1>()),
-                                                simd::toConstSimdView(nSamples)));
+                                                      32>(simd::toConstSIMDView(states), simd::toConstSIMDView(frequencies), renormingBits, outIter);
+      benchmark::DoNotOptimize(simd::ransEncode(simd::toConstSIMDView(states).subView<0, 1>(),
+                                                simd::int32ToDouble<simd::SIMDWidth::AVX>(simd::toConstSIMDView(frequencies).subView<0, 1>()),
+                                                simd::int32ToDouble<simd::SIMDWidth::AVX>(simd::toConstSIMDView(cumulatedFrequencies).subView<0, 1>()),
+                                                simd::toConstSIMDView(nSamples)));
+      benchmark::DoNotOptimize(simd::ransEncode(simd::toConstSIMDView(states).subView<1, 1>(),
+                                                simd::int32ToDouble<simd::SIMDWidth::AVX>(simd::toConstSIMDView(frequencies).subView<1, 1>()),
+                                                simd::int32ToDouble<simd::SIMDWidth::AVX>(simd::toConstSIMDView(cumulatedFrequencies).subView<1, 1>()),
+                                                simd::toConstSIMDView(nSamples)));
     }
   }
 #ifdef ENABLE_VTUNE_PROFILER
