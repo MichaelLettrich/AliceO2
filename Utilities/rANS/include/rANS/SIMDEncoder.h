@@ -102,7 +102,12 @@ class SIMDEncoder
   size_t mSymbolTablePrecision{};
 
   //TODO(milettri): make this depend on hardware
-  static constexpr size_t nInterleavedStreams_V = nStreams_V / nHardwareStreams_V;
+  static constexpr size_t nParallelStreams_V = nHardwareStreams_V * 2;
+
+  static_assert(nStreams_V >= nParallelStreams_V);
+  static_assert(nStreams_V % nParallelStreams_V == 0);
+
+  static constexpr size_t nInterleavedStreams_V = nStreams_V / nParallelStreams_V;
   static constexpr internal::simd::SIMDWidth simdWidth = internal::simd::getSimdWidth<coder_T>(nHardwareStreams_V);
   using ransCoder_t = typename internal::simd::Encoder<simdWidth>;
 };
@@ -114,7 +119,7 @@ template <typename stream_IT,
 stream_IT SIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareStreams_V>::process(source_IT inputBegin, source_IT inputEnd, stream_IT outputBegin) const
 {
   using namespace internal;
-  LOG(trace) << "start encoding";
+  // LOG(trace) << "start encoding";
   RANSTimer t;
   t.start();
 
@@ -126,8 +131,8 @@ stream_IT SIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareStreams_
   stream_IT outputIter = outputBegin;
   source_IT inputIT = inputEnd;
 
-  auto maskedEncode = [this](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder, size_t nActiveStreams = nHardwareStreams_V) {
-    std::array<const internal::simd::Symbol*, nHardwareStreams_V> encoderSymbols{};
+  auto maskedEncode = [this](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder, size_t nActiveStreams = nParallelStreams_V) {
+    std::array<const internal::simd::Symbol*, nParallelStreams_V> encoderSymbols{};
     for (auto encSymbolIter = encoderSymbols.rend() - nActiveStreams; encSymbolIter != encoderSymbols.rend(); ++encSymbolIter) {
       const source_T symbol = *(--symbolIter);
       *encSymbolIter = &(this->mSymbolTable)[symbol];
@@ -136,7 +141,7 @@ stream_IT SIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareStreams_
   };
 
   auto encode = [this](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder) {
-    auto [newSymbolIter, encoderSymbols] = getSymbols<source_IT, nHardwareStreams_V>(symbolIter, this->mSymbolTable);
+    auto [newSymbolIter, encoderSymbols] = getSymbols<source_IT, nParallelStreams_V>(symbolIter, this->mSymbolTable);
     return std::make_tuple(newSymbolIter, coder.putSymbols(outputIter, encoderSymbols));
   };
 
@@ -150,17 +155,17 @@ stream_IT SIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareStreams_
   const auto inputBufferSize = std::distance(inputBegin, inputEnd);
   const size_t nMainLoopIterations = inputBufferSize / nStreams_V;
   const size_t nMainLoopRemainderSymbols = inputBufferSize % nStreams_V;
-  const size_t nRemainderLoopIterations = nMainLoopRemainderSymbols / nHardwareStreams_V;
-  const size_t nMaskedEncodes = nMainLoopRemainderSymbols % nHardwareStreams_V;
+  const size_t nRemainderLoopIterations = nMainLoopRemainderSymbols / nParallelStreams_V;
+  const size_t nMaskedEncodes = nMainLoopRemainderSymbols % nParallelStreams_V;
 
-  LOG(trace) << "InputBufferSize: " << inputBufferSize;
-  LOG(trace) << "Loops Main: " << nMainLoopIterations << ", Loops Remainder: " << nMainLoopRemainderSymbols << ", Masked Encodes :" << nMaskedEncodes;
+  // LOG(trace) << "InputBufferSize: " << inputBufferSize;
+  // LOG(trace) << "Loops Main: " << nMainLoopIterations << ", Loops Remainder: " << nMainLoopRemainderSymbols << ", Masked Encodes :" << nMaskedEncodes;
 
   // iterator pointing to the active coder
   auto coderIter = std::rend(interleavedCoders) - nRemainderLoopIterations;
 
   if (nMaskedEncodes) {
-    LOG(trace) << "masked encodes";
+    // LOG(trace) << "masked encodes";
     // one more encoding step than nRemainderLoopIterations for masked encoding
     // will not cause out of range
     --coderIter;
@@ -168,13 +173,13 @@ stream_IT SIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareStreams_
     coderIter++;
   }
   // now encode the rest of the remainder symbols
-  LOG(trace) << "remainder";
+  // LOG(trace) << "remainder";
   for (coderIter; coderIter != std::rend(interleavedCoders); ++coderIter) {
     std::tie(inputIT, outputIter) = encode(inputIT, outputIter, *coderIter);
   }
 
   // main encoder loop
-  LOG(trace) << "main loop";
+  // LOG(trace) << "main loop";
   for (size_t i = 0; i < nMainLoopIterations; ++i) {
     for (size_t interleavedCoderIdx = nInterleavedStreams_V; interleavedCoderIdx-- > 0;) {
       std::tie(inputIT, outputIter) = encode(inputIT, outputIter, interleavedCoders[interleavedCoderIdx]);
@@ -184,7 +189,7 @@ stream_IT SIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareStreams_
     // }
   }
 
-  LOG(trace) << "flushing";
+  // LOG(trace) << "flushing";
   for (coderIter = std::rbegin(interleavedCoders); coderIter != std::rend(interleavedCoders); ++coderIter) {
     outputIter = coderIter->flush(outputIter);
   }
