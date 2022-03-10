@@ -15,7 +15,7 @@ o2_add_library(rANS
                        src/RenormedFrequencyTable.cxx
                PUBLIC_LINK_LIBRARIES FairLogger::FairLogger)
 #target_compile_definitions(${targetName} PUBLIC O2_RANS_PRINT_PROCESSED_DATA)
-target_compile_options(${targetName} PUBLIC -mavx2 -mfma)
+target_compile_options(${targetName} PUBLIC -mavx2 -mfma -march=native)
 if(${ENABLE_VTUNE_PROFILER})
   target_compile_definitions(${targetName} PUBLIC ENABLE_VTUNE_PROFILER)
   target_link_libraries(${targetName} PUBLIC PkgConfig::Vtune)

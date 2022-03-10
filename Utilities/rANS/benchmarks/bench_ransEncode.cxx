@@ -201,8 +201,8 @@ auto SIMDEncode(simd::epi64cV_t<width_V> states,
 {
   auto [frequencies, cumulativeFrequencies] = simd::aosToSoa(symbols);
   return ransEncode(states,
-                    simd::int32ToDouble<width_V>(simd::toConstSimdView(frequencies)),
-                    simd::int32ToDouble<width_V>(simd::toConstSimdView(cumulativeFrequencies)),
+                    simd::int32ToDouble<width_V>(simd::toConstSIMDView(frequencies)),
+                    simd::int32ToDouble<width_V>(simd::toConstSIMDView(cumulativeFrequencies)),
                     nSamples);
 };
 
@@ -242,7 +242,7 @@ static void ransSIMDEncodeBenchmark(benchmark::State& st, SIMDFixture<source_T, 
 #endif
   for (auto _ : st) {
     for (size_t i = 0; i < fixture.mSymbols.size(); ++i) {
-      auto newStates = SIMDEncode(simd::toConstSimdView(fixture.mState), simd::toConstSimdView(fixture.mNSamples), fixture.mSymbols[i]);
+      auto newStates = SIMDEncode(simd::toConstSIMDView(fixture.mState), simd::toConstSIMDView(fixture.mNSamples), fixture.mSymbols[i]);
       benchmark::DoNotOptimize(newStates);
       benchmark::ClobberMemory();
     }

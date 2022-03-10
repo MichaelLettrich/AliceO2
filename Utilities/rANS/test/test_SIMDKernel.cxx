@@ -274,19 +274,19 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(simd_cmpgeq_epi64, epi64_T, epi64_types)
   epi64_T a{0};
   epi64_T b{1};
   epi64_T res{0x0};
-  epi64_T res1 = cmpgeq_epi64(toConstSimdView(a), toConstSimdView(b));
+  epi64_T res1 = cmpgeq_epi64(toConstSIMDView(a), toConstSIMDView(b));
   BOOST_CHECK_EQUAL_COLLECTIONS(res1.begin(), res1.end(), res.begin(), res.end());
 
   a = epi64_T{1};
   b = epi64_T{1};
   res = epi64_T{0xFFFFFFFFFFFFFFFF};
-  res1 = cmpgeq_epi64(toConstSimdView(a), toConstSimdView(b));
+  res1 = cmpgeq_epi64(toConstSIMDView(a), toConstSIMDView(b));
   BOOST_CHECK_EQUAL_COLLECTIONS(res1.begin(), res1.end(), res.begin(), res.end());
 
   a = epi64_T{1};
   b = epi64_T{0};
   res = epi64_T{0xFFFFFFFFFFFFFFFF};
-  res1 = cmpgeq_epi64(toConstSimdView(a), toConstSimdView(b));
+  res1 = cmpgeq_epi64(toConstSIMDView(a), toConstSIMDView(b));
   BOOST_CHECK_EQUAL_COLLECTIONS(res1.begin(), res1.end(), res.begin(), res.end());
 }
 
@@ -334,8 +334,8 @@ struct RenormFixture {
 
     auto [newstreamOutIter, newStates] = ransRenorm<decltype(streamOutBuffer.begin()),
                                                     LowerBound,
-                                                    StreamBits>(toConstSimdView(states),
-                                                                toConstSimdView(frequencies),
+                                                    StreamBits>(toConstSIMDView(states),
+                                                                toConstSIMDView(frequencies),
                                                                 SymbolTablePrecisionBits,
                                                                 --streamOutBuffer.begin());
 

@@ -23,6 +23,8 @@
 #include <type_traits>
 #include <tuple>
 
+#include <fairlogger/Logger.h>
+
 #include "rANS/internal/backend/cpp/EncoderSymbol.h"
 #include "rANS/internal/helper.h"
 
