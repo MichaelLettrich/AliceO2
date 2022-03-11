@@ -1057,16 +1057,16 @@ inline auto ransRenorm(epi64cV_t<SIMDWidth::AVX, 2> states, epi32cV_t<SIMDWidth:
   computeNewState<streamBits_V>(stateVec[0], cmpVec[0], toSIMDView(newState).subView<0, 1>());
   computeNewState<streamBits_V>(stateVec[1], cmpVec[1], toSIMDView(newState).subView<1, 1>());
 
-  const auto [nStreamOutWords, streamOutResult] = streamOut(stateVec, cmpVec);
+  auto [nStreamOutWords, streamOutResult] = streamOut(stateVec, cmpVec);
 
-  // if constexpr (std::is_pointer_v<output_IT>) {
-  //   outputIter += nStreamOutWords > 0;
-  //   outputIter = std::copy(streamOutResult.data(), streamOutResult.data() + nStreamOutWords, outputIter);
-  // } else {
-  for (size_t i = 0; i < nStreamOutWords; ++i) {
-    *(++outputIter) = streamOutResult[i];
+  if constexpr (std::is_pointer_v<output_IT>) {
+    _mm256_storeu_si256(reinterpret_cast<__m256i*>(outputIter + 1), load(toConstSIMDView(streamOutResult)));
+    outputIter += nStreamOutWords;
+  } else {
+    for (size_t i = 0; i < nStreamOutWords; ++i) {
+      *(++outputIter) = streamOutResult[i];
+    }
   }
-  //}
 
   return std::make_tuple(outputIter, newState);
 };
