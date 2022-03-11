@@ -117,6 +117,7 @@ inline const Symbol& SymbolTable::operator[](symbol_t symbol) const noexcept
   } else {
     return this->getEscapeSymbol();
   }
+  //return this->at(symbol - mOffset);
 }
 
 } // namespace simd
