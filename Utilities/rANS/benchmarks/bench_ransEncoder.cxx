@@ -119,13 +119,13 @@ static void ransCompressionBenchmark(benchmark::State& st, fixture_T& fixture)
   const auto& sourceMessage = getMessage<typename fixture_T::source_t>();
   std::vector<uint32_t> encodeBuffer(2 * sourceMessage.size());
   std::vector<typename fixture_T::source_t> decodeBuffer;
-  auto encodeBufferEnd = encodeBuffer.end();
+  auto encodeBufferEnd = &(*encodeBuffer.end());
 
 #ifdef ENABLE_VTUNE_PROFILER
   __itt_resume();
 #endif
   for (auto _ : st) {
-    benchmark::DoNotOptimize(encodeBufferEnd = fixture.encoder.process(std::begin(sourceMessage), std::end(sourceMessage), encodeBuffer.begin()));
+    benchmark::DoNotOptimize(encodeBufferEnd = fixture.encoder.process(std::begin(sourceMessage), std::end(sourceMessage), encodeBuffer.data()));
   }
 #ifdef ENABLE_VTUNE_PROFILER
   __itt_pause();
@@ -145,7 +145,7 @@ static void ransCompressionBenchmark(benchmark::State& st, fixture_T& fixture)
   st.counters["Entropy"] = fixture.entropy;
   st.counters["ExpectedCodewordLength"] = fixture.expectedCodewordLength;
   st.counters["SourceSize"] = sourceMessage.size() * sizeof(typename fixture_T::source_t);
-  st.counters["CompressedSize"] = std::distance(encodeBuffer.begin(), encodeBufferEnd) * sizeof(uint32_t);
+  st.counters["CompressedSize"] = std::distance(encodeBuffer.data(), encodeBufferEnd) * sizeof(uint32_t);
   st.counters["Compression"] = st.counters["SourceSize"] / static_cast<double>(st.counters["CompressedSize"]);
   st.counters["LowerBound"] = sourceMessage.size() * (static_cast<double>(st.counters["Entropy"]) / 8);
   st.counters["CompressionWRTEntropy"] = st.counters["CompressedSize"] / st.counters["LowerBound"];
