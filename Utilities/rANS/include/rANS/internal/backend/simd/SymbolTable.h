@@ -110,14 +110,14 @@ inline SymbolTable::SymbolTable(const RenormedFrequencyTable& frequencyTable) : 
 
 inline const Symbol& SymbolTable::operator[](symbol_t symbol) const noexcept
 {
-  const size_t index = static_cast<size_t>(symbol - mOffset);
-  // static cast to unsigned: idx < 0 => (uint)idx > MAX_INT => idx > mIndex.size()
-  if (index < mData.size()) {
-    return this->at(index);
-  } else {
-    return this->getEscapeSymbol();
-  }
-  //return this->at(symbol - mOffset);
+  // const size_t index = static_cast<size_t>(symbol - mOffset);
+  // // static cast to unsigned: idx < 0 => (uint)idx > MAX_INT => idx > mIndex.size()
+  // if (index < mData.size()) {
+  //   return this->at(index);
+  // } else {
+  //   return this->getEscapeSymbol();
+  // }
+  return this->at(symbol - mOffset);
 }
 
 } // namespace simd
