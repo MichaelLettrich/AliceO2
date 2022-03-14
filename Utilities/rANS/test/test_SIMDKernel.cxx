@@ -37,27 +37,18 @@ using pd_types = boost::mpl::list<pd_t<SIMDWidth::SSE>
 #ifdef __AVX2__
                                       , pd_t<SIMDWidth::AVX>
 #endif /* __AVX2__ */
-#ifdef __AVX512F__
-                                      , pd_t<SIMDWidth::AVX512>
-#endif /* __AVX512F__ */
                                       >;
 
 using epi64_types = boost::mpl::list<epi64_t<SIMDWidth::SSE>
 #ifdef __AVX2__
                                           , epi64_t<SIMDWidth::AVX>
 #endif /* __AVX2__ */
-#ifdef __AVX512F__
-                                          , epi64_t<SIMDWidth::AVX512>
-#endif /* __AVX512F__ */
                                           >;
 
 using epi32_types = boost::mpl::list<epi32_t<SIMDWidth::SSE>
 #ifdef __AVX2__
                                           , epi32_t<SIMDWidth::AVX>
 #endif /* __AVX2__ */
-#ifdef __AVX512F__
-                                          , epi32_t<SIMDWidth::AVX512>
-#endif /* __AVX512F__ */
                                           >;
 // clang-format on
 
@@ -102,7 +93,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(simd_doubleToUint64, pd_T, pd_types)
 BOOST_AUTO_TEST_SUITE_END()
 
 struct ConvertingFixture32 {
-  std::vector<uint32_t> uint32Data = {0x0, 0x1, 0x7FFFFFFE, 0x7FFFFFFF};
+  epi32_t<SIMDWidth::SSE> uint32Data = {0x0, 0x1, 0x7FFFFFFE, 0x7FFFFFFF};
   std::vector<double> doubleData;
 
   ConvertingFixture32()
@@ -118,10 +109,9 @@ BOOST_FIXTURE_TEST_SUITE(test_SIMDconvert32, ConvertingFixture32)
 BOOST_AUTO_TEST_CASE_TEMPLATE(simd_int32ToDouble, epi32_T, epi32_types)
 {
   constexpr SIMDWidth simdWidth_V = simdWidth_v<epi32_T>;
-  using simdPD_T = pd_t<simdWidth_V>;
 
   for (size_t i = 0; i < uint32Data.size(); ++i) {
-    const epi32_T src{uint32Data[i]};
+    const epi32_t<SIMDWidth::SSE> src{uint32Data[i]};
     auto dest = int32ToDouble<simdWidth_V>(src);
 
     for (auto elem : dest) {
@@ -226,12 +216,12 @@ BOOST_AUTO_TEST_SUITE_END()
 struct AosToSoaFixture {
 
   std::vector<Symbol> mSource;
-  epi32_t<SIMDWidth::AVX512> mFrequencies;
-  epi32_t<SIMDWidth::AVX512> mCumulative;
+  epi32_t<SIMDWidth::AVX> mFrequencies;
+  epi32_t<SIMDWidth::AVX> mCumulative;
 
   AosToSoaFixture()
   {
-    constexpr size_t nElems = getElementCount<uint32_t>(SIMDWidth::AVX512);
+    constexpr size_t nElems = getElementCount<uint32_t>(SIMDWidth::AVX);
     uint32_t counter = 0;
 
     for (size_t i = 0; i < nElems; ++i) {
@@ -244,8 +234,7 @@ struct AosToSoaFixture {
   };
 };
 using aosToSoa_T = boost::mpl::list<std::integral_constant<size_t, 2>,
-                                    std::integral_constant<size_t, 4>,
-                                    std::integral_constant<size_t, 8>>;
+                                    std::integral_constant<size_t, 4>>;
 
 BOOST_FIXTURE_TEST_SUITE(testAostoSoa, AosToSoaFixture)
 BOOST_AUTO_TEST_CASE_TEMPLATE(simd_AosToSOA, sizes_T, aosToSoa_T)

@@ -61,20 +61,6 @@ inline __m256d load(pdcV_t<SIMDWidth::AVX> view) noexcept
 };
 
 #endif /* __AVX2__ */
-#ifdef __AVX512F__
-
-template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-inline __m512i load(const AlignedArray<T, SIMDWidth::AVX512>& v) noexcept
-{
-  return _mm512_load_si512(reinterpret_cast<const __m512i*>(v.data()));
-};
-
-inline __m512d load(const AlignedArray<double_t, SIMDWidth::AVX512>& v) noexcept
-{
-  return _mm512_load_pd(v.data());
-};
-
-#endif /* __AVX_512F_ */
 
 template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
 inline AlignedArray<T, SIMDWidth::SSE> store(__m128i inVec) noexcept
@@ -131,24 +117,21 @@ inline void store(__m256d inVec, SIMDView<double_t, SIMDWidth::AVX, 1, true> vie
 };
 
 #endif /* __AVX2__ */
-#ifdef __AVX512F__
 
-template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-inline AlignedArray<T, SIMDWidth::AVX512> store(__m512i inVec) noexcept
+//
+// uint32 -> double
+//
+template <SIMDWidth width_V>
+inline auto int32ToDouble(__m128i in) noexcept
 {
-  AlignedArray<T, SIMDWidth::AVX512> out;
-  _mm512_store_si512(reinterpret_cast<__m512i*>(out.data()), inVec);
-  return out;
+  if constexpr (width_V == SIMDWidth::SSE) {
+    return _mm_cvtepi32_pd(in);
+  } else if constexpr (width_V == SIMDWidth::AVX) {
+#ifdef __AVX2__
+    return _mm256_cvtepi32_pd(in);
+#endif /* __AVX2__ */
+  }
 };
-
-inline AlignedArray<double_t, SIMDWidth::AVX512> store(__m512d inVec) noexcept
-{
-  AlignedArray<double_t, SIMDWidth::AVX512> out;
-  _mm512_store_pd(out.data(), inVec);
-  return out;
-};
-
-#endif /* __AVX_512F_ */
 
 //
 // uint32 -> double
@@ -156,98 +139,69 @@ inline AlignedArray<double_t, SIMDWidth::AVX512> store(__m512d inVec) noexcept
 template <SIMDWidth width_V>
 inline auto int32ToDouble(epi32cV_t<SIMDWidth::SSE> in) noexcept
 {
-  auto inReg = load(in);
-  if constexpr (width_V == SIMDWidth::SSE) {
-    return store(_mm_cvtepi32_pd(inReg));
-  } else if constexpr (width_V == SIMDWidth::AVX) {
-#ifdef __AVX2__
-    return store(_mm256_cvtepi32_pd(inReg));
-#endif /* __AVX2__ */
-  }
-};
-
-template <SIMDWidth width_V>
-inline auto int32ToDouble(epi32cV_t<SIMDWidth::AVX> in) noexcept
-{
-  if constexpr (width_V == SIMDWidth::AVX) {
-#ifdef __AVX2__
-    __m128i inReg = _mm_load_si128(reinterpret_cast<const __m128i*>(in.data()));
-    return store(_mm256_cvtepi32_pd(inReg));
-#endif /* __AVX2__ */
-  } else if constexpr (width_V == SIMDWidth::AVX512) {
-#ifdef __AVX512F__
-    auto inReg = load(in);
-    return store(_mm512_cvtepi32_pd(inReg));
-#endif /* __AVX_512F_ */
-  }
+  return store(int32ToDouble<width_V>(load(in)));
 };
 
 //
 // uint64 -> double
 // Only works for inputs in the range: [0, 2^52)
 //
+
+inline __m128d uint64ToDouble(__m128i in) noexcept
+{
+#if !defined(NDEBUG)
+  auto vec = store<uint64_t>(in);
+  for (auto i : vec) {
+    assert(i < pow2(52));
+  }
+#endif
+  in = _mm_or_si128(in, _mm_castpd_si128(_mm_set1_pd(detail::AlignMantissaMagic)));
+  __m128d out = _mm_sub_pd(_mm_castsi128_pd(in), _mm_set1_pd(detail::AlignMantissaMagic));
+  return out;
+};
+
 inline pd_t<SIMDWidth::SSE> uint64ToDouble(epi64cV_t<SIMDWidth::SSE> in) noexcept
 {
-#if !defined(NDEBUG)
-  for (auto i : in) {
-    assert(i < pow2(52));
-  }
-#endif
-
-  __m128i inReg = load(in);
-  inReg = _mm_or_si128(inReg, _mm_castpd_si128(_mm_set1_pd(detail::AlignMantissaMagic)));
-  __m128d outReg = _mm_sub_pd(_mm_castsi128_pd(inReg), _mm_set1_pd(detail::AlignMantissaMagic));
-  return store(outReg);
+  return (store(uint64ToDouble(load(in))));
 };
 
 #ifdef __AVX2__
-
 //
 // uint64 -> double
 // Only works for inputs in the range: [0, 2^52)
 //
-inline pd_t<SIMDWidth::AVX> uint64ToDouble(epi64cV_t<SIMDWidth::AVX> in) noexcept
+inline __m256d uint64ToDouble(__m256i in) noexcept
 {
 #if !defined(NDEBUG)
-  for (auto i : in) {
+  auto vec = store<uint64_t>(in);
+  for (auto i : vec) {
     assert(i < pow2(52));
   }
 #endif
-  __m256i inReg = load(in);
-  inReg = _mm256_or_si256(inReg, _mm256_castpd_si256(_mm256_set1_pd(detail::AlignMantissaMagic)));
-  __m256d outReg = _mm256_sub_pd(_mm256_castsi256_pd(inReg), _mm256_set1_pd(detail::AlignMantissaMagic));
-  return store(outReg);
+  in = _mm256_or_si256(in, _mm256_castpd_si256(_mm256_set1_pd(detail::AlignMantissaMagic)));
+  __m256d out = _mm256_sub_pd(_mm256_castsi256_pd(in), _mm256_set1_pd(detail::AlignMantissaMagic));
+  return out;
 };
 
+inline pd_t<SIMDWidth::AVX> uint64ToDouble(epi64cV_t<SIMDWidth::AVX> in) noexcept
+{
+  return store(uint64ToDouble(load(in)));
+};
 #endif /* __AVX2__ */
-#ifdef __AVX512F__
 
-//
-// uint64 -> double
-//
-inline pd_t<SIMDWidth::AVX512> uint64ToDouble(epi64cV_t<SIMDWidth::AVX512> in)
-{
-  auto inReg = load(in);
-  auto outReg = _mm512_cvtepu64_pd(inReg);
-  return store(outReg);
-}
-#endif /* __AVX_512F_ */
-
-namespace impl
-{
-inline __m128i doubleToUint64Impl(__m128d inReg) noexcept
+inline __m128i doubleToUint64(__m128d in) noexcept
 {
 #if !defined(NDEBUG)
-  for (auto i : load(in)) {
+  auto vec = store(in);
+  for (auto i : vec) {
     assert(i < pow2(52));
   }
 #endif
-  inReg = _mm_add_pd(inReg, _mm_set1_pd(detail::AlignMantissaMagic));
-  __m128i outReg = _mm_xor_si128(_mm_castpd_si128(inReg),
-                                 _mm_castpd_si128(_mm_set1_pd(detail::AlignMantissaMagic)));
-  return outReg;
+  in = _mm_add_pd(in, _mm_set1_pd(detail::AlignMantissaMagic));
+  __m128i out = _mm_xor_si128(_mm_castpd_si128(in),
+                              _mm_castpd_si128(_mm_set1_pd(detail::AlignMantissaMagic)));
+  return out;
 }
-} // namespace impl
 
 //
 // double -> uint64
@@ -255,7 +209,7 @@ inline __m128i doubleToUint64Impl(__m128d inReg) noexcept
 //
 inline epi64_t<SIMDWidth::SSE> doubleToUint64(pdcV_t<SIMDWidth::SSE> in) noexcept
 {
-  return store<uint64_t>(impl::doubleToUint64Impl(load(in)));
+  return store<uint64_t>(doubleToUint64(load(in)));
 }
 
 //
@@ -264,27 +218,25 @@ inline epi64_t<SIMDWidth::SSE> doubleToUint64(pdcV_t<SIMDWidth::SSE> in) noexcep
 //
 inline void doubleToUint64(pdcV_t<SIMDWidth::SSE> in, epi64V_t<SIMDWidth::SSE> out) noexcept
 {
-  store(impl::doubleToUint64Impl(load(in)), out);
+  store(doubleToUint64(load(in)), out);
 }
 
 #ifdef __AVX2__
 
-namespace impl
-{
-inline __m256i doubleToUint64Impl(__m256d inReg) noexcept
+inline __m256i doubleToUint64(__m256d in) noexcept
 {
 #if !defined(NDEBUG)
-  for (auto i : load(in)) {
+  auto vec = store(in);
+  for (auto i : vec) {
     assert(i < pow2(52));
   }
 #endif
 
-  inReg = _mm256_add_pd(inReg, _mm256_set1_pd(detail::AlignMantissaMagic));
-  __m256i outReg = _mm256_xor_si256(_mm256_castpd_si256(inReg),
-                                    _mm256_castpd_si256(_mm256_set1_pd(detail::AlignMantissaMagic)));
-  return outReg;
+  in = _mm256_add_pd(in, _mm256_set1_pd(detail::AlignMantissaMagic));
+  __m256i out = _mm256_xor_si256(_mm256_castpd_si256(in),
+                                 _mm256_castpd_si256(_mm256_set1_pd(detail::AlignMantissaMagic)));
+  return out;
 }
-} // namespace impl
 
 //
 // double -> uint64
@@ -292,7 +244,7 @@ inline __m256i doubleToUint64Impl(__m256d inReg) noexcept
 //
 inline epi64_t<SIMDWidth::AVX> doubleToUint64(pdcV_t<SIMDWidth::AVX> in) noexcept
 {
-  return store<uint64_t>(impl::doubleToUint64Impl(load(in)));
+  return store<uint64_t>(doubleToUint64(load(in)));
 }
 
 //
@@ -301,94 +253,87 @@ inline epi64_t<SIMDWidth::AVX> doubleToUint64(pdcV_t<SIMDWidth::AVX> in) noexcep
 //
 inline void doubleToUint64(pdcV_t<SIMDWidth::AVX> in, epi64V_t<SIMDWidth::AVX> out) noexcept
 {
-  store(impl::doubleToUint64Impl(load(in)), out);
+  store(doubleToUint64(load(in)), out);
 }
 
 #endif /* __AVX2__ */
-#ifdef __AVX512F__
 
-//
-// double -> uint64
-//
-inline epi64_t<SIMDWidth::AVX512> doubleToUint64(pdcV_t<SIMDWidth::AVX512> in)
-{
-  auto inReg = load(in);
-  auto outReg = _mm512_cvttpd_epu64(inReg);
-  return store<uint64_t>(outReg);
-}
+template <SIMDWidth>
+struct DivModContainer;
 
-#endif /* __AVX_512F_ */
+template <>
+struct DivModContainer<SIMDWidth::SSE> {
+  __m128d div;
+  __m128d mod;
+};
 
 // calculate both floor(a/b) and a%b
-inline std::tuple<pd_t<SIMDWidth::SSE>, pd_t<SIMDWidth::SSE>> divMod(pdcV_t<SIMDWidth::SSE> numerator, pdcV_t<SIMDWidth::SSE> denominator) noexcept
+inline DivModContainer<SIMDWidth::SSE>
+  divMod(__m128d numerator, __m128d denominator) noexcept
 {
-  __m128d numeratorReg = load(numerator);
-  __m128d denominatorReg = load(denominator);
-  __m128d div = _mm_floor_pd(_mm_div_pd(numeratorReg, denominatorReg));
-  __m128d mod = _mm_fnmadd_pd(div, denominatorReg, numeratorReg);
+  __m128d div = _mm_floor_pd(_mm_div_pd(numerator, denominator));
+  __m128d mod = _mm_fnmadd_pd(div, denominator, numerator);
+  return {div, mod};
+}
+
+// calculate both floor(a/b) and a%b
+inline auto divMod(pdcV_t<SIMDWidth::SSE> numerator, pdcV_t<SIMDWidth::SSE> denominator) noexcept -> std::tuple<pd_t<SIMDWidth::SSE>, pd_t<SIMDWidth::SSE>>
+{
+  auto [div, mod] = divMod(load(numerator), load(denominator));
   return std::make_tuple(store(div), store(mod));
 }
 
 #ifdef __AVX2__
 
+template <>
+struct DivModContainer<SIMDWidth::AVX> {
+  __m256d div;
+  __m256d mod;
+};
+
 // calculate both floor(a/b) and a%b
-inline std::tuple<pd_t<SIMDWidth::AVX>, pd_t<SIMDWidth::AVX>> divMod(pdcV_t<SIMDWidth::AVX> numerator, pdcV_t<SIMDWidth::AVX> denominator) noexcept
+inline DivModContainer<SIMDWidth::AVX> divMod(__m256d numerator, __m256d denominator) noexcept
 {
-  __m256d numeratorReg = load(numerator);
-  __m256d denominatorReg = load(denominator);
-  __m256d div = _mm256_floor_pd(_mm256_div_pd(numeratorReg, denominatorReg));
-  __m256d mod = _mm256_fnmadd_pd(div, denominatorReg, numeratorReg);
-  return std::make_tuple(store(div), store(mod));
+  __m256d div = _mm256_floor_pd(_mm256_div_pd(numerator, denominator));
+  __m256d mod = _mm256_fnmadd_pd(div, denominator, numerator);
+  return {div, mod};
 }
 
+// calculate both floor(a/b) and a%b
+inline auto divMod(pdcV_t<SIMDWidth::AVX> numerator, pdcV_t<SIMDWidth::AVX> denominator) noexcept -> std::tuple<pd_t<SIMDWidth::AVX>, pd_t<SIMDWidth::AVX>>
+{
+  auto [div, mod] = divMod(load(numerator), load(denominator));
+  return std::make_tuple(store(div), store(mod));
+}
 #endif /* __AVX2__ */
-#ifdef __AVX512F__
-
-// calculate both floor(a/b) and a%b
-inline std::tuple<pd_t<SIMDWidth::AVX512>, pd_t<SIMDWidth::AVX512>> divMod(pdcV_t<SIMDWidth::AVX512> numerator, pdcV_t<SIMDWidth::AVX512> denominator) noexcept
-{
-  __m512d numeratorReg = load(numerator);
-  __m512d denominatorReg = load(denominator);
-  __m512d div = _mm512_floor_pd(_mm512_div_pd(numeratorReg, denominatorReg));
-  __m512d mod = _mm512_fnmadd_pd(div, denominatorReg, numeratorReg);
-  return std::make_tuple(store(div), store(mod));
-}
-
-#endif /* __AVX_512F_ */
 
 //
 // rans Encode
 //
-namespace impl
-{
-inline __m128i ransEncodeImpl(epi64cV_t<SIMDWidth::SSE> state, pdcV_t<SIMDWidth::SSE> frequency, pdcV_t<SIMDWidth::SSE> cumulative, pdcV_t<SIMDWidth::SSE> normalization) noexcept
+inline __m128i ransEncode(__m128i state, __m128d frequency, __m128d cumulative, __m128d normalization) noexcept
 {
 #if !defined(NDEBUG)
-  for (auto i : state) {
+  auto vec = store<uint64_t>(state);
+  for (auto i : vec) {
     assert(i < pow2(52));
   }
 #endif
 
   auto [div, mod] = divMod(uint64ToDouble(state), frequency);
-  auto divReg = load(toConstSIMDView(div));
-  auto modReg = load(toConstSIMDView(mod));
-  auto cumulativeReg = load(cumulative);
-  auto normalizationReg = load(normalization);
-  auto newState = _mm_fmadd_pd(normalizationReg, divReg, cumulativeReg);
-  newState = _mm_add_pd(newState, modReg);
+  auto newState = _mm_fmadd_pd(normalization, div, cumulative);
+  newState = _mm_add_pd(newState, mod);
 
-  return impl::doubleToUint64Impl(newState);
+  return doubleToUint64(newState);
 };
-} // namespace impl
 
 inline epi64_t<SIMDWidth::SSE> ransEncode(epi64cV_t<SIMDWidth::SSE> state, pdcV_t<SIMDWidth::SSE> frequency, pdcV_t<SIMDWidth::SSE> cumulative, pdcV_t<SIMDWidth::SSE> normalization) noexcept
 {
-  return store<uint64_t>(impl::ransEncodeImpl(state, frequency, cumulative, normalization));
+  return store<uint64_t>(ransEncode(load(state), load(frequency), load(cumulative), load(normalization)));
 };
 
 inline void ransEncode(epi64cV_t<SIMDWidth::SSE> state, pdcV_t<SIMDWidth::SSE> frequency, pdcV_t<SIMDWidth::SSE> cumulative, pdcV_t<SIMDWidth::SSE> normalization, epi64V_t<SIMDWidth::SSE> newState) noexcept
 {
-  store(impl::ransEncodeImpl(state, frequency, cumulative, normalization), newState);
+  store(ransEncode(load(state), load(frequency), load(cumulative), load(normalization)), newState);
 };
 
 #ifdef __AVX2__
@@ -396,67 +341,40 @@ inline void ransEncode(epi64cV_t<SIMDWidth::SSE> state, pdcV_t<SIMDWidth::SSE> f
 //
 // rans Encode
 //
-namespace impl
-{
-inline __m256i ransEncodeImpl(epi64cV_t<SIMDWidth::AVX> state, pdcV_t<SIMDWidth::AVX> frequency, pdcV_t<SIMDWidth::AVX> cumulative, pdcV_t<SIMDWidth::AVX> normalization) noexcept
+inline __m256i ransEncode(__m256i state, __m256d frequency, __m256d cumulative, __m256d normalization) noexcept
 {
 #if !defined(NDEBUG)
-  for (auto i : state) {
+  auto vec = store<uint64_t>(state);
+  for (auto i : vec) {
     assert(i < pow2(52));
   }
 #endif
 
   auto [div, mod] = divMod(uint64ToDouble(state), frequency);
-  auto divReg = load(div);
-  auto modReg = load(mod);
-  auto cumulativeReg = load(cumulative);
-  auto normalizationReg = load(normalization);
-  auto newState = _mm256_fmadd_pd(normalizationReg, divReg, cumulativeReg);
-  newState = _mm256_add_pd(newState, modReg);
+  auto newState = _mm256_fmadd_pd(normalization, div, cumulative);
+  newState = _mm256_add_pd(newState, mod);
 
-  return impl::doubleToUint64Impl(newState);
+  return doubleToUint64(newState);
 };
-} // namespace impl
 
 inline epi64_t<SIMDWidth::AVX> ransEncode(epi64cV_t<SIMDWidth::AVX> state, pdcV_t<SIMDWidth::AVX> frequency, pdcV_t<SIMDWidth::AVX> cumulative, pdcV_t<SIMDWidth::AVX> normalization) noexcept
 {
-  return store<uint64_t>(impl::ransEncodeImpl(state, frequency, cumulative, normalization));
+  return store<uint64_t>(ransEncode(load(state), load(frequency), load(cumulative), load(normalization)));
 };
 
 inline void ransEncode(epi64cV_t<SIMDWidth::AVX> state, pdcV_t<SIMDWidth::AVX> frequency, pdcV_t<SIMDWidth::AVX> cumulative, pdcV_t<SIMDWidth::AVX> normalization, epi64V_t<SIMDWidth::AVX> newState) noexcept
 {
-  store(impl::ransEncodeImpl(state, frequency, cumulative, normalization), newState);
+  store(ransEncode(load(state), load(frequency), load(cumulative), load(normalization)), newState);
 };
 
 #endif /* __AVX2__ */
-#ifdef __AVX512F__
 
-//
-// rans Encode
-//
-inline epi64_t<SIMDWidth::AVX512> ransEncode(epi64cV_t<SIMDWidth::AVX512> state, pdcV_t<SIMDWidth::AVX512> frequency, pdcV_t<SIMDWidth::AVX512> cumulative, pdcV_t<SIMDWidth::AVX512> normalization) noexcept
-{
-  auto [div, mod] = divMod(uint64ToDouble(state), frequency);
-  auto divReg = load(div);
-  auto modReg = load(mod);
-  auto cumulativeReg = load(cumulative);
-  auto normalizationReg = load(normalization);
-  auto newState = _mm512_fmadd_pd(normalizationReg, divReg, cumulativeReg);
-  newState = _mm512_add_pd(newState, modReg);
-
-  return doubleToUint64(store(newState));
-};
-
-#endif /* __AVX_512F_ */
-
-namespace impl
-{
-struct TransformedSymbol {
+struct SymbolUnpacked {
   __m128i frequency;
   __m128i cumulatedFrequency;
 };
 
-inline TransformedSymbol aosToSoaImpl(ArrayView<const Symbol*, 2> in) noexcept
+inline SymbolUnpacked aosToSoaImpl(ArrayView<const Symbol*, 2> in) noexcept
 {
   __m128i in0Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[0]->data()));
   __m128i in1Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[1]->data()));
@@ -467,24 +385,29 @@ inline TransformedSymbol aosToSoaImpl(ArrayView<const Symbol*, 2> in) noexcept
   return {res0Reg, res1Reg};
 }
 
-} // namespace impl
+inline void aosToSoaImpl(ArrayView<const Symbol*, 2> in, __m128i* __restrict__ frequency, __m128i* __restrict__ cumulatedFrequency) noexcept
+{
+  __m128i in0Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[0]->data()));
+  __m128i in1Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[1]->data()));
+
+  *frequency = _mm_unpacklo_epi32(in0Reg, in1Reg);
+  *cumulatedFrequency = _mm_shuffle_epi32(*frequency, _MM_SHUFFLE(0, 0, 3, 2));
+}
 
 inline std::tuple<epi32_t<SIMDWidth::SSE>, epi32_t<SIMDWidth::SSE>> aosToSoa(ArrayView<const Symbol*, 2> in) noexcept
 {
-  auto [frequencies, cumulative] = impl::aosToSoaImpl(in);
+  auto [frequencies, cumulative] = aosToSoaImpl(in);
   return {store<uint32_t>(frequencies), store<uint32_t>(cumulative)};
 };
 
 inline void aosToSoa(ArrayView<const Symbol*, 2> in, epi32V_t<SIMDWidth::SSE> frequencies, epi32V_t<SIMDWidth::SSE> cumulativeFrequencies)
 {
-  auto [frequenciesReg, cumulativeFrequenciesReg] = impl::aosToSoaImpl(in);
+  auto [frequenciesReg, cumulativeFrequenciesReg] = aosToSoaImpl(in);
   store(frequenciesReg, frequencies);
   store(cumulativeFrequenciesReg, cumulativeFrequencies);
 };
 
-namespace impl
-{
-inline TransformedSymbol aosToSoaImpl(ArrayView<const Symbol*, 4> in) noexcept
+inline SymbolUnpacked aosToSoaImpl(ArrayView<const Symbol*, 4> in) noexcept
 {
   __m128i in0Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[0]->data()));
   __m128i in1Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[1]->data()));
@@ -498,34 +421,32 @@ inline TransformedSymbol aosToSoaImpl(ArrayView<const Symbol*, 4> in) noexcept
 
   return {res0Reg, res1Reg};
 };
-} // namespace impl
+
+inline void aosToSoaImpl(ArrayView<const Symbol*, 4> in, __m128i* __restrict__ frequency, __m128i* __restrict__ cumulatedFrequency) noexcept
+{
+  __m128i in0Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[0]->data()));
+  __m128i in1Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[1]->data()));
+  __m128i in2Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[2]->data()));
+  __m128i in3Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[3]->data()));
+
+  __m128i merged0Reg = _mm_unpacklo_epi32(in0Reg, in1Reg);
+  __m128i merged1Reg = _mm_unpacklo_epi32(in2Reg, in3Reg);
+  *frequency = _mm_unpacklo_epi64(merged0Reg, merged1Reg);
+  *cumulatedFrequency = _mm_unpackhi_epi64(merged0Reg, merged1Reg);
+};
 
 inline std::tuple<epi32_t<SIMDWidth::SSE>, epi32_t<SIMDWidth::SSE>> aosToSoa(ArrayView<const Symbol*, 4> in) noexcept
 {
-  auto [frequencies, cumulative] = impl::aosToSoaImpl(in);
+  auto [frequencies, cumulative] = aosToSoaImpl(in);
   return {store<uint32_t>(frequencies), store<uint32_t>(cumulative)};
 };
 
 inline void aosToSoa(ArrayView<const Symbol*, 4> in, epi32V_t<SIMDWidth::SSE> frequencies, epi32V_t<SIMDWidth::SSE> cumulativeFrequencies)
 {
-  auto [frequenciesReg, cumulativeFrequenciesReg] = impl::aosToSoaImpl(in);
+  auto [frequenciesReg, cumulativeFrequenciesReg] = aosToSoaImpl(in);
   store(frequenciesReg, frequencies);
   store(cumulativeFrequenciesReg, cumulativeFrequencies);
 };
-
-#ifdef __AVX2__
-
-inline std::tuple<epi32_t<SIMDWidth::AVX>, epi32_t<SIMDWidth::AVX>> aosToSoa(ArrayView<const Symbol*, 8> in) noexcept
-{
-  auto [arr00, arr01] = aosToSoa(in.subView<0, 4>());
-  auto [arr10, arr11] = aosToSoa(in.subView<4, 4>());
-
-  auto res0Reg = _mm256_set_m128i(load(toConstSIMDView(arr10)), load(toConstSIMDView(arr00)));
-  auto res1Reg = _mm256_set_m128i(load(toConstSIMDView(arr11)), load(toConstSIMDView(arr01)));
-
-  return {store<uint32_t>(res0Reg), store<uint32_t>(res1Reg)};
-};
-#endif /* __AVX2__ */
 
 inline __m128i cmpgeq_epi64(__m128i a, __m128i b) noexcept
 {
@@ -561,8 +482,10 @@ inline auto computeMaxState(__m128i frequencyVec, uint8_t symbolTablePrecisionBi
     return _mm_slli_epi64(frequencyVecEpi64, shift);
   }
   if constexpr (width_V == SIMDWidth::AVX) {
+#ifdef __AVX2__
     __m256i frequencyVecEpi64 = _mm256_cvtepi32_epi64(frequencyVec);
     return _mm256_slli_epi64(frequencyVecEpi64, shift);
+#endif /* __AVX2__ */
   }
 };
 
@@ -572,8 +495,6 @@ inline epi32_t<SIMDWidth::SSE> getUpper(epi32cV_t<SIMDWidth::SSE> a)
   return upper;
 };
 
-namespace impl
-{
 template <uint8_t streamBits_V>
 inline __m128i computeNewStateImpl(__m128i stateVec, __m128i cmpVec) noexcept
 {
@@ -582,23 +503,20 @@ inline __m128i computeNewStateImpl(__m128i stateVec, __m128i cmpVec) noexcept
   newStateVec = _mm_blendv_epi8(stateVec, newStateVec, cmpVec);
   return newStateVec;
 };
-} // namespace impl
 
 template <uint8_t streamBits_V>
 inline epi64_t<SIMDWidth::SSE> computeNewState(__m128i stateVec, __m128i cmpVec) noexcept
 {
-  return store<uint64_t>(impl::computeNewStateImpl<streamBits_V>(stateVec, cmpVec));
+  return store<uint64_t>(computeNewStateImpl<streamBits_V>(stateVec, cmpVec));
 };
 
 template <uint8_t streamBits_V>
 inline void computeNewState(__m128i stateVec, __m128i cmpVec, epi64V_t<SIMDWidth::SSE> out) noexcept
 {
-  store(impl::computeNewStateImpl<streamBits_V>(stateVec, cmpVec), out);
+  store(computeNewStateImpl<streamBits_V>(stateVec, cmpVec), out);
 };
 
 #ifdef __AVX2__
-namespace impl
-{
 template <uint8_t streamBits_V>
 inline __m256i computeNewStateImpl(__m256i stateVec, __m256i cmpVec) noexcept
 {
@@ -607,18 +525,17 @@ inline __m256i computeNewStateImpl(__m256i stateVec, __m256i cmpVec) noexcept
   newStateVec = _mm256_blendv_epi8(stateVec, newStateVec, cmpVec);
   return newStateVec;
 };
-} // namespace impl
 
 template <uint8_t streamBits_V>
 inline epi64_t<SIMDWidth::AVX> computeNewState(__m256i stateVec, __m256i cmpVec) noexcept
 {
-  return store<uint64_t>(impl::computeNewStateImpl<streamBits_V>(stateVec, cmpVec));
+  return store<uint64_t>(computeNewStateImpl<streamBits_V>(stateVec, cmpVec));
 };
 
 template <uint8_t streamBits_V>
 inline void computeNewState(__m256i stateVec, __m256i cmpVec, epi64V_t<SIMDWidth::AVX> out) noexcept
 {
-  return store(impl::computeNewStateImpl<streamBits_V>(stateVec, cmpVec), out);
+  return store(computeNewStateImpl<streamBits_V>(stateVec, cmpVec), out);
 };
 
 #endif /* __AVX2__ */
@@ -912,7 +829,16 @@ inline constexpr std::array<uint32_t, 256> AVXInterleavedPermutationLUT{
   0x75316420u  //0b11111111
 };
 
-inline std::tuple<uint32_t, epi32_t<SIMDWidth::SSE>> streamOut(__m128i stateVec, __m128i cmpVec) noexcept
+template <SIMDWidth>
+struct StreamOutResult;
+
+template <>
+struct StreamOutResult<SIMDWidth::SSE> {
+  uint32_t nElemens;
+  __m128i streamOutVec;
+};
+
+inline StreamOutResult<SIMDWidth::SSE> streamOutImpl(__m128i stateVec, __m128i cmpVec) noexcept
 {
   constexpr epi32_t<SIMDWidth::SSE> extractionMask{0xFFFFFFFFu, 0x0u, 0xFFFFFFFFu, 0x0u};
   __m128i extractionMaskVec = load(toConstSIMDView(extractionMask));
@@ -922,11 +848,23 @@ inline std::tuple<uint32_t, epi32_t<SIMDWidth::SSE>> streamOut(__m128i stateVec,
   __m128i shuffleMaskVec = load(toConstSIMDView(SSEPermutationLUT[id]));
   __m128i streamOutVec = _mm_shuffle_epi8(stateVec, shuffleMaskVec);
 
-  return {_mm_popcnt_u32(id), store<uint32_t>(streamOutVec)};
+  return {static_cast<uint32_t>(_mm_popcnt_u32(id)), streamOutVec};
+};
+
+inline std::tuple<uint32_t, epi32_t<SIMDWidth::SSE>> streamOut(__m128i stateVec, __m128i cmpVec) noexcept
+{
+  auto [count, streamOutVec] = streamOutImpl(stateVec, cmpVec);
+  return {count, store<uint32_t>(streamOutVec)};
 };
 
 #ifdef __AVX2__
-inline std::tuple<uint32_t, epi32_t<SIMDWidth::AVX>> streamOut(__m256i stateVec, __m256i cmpVec) noexcept
+template <>
+struct StreamOutResult<SIMDWidth::AVX> {
+  uint32_t nElemens;
+  __m256i streamOutVec;
+};
+
+inline StreamOutResult<SIMDWidth::AVX> streamOutImpl(__m256i stateVec, __m256i cmpVec) noexcept
 {
   constexpr epi32_t<SIMDWidth::AVX> extractionMask{0xFFFFFFFFu, 0x0u, 0xFFFFFFFFu, 0x0u, 0xFFFFFFFFu, 0x0u, 0xFFFFFFFFu, 0x0u};
   __m256i extractionMaskVec = load(toConstSIMDView(extractionMask));
@@ -941,10 +879,16 @@ inline std::tuple<uint32_t, epi32_t<SIMDWidth::AVX>> streamOut(__m256i stateVec,
   // use ID to fetch right reordering from permutation LUT and move data into the right order
   streamOutVec = _mm256_castps_si256(_mm256_permutevar_ps(_mm256_castsi256_ps(streamOutVec), load(toConstSIMDView(AVXPermutationLUT[id]))));
 
-  return {_mm_popcnt_u32(id), store<uint32_t>(streamOutVec)};
+  return {static_cast<uint32_t>(_mm_popcnt_u32(id)), streamOutVec};
 };
 
-inline std::tuple<uint32_t, epi32_t<SIMDWidth::AVX>> streamOut(__m256i* stateVec, __m256i* cmpVec) noexcept
+inline std::tuple<uint32_t, epi32_t<SIMDWidth::AVX>> streamOut(__m256i stateVec, __m256i cmpVec) noexcept
+{
+  auto [count, streamOutVec] = streamOutImpl(stateVec, cmpVec);
+  return {count, store<uint32_t>(streamOutVec)};
+};
+
+inline StreamOutResult<SIMDWidth::AVX> streamOutImpl(const __m256i* __restrict__ stateVec, const __m256i* __restrict__ cmpVec) noexcept
 {
   //  std::cout << "streamOut\n";
   //  std::cout << asHex(store<uint32_t>(stateVec[0])) << asHex(store<uint32_t>(stateVec[1])) << "\n";
@@ -972,69 +916,117 @@ inline std::tuple<uint32_t, epi32_t<SIMDWidth::AVX>> streamOut(__m256i* stateVec
   auto streamOutVec = _mm256_permutevar8x32_epi32(statesFused, permutationMask);
 
   //  std::cout << "streamOut end\n";
-  return {_mm_popcnt_u32(id), store<uint32_t>(streamOutVec)};
+  return {static_cast<uint32_t>(_mm_popcnt_u32(id)), streamOutVec};
+};
+
+inline std::tuple<uint32_t, epi32_t<SIMDWidth::AVX>> streamOut(const __m256i* __restrict__ stateVec, const __m256i* __restrict__ cmpVec) noexcept
+{
+  auto [count, streamOutVec] = streamOutImpl(stateVec, cmpVec);
+  return {count, store<uint32_t>(streamOutVec)};
+};
+
+#endif /* __AVX2__ */
+
+template <SIMDWidth, typename output_IT>
+struct RenormResult;
+
+template <typename output_IT>
+struct RenormResult<SIMDWidth::SSE, output_IT> {
+  output_IT outputIter;
+  __m128i newState;
+};
+
+#ifdef __AVX2__
+template <typename output_IT>
+struct RenormResult<SIMDWidth::AVX, output_IT> {
+  output_IT outputIter;
+  __m256i newState;
 };
 #endif /* __AVX2__ */
 
-namespace impl
-{
 template <SIMDWidth width_V, typename output_IT, uint64_t lowerBound_V, uint8_t streamBits_V>
-inline auto ransRenorm(epi64cV_t<width_V> states, epi32cV_t<SIMDWidth::SSE> frequencies, uint8_t symbolTablePrecisionBits, output_IT outputIter) noexcept -> std::tuple<output_IT, epi64_t<width_V>>
+inline RenormResult<width_V, output_IT> ransRenormImpl(toSIMDintType_t<width_V> state, __m128i frequency, uint8_t symbolTablePrecisionBits, output_IT outputIter) noexcept
 {
-  auto stateVec = load(states);
-  __m128i frequencyVec = load(frequencies);
-
   // calculate maximum state
-  auto maxStateVec = computeMaxState<width_V, lowerBound_V, streamBits_V>(frequencyVec, symbolTablePrecisionBits);
-  //cmpVec = (state >= maxState)
-  auto cmpVec = cmpgeq_epi64(stateVec, maxStateVec);
+  auto maxState = computeMaxState<width_V, lowerBound_V, streamBits_V>(frequency, symbolTablePrecisionBits);
+  //cmp = (state >= maxState)
+  auto cmp = cmpgeq_epi64(state, maxState);
   //newState = (state >= maxState) ? state >> streamBits_V : state
-  epi64_t<width_V> newState = computeNewState<streamBits_V>(stateVec, cmpVec);
+  auto newState = computeNewStateImpl<streamBits_V>(state, cmp);
 
-  const auto [nStreamOutWords, streamOutResult] = streamOut(stateVec, cmpVec);
+  const auto [nStreamOutWords, streamOutResult] = streamOut(state, cmp);
 
   for (size_t i = 0; i < nStreamOutWords; ++i) {
     *(++outputIter) = streamOutResult[i];
   }
 
-  return std::make_tuple(outputIter, newState);
+  return {outputIter, newState};
 };
-
-} // namespace impl
 
 template <typename output_IT, uint64_t lowerBound_V, uint8_t streamBits_V>
 inline auto ransRenorm(epi64cV_t<SIMDWidth::SSE> states, epi32cV_t<SIMDWidth::SSE> frequencies, uint8_t symbolTablePrecisionBits, output_IT outputIter) noexcept -> std::tuple<output_IT, epi64_t<SIMDWidth::SSE>>
 {
-  return impl::ransRenorm<SIMDWidth::SSE, output_IT, lowerBound_V, streamBits_V>(states, frequencies, symbolTablePrecisionBits, outputIter);
+  auto [iter, newState] = ransRenormImpl<SIMDWidth::SSE, output_IT, lowerBound_V, streamBits_V>(load(states), load(frequencies), symbolTablePrecisionBits, outputIter);
+  return std::make_tuple(iter, store<uint64_t>(newState));
 };
 
 #ifdef __AVX2__
 template <typename output_IT, uint64_t lowerBound_V, uint8_t streamBits_V>
 inline auto ransRenorm(epi64cV_t<SIMDWidth::AVX> states, epi32cV_t<SIMDWidth::SSE> frequencies, uint8_t symbolTablePrecisionBits, output_IT outputIter) noexcept -> std::tuple<output_IT, epi64_t<SIMDWidth::AVX>>
 {
-  return impl::ransRenorm<SIMDWidth::AVX, output_IT, lowerBound_V, streamBits_V>(states, frequencies, symbolTablePrecisionBits, outputIter);
+  auto [iter, newState] = ransRenormImpl<SIMDWidth::AVX, output_IT, lowerBound_V, streamBits_V>(load(states), load(frequencies), symbolTablePrecisionBits, outputIter);
+  return std::make_tuple(iter, store<uint64_t>(newState));
 };
 #endif /* __AVX2__ */
 
 template <typename output_IT, uint64_t lowerBound_V, uint8_t streamBits_V>
 inline output_IT ransRenorm(epi64cV_t<SIMDWidth::SSE> states, epi32cV_t<SIMDWidth::SSE> frequencies, uint8_t symbolTablePrecisionBits, output_IT outputIter, epi64V_t<SIMDWidth::SSE> newState) noexcept
 {
-  auto [it, outState] = impl::ransRenorm<SIMDWidth::SSE, output_IT, lowerBound_V, streamBits_V>(states, frequencies, symbolTablePrecisionBits, outputIter);
-  store(load(toConstSIMDView(outState)), newState);
-  return it;
+  auto [iter, newStateVec] = ransRenormImpl<SIMDWidth::SSE, output_IT, lowerBound_V, streamBits_V>(load(states), load(frequencies), symbolTablePrecisionBits, outputIter);
+  store<uint64_t>(newStateVec, newState);
+  return iter;
 };
 
 #ifdef __AVX2__
 template <typename output_IT, uint64_t lowerBound_V, uint8_t streamBits_V>
 inline output_IT ransRenorm(epi64cV_t<SIMDWidth::AVX> states, epi32cV_t<SIMDWidth::SSE> frequencies, uint8_t symbolTablePrecisionBits, output_IT outputIter, epi64V_t<SIMDWidth::AVX> newState) noexcept
 {
-  auto [it, outState] = impl::ransRenorm<SIMDWidth::AVX, output_IT, lowerBound_V, streamBits_V>(states, frequencies, symbolTablePrecisionBits, outputIter);
-  store(load(toConstSIMDView(outState)), newState);
-  return it;
+  auto [iter, newStateVec] = ransRenormImpl<SIMDWidth::AVX, output_IT, lowerBound_V, streamBits_V>(load(states), load(frequencies), symbolTablePrecisionBits, outputIter);
+  store<uint64_t>(newStateVec, newState);
+  return iter;
 };
 #endif /* __AVX2__ */
 
-//
+#ifdef __AVX2__
+template <typename output_IT, uint64_t lowerBound_V, uint8_t streamBits_V>
+inline output_IT ransRenormImpl(const __m256i* __restrict__ state, const __m128i* __restrict__ frequency, uint8_t symbolTablePrecisionBits, output_IT outputIter, __m256i* __restrict__ newState) noexcept
+{
+  __m256i maxState[2];
+  __m256i cmp[2];
+
+  // calculate maximum state
+  maxState[0] = computeMaxState<SIMDWidth::AVX, lowerBound_V, streamBits_V>(frequency[0], symbolTablePrecisionBits);
+  maxState[1] = computeMaxState<SIMDWidth::AVX, lowerBound_V, streamBits_V>(frequency[1], symbolTablePrecisionBits);
+  //cmp = (state >= maxState)
+  cmp[0] = cmpgeq_epi64(state[0], maxState[0]);
+  cmp[1] = cmpgeq_epi64(state[1], maxState[1]);
+  //newState = (state >= maxState) ? state >> streamBits_V : state
+  newState[0] = computeNewStateImpl<streamBits_V>(state[0], cmp[0]);
+  newState[1] = computeNewStateImpl<streamBits_V>(state[1], cmp[1]);
+
+  if constexpr (std::is_pointer_v<output_IT>) {
+    auto [nStreamOutWords, streamOutResult] = streamOutImpl(state, cmp);
+    _mm256_storeu_si256(reinterpret_cast<__m256i*>(outputIter + 1), streamOutResult);
+    outputIter += nStreamOutWords;
+  } else {
+    auto [nStreamOutWords, streamOutResult] = streamOut(state, cmp);
+    for (size_t i = 0; i < nStreamOutWords; ++i) {
+      *(++outputIter) = streamOutResult[i];
+    }
+  }
+
+  return outputIter;
+};
 
 template <typename output_IT, uint64_t lowerBound_V, uint8_t streamBits_V>
 inline auto ransRenorm(epi64cV_t<SIMDWidth::AVX, 2> states, epi32cV_t<SIMDWidth::SSE, 2> frequencies, uint8_t symbolTablePrecisionBits, output_IT outputIter) noexcept -> std::tuple<output_IT, epi64_t<SIMDWidth::AVX, 2>>
@@ -1070,6 +1062,7 @@ inline auto ransRenorm(epi64cV_t<SIMDWidth::AVX, 2> states, epi32cV_t<SIMDWidth:
 
   return std::make_tuple(outputIter, newState);
 };
+#endif /* __AVX2__ */
 
 } // namespace simd
 } // namespace internal
