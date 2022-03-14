@@ -35,28 +35,24 @@ BOOST_AUTO_TEST_CASE(test_getLaneWidthBits)
 {
   BOOST_CHECK_EQUAL(getLaneWidthBits(SIMDWidth::SSE), 128);
   BOOST_CHECK_EQUAL(getLaneWidthBits(SIMDWidth::AVX), 256);
-  BOOST_CHECK_EQUAL(getLaneWidthBits(SIMDWidth::AVX512), 512);
 }
 
 BOOST_AUTO_TEST_CASE(test_getLaneWidthBytes)
 {
   BOOST_CHECK_EQUAL(getLaneWidthBytes(SIMDWidth::SSE), 128 / 8);
   BOOST_CHECK_EQUAL(getLaneWidthBytes(SIMDWidth::AVX), 256 / 8);
-  BOOST_CHECK_EQUAL(getLaneWidthBytes(SIMDWidth::AVX512), 512 / 8);
 }
 
 BOOST_AUTO_TEST_CASE(test_getAlignment)
 {
   BOOST_CHECK_EQUAL(getAlignment(SIMDWidth::SSE), 16);
   BOOST_CHECK_EQUAL(getAlignment(SIMDWidth::AVX), 32);
-  BOOST_CHECK_EQUAL(getAlignment(SIMDWidth::AVX512), 64);
 }
 
 BOOST_AUTO_TEST_CASE(test_getElementCount)
 {
   BOOST_CHECK_EQUAL(getAlignment(SIMDWidth::SSE), 16);
   BOOST_CHECK_EQUAL(getAlignment(SIMDWidth::AVX), 32);
-  BOOST_CHECK_EQUAL(getAlignment(SIMDWidth::AVX512), 64);
 }
 
 BOOST_AUTO_TEST_CASE(test_AlignedArray)
