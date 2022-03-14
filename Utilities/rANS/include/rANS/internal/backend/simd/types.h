@@ -37,8 +37,7 @@ namespace simd
 {
 
 enum class SIMDWidth : uint32_t { SSE = 128u,
-                                  AVX = 256u,
-                                  AVX512 = 512u };
+                                  AVX = 256u };
 
 inline constexpr size_t getLaneWidthBits(SIMDWidth width) noexcept { return static_cast<size_t>(width); };
 
@@ -531,6 +530,69 @@ inline constexpr std::int8_t operator"" _i8(unsigned long long int value) { retu
 
 inline constexpr std::uint16_t operator"" _u16(unsigned long long int value) { return static_cast<uint16_t>(value); };
 inline constexpr std::int16_t operator"" _i16(unsigned long long int value) { return static_cast<int16_t>(value); };
+
+template <SIMDWidth>
+struct toSIMDintType;
+
+template <>
+struct toSIMDintType<SIMDWidth::SSE> {
+  using value_type = __m128i;
+};
+
+template <>
+struct toSIMDintType<SIMDWidth::AVX> {
+  using value_type = __m256i;
+};
+
+template <SIMDWidth width_V>
+using toSIMDintType_t = typename toSIMDintType<width_V>::value_type;
+
+template <SIMDWidth>
+struct toSIMDdoubleType;
+
+template <>
+struct toSIMDdoubleType<SIMDWidth::SSE> {
+  using value_type = __m128d;
+};
+
+template <>
+struct toSIMDdoubleType<SIMDWidth::AVX> {
+  using value_type = __m256d;
+};
+
+template <SIMDWidth width_V>
+using toSIMDdoubleType_t = typename toSIMDdoubleType<width_V>::value_type;
+
+// alignment atributes cause gcc warnings, but we don't need them, so disable for this specific case.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wignored-attributes"
+template <typename T>
+struct toSIMDWidth;
+
+template <>
+struct toSIMDWidth<__m128> : public std::integral_constant<SIMDWidth, SIMDWidth::SSE> {
+};
+template <>
+struct toSIMDWidth<__m128i> : public std::integral_constant<SIMDWidth, SIMDWidth::SSE> {
+};
+template <>
+struct toSIMDWidth<__m128d> : public std::integral_constant<SIMDWidth, SIMDWidth::SSE> {
+};
+
+template <>
+struct toSIMDWidth<__m256> : public std::integral_constant<SIMDWidth, SIMDWidth::AVX> {
+};
+template <>
+struct toSIMDWidth<__m256i> : public std::integral_constant<SIMDWidth, SIMDWidth::AVX> {
+};
+template <>
+struct toSIMDWidth<__m256d> : public std::integral_constant<SIMDWidth, SIMDWidth::AVX> {
+};
+
+template <typename T>
+inline constexpr SIMDWidth toSIMDWidth_v = toSIMDWidth<T>::value;
+
+#pragma GCC diagnostic pop
 
 template <typename T, SIMDWidth width_V, size_t size_V>
 std::ostream& operator<<(std::ostream& stream, const AlignedArray<T, width_V, size_V>& vec)
