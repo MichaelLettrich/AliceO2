@@ -115,7 +115,7 @@ static void rans(benchmark::State& st)
   const ransState_t state = 1ull << 31;
 
   for (auto _ : st) {
-    for (size_t i = 0; i < data.getSourceMessage().size(); ++i) {
+    for (size_t i = data.getSourceMessage().size(); i-- > 0;) {
       auto symbol = symbolTable[data.getSourceMessage()[i]];
       benchmark::DoNotOptimize(encode(state, symbol));
     }
@@ -130,6 +130,7 @@ static void ransSIMD(benchmark::State& st)
 {
   static constexpr size_t nElems = simd::getElementCount<ransState_t>(width_V);
   const auto& data = getData<source_T>();
+  const auto& sourceMessage = data.getSourceMessage();
 
   simd::SymbolTable symbolTable(data.getRenormedFrequencies());
   const simd::epi64_t<width_V> states{1ull << 20};
@@ -140,9 +141,10 @@ static void ransSIMD(benchmark::State& st)
   __itt_resume();
 #endif
   for (auto _ : st) {
-    for (size_t i = 0; i < data.getSourceMessage().size(); i += nElems) {
-      auto [it, symbols] = getSymbols<const source_T*, nElems>(&(data.getSourceMessage()[i]), symbolTable);
+    for (auto srcIter = sourceMessage.end(); srcIter != sourceMessage.begin();) {
+      auto [it, symbols] = getSymbols<decltype(srcIter), nElems>(srcIter, symbolTable);
       benchmark::DoNotOptimize(SIMDEncode(simd::toConstSIMDView(states), simd::toConstSIMDView(nSamples), symbols));
+      srcIter = it;
     }
   }
 #ifdef ENABLE_VTUNE_PROFILER
@@ -158,6 +160,7 @@ static void ransSSE(benchmark::State& st)
 {
   static constexpr size_t nElems = simd::getElementCount<count_t>(simd::SIMDWidth::SSE);
   const auto& data = getData<source_T>();
+  const auto& sourceMessage = data.getSourceMessage();
 
   simd::SymbolTable symbolTable(data.getRenormedFrequencies());
   const simd::epi64_t<simd::SIMDWidth::SSE> states{1ull << 20};
@@ -168,8 +171,8 @@ static void ransSSE(benchmark::State& st)
   //   __itt_resume();
   // #endif
   for (auto _ : st) {
-    for (size_t i = 0; i < data.getSourceMessage().size(); i += nElems) {
-      auto [it, symbols] = getSymbols<const source_T*, nElems>(&(data.getSourceMessage()[i]), symbolTable);
+    for (auto srcIter = sourceMessage.end(); srcIter != sourceMessage.begin();) {
+      auto [it, symbols] = getSymbols<decltype(srcIter), nElems>(srcIter, symbolTable);
       const auto [frequencies, cumulativeFrequencies] = aosToSoa(symbols);
       const auto frequenciesUpper = getUpper(frequencies);
       const auto cumulativeUpper = getUpper(cumulativeFrequencies);
@@ -182,6 +185,7 @@ static void ransSSE(benchmark::State& st)
                                                 simd::int32ToDouble<simd::SIMDWidth::SSE>(simd::toConstSIMDView(frequenciesUpper)),
                                                 simd::int32ToDouble<simd::SIMDWidth::SSE>(simd::toConstSIMDView(cumulativeUpper)),
                                                 simd::toConstSIMDView(nSamples)));
+      srcIter = it;
     }
   }
   // #ifdef ENABLE_VTUNE_PROFILER
@@ -197,12 +201,15 @@ static void ransAVX(benchmark::State& st)
 {
   static constexpr size_t nElems = simd::getElementCount<count_t>(simd::SIMDWidth::AVX);
   const auto& data = getData<source_T>();
+  const auto& sourceMessage = data.getSourceMessage();
   const auto renormingBits = getData<source_T>().getRenormedFrequencies().getRenormingBits();
 
   simd::SymbolTable symbolTable(data.getRenormedFrequencies());
-  const simd::epi64_t<simd::SIMDWidth::AVX, 2> states{1ull << 50, 1ull << 50, 1ull << 50, 1ull << 50, 1ull << 20, 1ull << 20, 1ull << 20, 1ull << 20};
+
+  const simd::epi64_t<simd::SIMDWidth::AVX, 2> initialStates = {1ull << 20};
   simd::pd_t<simd::SIMDWidth::AVX> nSamples{static_cast<double>(pow2(renormingBits))};
 
+  simd::epi64_t<simd::SIMDWidth::AVX, 2> states = initialStates;
   simd::epi64_t<simd::SIMDWidth::AVX, 2> newStates = states;
 
   std::vector<stream_t> out(data.getSourceMessage().size() * 4);
@@ -212,29 +219,36 @@ static void ransAVX(benchmark::State& st)
 #endif
   for (auto _ : st) {
     auto outIter = out.data();
+    states = initialStates;
 
-    for (size_t i = 0; i < data.getSourceMessage().size(); i += 8) {
+    for (auto srcIter = sourceMessage.end(); srcIter != sourceMessage.begin(); srcIter -= 8) {
 
       simd::epi32_t<simd::SIMDWidth::SSE, 2> frequencies;
       simd::epi32_t<simd::SIMDWidth::SSE, 2> cumulatedFrequencies;
 
-      auto [itLower, symbolsLower] = getSymbols<const source_T*, 4>(&(data.getSourceMessage()[i]), symbolTable);
+      auto [itLower, symbolsLower] = getSymbols<decltype(srcIter), 4>(srcIter, symbolTable);
       simd::aosToSoa(symbolsLower, simd::toSIMDView(frequencies).subView<0, 1>(), simd::toSIMDView(cumulatedFrequencies).subView<0, 1>());
-      auto [itUpper, symbolsUpper] = getSymbols<const source_T*, 4>(&(data.getSourceMessage()[i + 4]), symbolTable);
+      auto [itUpper, symbolsUpper] = getSymbols<decltype(srcIter), 4>(srcIter - 4, symbolTable);
       simd::aosToSoa(symbolsUpper, simd::toSIMDView(frequencies).subView<1, 1>(), simd::toSIMDView(cumulatedFrequencies).subView<1, 1>());
 
-      std::tie(outIter, newStates) = simd::ransRenorm<decltype(outIter),
-                                                      1ull << 20,
-                                                      32>(simd::toConstSIMDView(states), simd::toConstSIMDView(frequencies), renormingBits, outIter);
-      benchmark::DoNotOptimize(simd::ransEncode(simd::toConstSIMDView(states).subView<0, 1>(),
-                                                simd::int32ToDouble<simd::SIMDWidth::AVX>(simd::toConstSIMDView(frequencies).subView<0, 1>()),
-                                                simd::int32ToDouble<simd::SIMDWidth::AVX>(simd::toConstSIMDView(cumulatedFrequencies).subView<0, 1>()),
-                                                simd::toConstSIMDView(nSamples)));
-      benchmark::DoNotOptimize(simd::ransEncode(simd::toConstSIMDView(states).subView<1, 1>(),
-                                                simd::int32ToDouble<simd::SIMDWidth::AVX>(simd::toConstSIMDView(frequencies).subView<1, 1>()),
-                                                simd::int32ToDouble<simd::SIMDWidth::AVX>(simd::toConstSIMDView(cumulatedFrequencies).subView<1, 1>()),
-                                                simd::toConstSIMDView(nSamples)));
+      benchmark::DoNotOptimize(std::tie(outIter, newStates) = simd::ransRenorm<decltype(outIter),
+                                                                               1ull << 20,
+                                                                               32>(simd::toConstSIMDView(states),
+                                                                                   simd::toConstSIMDView(frequencies),
+                                                                                   renormingBits,
+                                                                                   outIter));
+      simd::ransEncode(simd::toConstSIMDView(newStates).subView<0, 1>(),
+                       simd::int32ToDouble<simd::SIMDWidth::AVX>(simd::toConstSIMDView(frequencies).subView<0, 1>()),
+                       simd::int32ToDouble<simd::SIMDWidth::AVX>(simd::toConstSIMDView(cumulatedFrequencies).subView<0, 1>()),
+                       simd::toConstSIMDView(nSamples),
+                       simd::toSIMDView(states).subView<0, 1>());
+      simd::ransEncode(simd::toConstSIMDView(newStates).subView<1, 1>(),
+                       simd::int32ToDouble<simd::SIMDWidth::AVX>(simd::toConstSIMDView(frequencies).subView<1, 1>()),
+                       simd::int32ToDouble<simd::SIMDWidth::AVX>(simd::toConstSIMDView(cumulatedFrequencies).subView<1, 1>()),
+                       simd::toConstSIMDView(nSamples),
+                       simd::toSIMDView(states).subView<1, 1>());
     }
+    benchmark::DoNotOptimize(outIter);
   }
 #ifdef ENABLE_VTUNE_PROFILER
   __itt_pause();
