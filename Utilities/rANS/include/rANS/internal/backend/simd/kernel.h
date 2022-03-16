@@ -476,7 +476,7 @@ template <SIMDWidth width_V, uint64_t lowerBound_V, uint8_t streamBits_V>
 inline auto computeMaxState(__m128i frequencyVec, uint8_t symbolTablePrecisionBits) noexcept
 {
   const uint64_t xmax = (lowerBound_V >> symbolTablePrecisionBits) << streamBits_V;
-  const uint8_t shift = log2UInt(xmax);
+  const uint8_t shift = log2UIntNZ(xmax);
   if constexpr (width_V == SIMDWidth::SSE) {
     __m128i frequencyVecEpi64 = _mm_cvtepi32_epi64(frequencyVec);
     return _mm_slli_epi64(frequencyVecEpi64, shift);
