@@ -37,32 +37,64 @@ namespace rans
 
 namespace internal
 {
-template <typename source_IT, uint8_t nHardwareStreams_V>
-inline std::tuple<source_IT, std::array<const internal::simd::Symbol*, nHardwareStreams_V>> getSymbols(source_IT symbolIter, const internal::simd::SymbolTable& symbolTable) noexcept
+
+template <typename source_IT>
+inline source_IT getSymbols(source_IT symbolIter, const internal::simd::SymbolTable& symbolTable, const simd::Symbol** dst) noexcept
 {
+  const source_IT ptr = symbolIter - 4;
+  const symbol_t minSymbol = symbolTable.getMinSymbol();
+  const auto tableBegin = symbolTable.data();
+
+  if constexpr (std::is_pointer_v<source_IT> && std::is_same_v<typename std::iterator_traits<source_IT>::value_type, uint32_t>) {
+    const uintptr_t diff = reinterpret_cast<uintptr_t>(tableBegin - minSymbol);
+    __m128i sourceData = _mm_loadu_si128(reinterpret_cast<const __m128i_u*>(ptr));
+    __m256i index = _mm256_cvtepi32_epi64(sourceData);
+    static_assert(sizeof(simd::Symbol) == (1u << 4u));
+    index = _mm256_slli_epi64(index, 4);
+    index = _mm256_add_epi64(index, _mm256_set1_epi64x(diff));
+
+    _mm256_store_si256(reinterpret_cast<__m256i*>(dst), index);
+
+    auto pos = [&](size_t i) { return reinterpret_cast<uintptr_t>(tableBegin + *(symbolIter - i) - minSymbol); };
+
+  } else {
+    dst[0] = tableBegin + *(symbolIter - 4) - minSymbol;
+    dst[1] = tableBegin + *(symbolIter - 3) - minSymbol;
+    dst[2] = tableBegin + *(symbolIter - 2) - minSymbol;
+    dst[3] = tableBegin + *(symbolIter - 1) - minSymbol;
+  }
+  return ptr;
+};
+
+template <typename source_IT, uint8_t nHardwareStreams_V>
+inline std::tuple<source_IT, simd::AlignedArray<const internal::simd::Symbol*, simd::SIMDWidth::AVX, nHardwareStreams_V>> getSymbols(source_IT symbolIter, const simd::SymbolTable& symbolTable) noexcept
+{
+  const symbol_t minSymbol = symbolTable.getMinSymbol();
+  const auto tableBegin = symbolTable.data();
+
   if constexpr (nHardwareStreams_V == 2) {
     return {
       symbolIter - 2,
-      {&symbolTable[*(symbolIter - 2)],
-       &symbolTable[*(symbolIter - 1)]}};
+      {tableBegin + *(symbolIter - 2) - minSymbol,
+       tableBegin + *(symbolIter - 1) - minSymbol}};
   } else if constexpr (nHardwareStreams_V == 4) {
     return {
       symbolIter - 4,
-      {&symbolTable[*(symbolIter - 4)],
-       &symbolTable[*(symbolIter - 3)],
-       &symbolTable[*(symbolIter - 2)],
-       &symbolTable[*(symbolIter - 1)]}};
+      {tableBegin + *(symbolIter - 4) - minSymbol,
+       tableBegin + *(symbolIter - 3) - minSymbol,
+       tableBegin + *(symbolIter - 2) - minSymbol,
+       tableBegin + *(symbolIter - 1) - minSymbol}};
   } else if constexpr (nHardwareStreams_V == 8) {
     return {
       symbolIter - 8,
-      {&symbolTable[*(symbolIter - 8)],
-       &symbolTable[*(symbolIter - 7)],
-       &symbolTable[*(symbolIter - 6)],
-       &symbolTable[*(symbolIter - 5)],
-       &symbolTable[*(symbolIter - 4)],
-       &symbolTable[*(symbolIter - 3)],
-       &symbolTable[*(symbolIter - 2)],
-       &symbolTable[*(symbolIter - 1)]}};
+      {tableBegin + *(symbolIter - 8) - minSymbol,
+       tableBegin + *(symbolIter - 7) - minSymbol,
+       tableBegin + *(symbolIter - 6) - minSymbol,
+       tableBegin + *(symbolIter - 5) - minSymbol,
+       tableBegin + *(symbolIter - 4) - minSymbol,
+       tableBegin + *(symbolIter - 3) - minSymbol,
+       tableBegin + *(symbolIter - 2) - minSymbol,
+       tableBegin + *(symbolIter - 1) - minSymbol}};
   }
   // else {
   //   std::array<internal::simd::Symbol, nHardwareStreams_V> encoderSymbols{};
@@ -71,7 +103,7 @@ inline std::tuple<source_IT, std::array<const internal::simd::Symbol*, nHardware
   //   }
   //   return {symbolIter, encoderSymbols};
   // }
-};
+}; // namespace internal
 } // namespace internal
 
 template <typename coder_T,
