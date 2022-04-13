@@ -45,6 +45,7 @@ class SymbolTable
   explicit SymbolTable(const RenormedFrequencyTable& frequencyTable);
 
   inline size_t size() const noexcept { return mData.size(); };
+  inline const Symbol* data() const noexcept { return mData.data(); };
 
   const Symbol& operator[](symbol_t symbol) const noexcept;
   inline const Symbol& at(size_t index) const { return mData[index]; };

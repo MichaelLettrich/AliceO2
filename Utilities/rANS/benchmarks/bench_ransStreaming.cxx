@@ -218,7 +218,7 @@ static void ransRenormingBenchmark(benchmark::State& st, fixture_T& fixture)
   std::vector<stream_t> out(fixture.mFrequencies.size() * 4);
 
   for (auto _ : st) {
-    auto outIter = out.begin();
+    auto outIter = out.data();
     ransState_t newState = fixture.mState;
     for (size_t i = 0; i < fixture.mFrequencies.size(); ++i) {
       std::tie(newState, outIter) = renorm(fixture.mState, outIter, fixture.mFrequencies[i], fixture.mRenormingBits);
@@ -239,7 +239,7 @@ static void ransRenormingBenchmarkSIMD(benchmark::State& st, fixture_T& fixture)
   //   __itt_resume();
   // #endif
   for (auto _ : st) {
-    auto outIter = out.begin();
+    auto outIter = out.data();
     auto newState = fixture.mState;
     for (size_t i = 0; i < fixture.mFrequencies.size(); ++i) {
       std::tie(outIter, newState) = simd::ransRenorm<decltype(outIter),

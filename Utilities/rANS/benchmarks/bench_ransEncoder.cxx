@@ -125,7 +125,7 @@ static void ransCompressionBenchmark(benchmark::State& st, fixture_T& fixture)
   __itt_resume();
 #endif
   for (auto _ : st) {
-    benchmark::DoNotOptimize(encodeBufferEnd = fixture.encoder.process(std::begin(sourceMessage), std::end(sourceMessage), encodeBuffer.data()));
+    benchmark::DoNotOptimize(encodeBufferEnd = fixture.encoder.process(sourceMessage.data(), sourceMessage.data() + sourceMessage.size(), encodeBuffer.data()));
   }
 #ifdef ENABLE_VTUNE_PROFILER
   __itt_pause();
@@ -157,14 +157,14 @@ template <typename source_T>
 using simpleRansDecoder_t = typename o2::rans::SimpleDecoder<uint64_t, uint32_t, source_T>;
 
 template <typename source_T>
-using sseRansEncoder_t = typename o2::rans::SIMDEncoder<uint64_t, uint32_t, source_T, 4, 2>;
+using sseRansEncoder_t = typename o2::rans::SIMDEncoder<uint64_t, uint32_t, source_T, 8, 2>;
 template <typename source_T>
-using sseRansDecoder_t = typename o2::rans::SIMDDecoder<uint64_t, uint32_t, source_T, 4, 2>;
+using sseRansDecoder_t = typename o2::rans::SIMDDecoder<uint64_t, uint32_t, source_T, 8, 2>;
 
 template <typename source_T>
-using avxRansEncoder_t = typename o2::rans::SIMDEncoder<uint64_t, uint32_t, source_T, 8, 4>;
+using avxRansEncoder_t = typename o2::rans::SIMDEncoder<uint64_t, uint32_t, source_T, 16, 4>;
 template <typename source_T>
-using avxRansDecoder_t = typename o2::rans::SIMDDecoder<uint64_t, uint32_t, source_T, 8, 4>;
+using avxRansDecoder_t = typename o2::rans::SIMDDecoder<uint64_t, uint32_t, source_T, 16, 4>;
 
 BENCHMARK_TEMPLATE_DEFINE_F(Fixture, simpleRansCompression_64_32_8, simpleRansEncoder_t, simpleRansDecoder_t, uint8_t)
 (benchmark::State& st)
@@ -231,9 +231,9 @@ BENCHMARK_TEMPLATE_DEFINE_F(Fixture, AVXransCompression_64_32_32, avxRansEncoder
   ransCompressionBenchmark(st, *this);
 };
 
-inline constexpr size_t nIterations8 = 50;
-inline constexpr size_t nIterations16 = 75;
-inline constexpr size_t nIterations32 = 100;
+inline constexpr size_t nIterations8 = 2000;
+inline constexpr size_t nIterations16 = 4000;
+inline constexpr size_t nIterations32 = 8000;
 
 BENCHMARK_REGISTER_F(Fixture, simpleRansCompression_64_32_8);
 BENCHMARK_REGISTER_F(Fixture, simpleRansCompression_64_32_16);
@@ -244,9 +244,9 @@ BENCHMARK_REGISTER_F(Fixture, ransCompression_64_32_32);
 BENCHMARK_REGISTER_F(Fixture, SSEransCompression_64_32_8);
 BENCHMARK_REGISTER_F(Fixture, SSEransCompression_64_32_16);
 BENCHMARK_REGISTER_F(Fixture, SSEransCompression_64_32_32);
-BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_8);
-BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_16);
-BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_32);
+// BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_8);
+// BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_16);
+// BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_32);
 
 // BENCHMARK_REGISTER_F(Fixture, simpleRansCompression_64_32_8)->Iterations(nIterations8);
 // BENCHMARK_REGISTER_F(Fixture, simpleRansCompression_64_32_16)->Iterations(nIterations16);
@@ -257,8 +257,8 @@ BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_32);
 // BENCHMARK_REGISTER_F(Fixture, SSEransCompression_64_32_8)->Iterations(nIterations8);
 // BENCHMARK_REGISTER_F(Fixture, SSEransCompression_64_32_16)->Iterations(nIterations16);
 // BENCHMARK_REGISTER_F(Fixture, SSEransCompression_64_32_32)->Iterations(nIterations32);
-// BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_8)->Iterations(nIterations8);
-// BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_16)->Iterations(nIterations16);
-// BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_32)->Iterations(nIterations32);
+BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_8)->Iterations(nIterations8);
+BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_16)->Iterations(nIterations16);
+BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_32)->Iterations(nIterations32);
 
 BENCHMARK_MAIN();

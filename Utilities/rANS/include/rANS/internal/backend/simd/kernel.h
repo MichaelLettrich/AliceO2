@@ -888,6 +888,60 @@ inline std::tuple<uint32_t, epi32_t<SIMDWidth::AVX>> streamOut(__m256i stateVec,
   return {count, store<uint32_t>(streamOutVec)};
 };
 
+// inline constexpr epi32_t<SIMDWidth::AVX> PermuteAVX{0x7u, 0x5u, 0x3u, 0x1u, 0x6u, 0x4u, 0x2u, 0x0u};
+
+// inline StreamOutResult<SIMDWidth::AVX> streamOutImpl(const __m256i* __restrict__ stateVec, const __m256i* __restrict__ cmpVec) noexcept
+// {
+//   // std::cout << "streamOut\n";
+//   // std::cout << asHex(store<uint32_t>(stateVec[0])) << asHex(store<uint32_t>(stateVec[1])) << "\n";
+//   // std::cout << asHex(store<uint32_t>(cmpVec[0])) << asHex(store<uint32_t>(cmpVec[1])) << "\n";
+//   //shift by one
+//   auto shifted1 = _mm256_slli_epi64(stateVec[1], 32);
+//   // std::cout << "stateVec[1] " << asHex(store<uint32_t>(shifted1)) << "\n";
+
+//   __m256i statesFused = _mm256_blend_epi32(stateVec[0], shifted1, 0b10101010);
+//   __m256i cmpFused = _mm256_blend_epi32(cmpVec[0], cmpVec[1], 0b10101010);
+//   // std::cout << "cmpFused " << asHex(store<uint32_t>(cmpFused)) << "\n";
+//   // std::cout << "statesFused " << asHex(store<uint32_t>(statesFused)) << "\n";
+
+//   statesFused = _mm256_permutevar8x32_epi32(statesFused, load(toConstSIMDView(PermuteAVX)));
+//   // std::cout << "statesFused2 " << asHex(store<uint32_t>(statesFused2)) << "\n";
+//   cmpFused = _mm256_permutevar8x32_epi32(cmpFused, load(toConstSIMDView(PermuteAVX)));
+//   // std::cout << "cmpFused2 " << asHex(store<uint32_t>(cmpFused2)) << "\n";
+//   statesFused = _mm256_and_si256(statesFused, cmpFused);
+//   const uint32_t mask = _mm256_movemask_ps(_mm256_castsi256_ps(cmpFused));
+//   // std::cout << fmt::format("mask: {:#0b}\n", mask);
+//   uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101); // unpack each bit to a byte
+//   expanded_mask *= 0xFFU;                                       // mask |= mask<<1 | mask<<2 | ... | mask<<7;
+//   // ABC... -> AAAAAAAABBBBBBBBCCCCCCCC...: replicate each bit to fill its byte
+
+//   const uint64_t identity_indices = 0x0706050403020100; // the identity shuffle for vpermps, packed to one index per byte
+//   uint64_t wanted_indices = _pext_u64(identity_indices, expanded_mask);
+
+//   __m128i bytevec = _mm_cvtsi64_si128(wanted_indices);
+//   __m256i shufmask = _mm256_cvtepu8_epi32(bytevec);
+
+//   auto streamOutVec = _mm256_permutevar8x32_epi32(statesFused, shufmask);
+//   // std::cout << "permuted " << asHex(store<uint32_t>(streamOutVec2)) << "\n";
+
+//   // statesFused = _mm256_and_si256(statesFused, cmpFused);
+//   // std::cout << "statesFused " << asHex(store<uint32_t>(statesFused)) << "\n";
+//   // const uint32_t id = _mm256_movemask_ps(_mm256_castsi256_ps(cmpFused));
+
+//   // __m256i permutationMask = _mm256_set1_epi32(AVXInterleavedPermutationLUT[id]);
+//   // std::cout << "permutationMask " << asHex(store<uint32_t>(permutationMask)) << "\n";
+//   // constexpr epi32_t<SIMDWidth::AVX> mask{0xF0000000u, 0x0F000000u, 0x00F00000u, 0x000F0000u, 0x0000F000u, 0x00000F00u, 0x000000F0u, 0x0000000Fu};
+//   // permutationMask = _mm256_and_si256(permutationMask, load(mask));
+//   // std::cout << "permutationMask " << asHex(store<uint32_t>(permutationMask)) << "\n";
+//   // constexpr epi32_t<SIMDWidth::AVX> shift{28u, 24u, 20u, 16u, 12u, 8u, 4u, 0u};
+//   // permutationMask = _mm256_srlv_epi32(permutationMask, load(shift));
+//   // std::cout << "permutationMask " << asHex(store<uint32_t>(permutationMask)) << "\n";
+//   // auto streamOutVec = _mm256_permutevar8x32_epi32(statesFused, permutationMask);
+
+//   // std::cout << "streamOut end\n";
+//   return {static_cast<uint32_t>(_mm_popcnt_u32(mask)), streamOutVec};
+// };
+
 inline StreamOutResult<SIMDWidth::AVX> streamOutImpl(const __m256i* __restrict__ stateVec, const __m256i* __restrict__ cmpVec) noexcept
 {
   //  std::cout << "streamOut\n";
