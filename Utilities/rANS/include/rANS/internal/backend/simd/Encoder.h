@@ -120,65 +120,32 @@ Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, ArrayView<const
   }
 #endif
 
-  if constexpr (simdWidth_V == SIMDWidth::SSE) {
-    const auto [frequencies, cumulativeFrequencies] = aosToSoa(symbols);
-    const auto frequenciesUpper = getUpper(frequencies);
-    const auto cumulativeUpper = getUpper(cumulativeFrequencies);
+  epi32_t<SIMDWidth::SSE, 2> frequencies;
+  epi32_t<SIMDWidth::SSE, 2> cumulativeFrequencies;
 
-    //renorm backwards
-    epi64_t<simdWidth_V, 2> renormedStates;
-    outputIter = ransRenorm<Stream_IT, LowerBound, StreamBits>(toConstSIMDView(mStates).template subView<1, 1>(),
-                                                               toConstSIMDView(frequenciesUpper),
-                                                               static_cast<uint8_t>(mSymbolTablePrecision),
-                                                               outputIter,
-                                                               toSIMDView(renormedStates).template subView<1, 1>());
-    outputIter = ransRenorm<Stream_IT, LowerBound, StreamBits>(toConstSIMDView(mStates).template subView<0, 1>(),
-                                                               toConstSIMDView(frequencies),
-                                                               static_cast<uint8_t>(mSymbolTablePrecision),
-                                                               outputIter,
-                                                               toSIMDView(renormedStates).template subView<0, 1>());
+  aosToSoa(symbols.template subView<0, NHardwareStreams>(),
+           toSIMDView(frequencies).subView<0, 1>(),
+           toSIMDView(cumulativeFrequencies).subView<0, 1>());
+  aosToSoa(symbols.template subView<NHardwareStreams, NHardwareStreams>(),
+           toSIMDView(frequencies).subView<1, 1>(),
+           toSIMDView(cumulativeFrequencies).subView<1, 1>());
 
-    ransEncode(toConstSIMDView(renormedStates).template subView<0, 1>(),
-               int32ToDouble<simdWidth_V>(toConstSIMDView(frequencies)),
-               int32ToDouble<simdWidth_V>(toConstSIMDView(cumulativeFrequencies)),
-               toConstSIMDView(mNSamples),
-               toSIMDView(mStates).template subView<0, 1>());
-    ransEncode(toConstSIMDView(renormedStates).template subView<1, 1>(),
-               int32ToDouble<simdWidth_V>(toConstSIMDView(frequenciesUpper)),
-               int32ToDouble<simdWidth_V>(toConstSIMDView(cumulativeUpper)),
-               toConstSIMDView(mNSamples),
-               toSIMDView(mStates).template subView<1, 1>());
+  auto [streamPosition, renormedStates] = ransRenorm<Stream_IT, LowerBound, StreamBits>(toConstSIMDView(mStates),
+                                                                                        toConstSIMDView(frequencies),
+                                                                                        static_cast<uint8_t>(mSymbolTablePrecision),
+                                                                                        outputIter);
+  ransEncode(toConstSIMDView(renormedStates).template subView<0, 1>(),
+             int32ToDouble<simdWidth_V>(toConstSIMDView(frequencies).subView<0, 1>()),
+             int32ToDouble<simdWidth_V>(toConstSIMDView(cumulativeFrequencies).subView<0, 1>()),
+             toConstSIMDView(mNSamples),
+             toSIMDView(mStates).template subView<0, 1>());
+  ransEncode(toConstSIMDView(renormedStates).template subView<1, 1>(),
+             int32ToDouble<simdWidth_V>(toConstSIMDView(frequencies).subView<1, 1>()),
+             int32ToDouble<simdWidth_V>(toConstSIMDView(cumulativeFrequencies).subView<1, 1>()),
+             toConstSIMDView(mNSamples),
+             toSIMDView(mStates).template subView<1, 1>());
 
-    return outputIter;
-
-  } else {
-    epi32_t<SIMDWidth::SSE, 2> frequencies;
-    epi32_t<SIMDWidth::SSE, 2> cumulativeFrequencies;
-
-    aosToSoa(symbols.template subView<0, NHardwareStreams>(),
-             toSIMDView(frequencies).subView<0, 1>(),
-             toSIMDView(cumulativeFrequencies).subView<0, 1>());
-    aosToSoa(symbols.template subView<NHardwareStreams, NHardwareStreams>(),
-             toSIMDView(frequencies).subView<1, 1>(),
-             toSIMDView(cumulativeFrequencies).subView<1, 1>());
-
-    auto [streamPosition, renormedStates] = ransRenorm<Stream_IT, LowerBound, StreamBits>(toConstSIMDView(mStates),
-                                                                                          toConstSIMDView(frequencies),
-                                                                                          static_cast<uint8_t>(mSymbolTablePrecision),
-                                                                                          outputIter);
-    ransEncode(toConstSIMDView(renormedStates).template subView<0, 1>(),
-               int32ToDouble<SIMDWidth::AVX>(toConstSIMDView(frequencies).subView<0, 1>()),
-               int32ToDouble<SIMDWidth::AVX>(toConstSIMDView(cumulativeFrequencies).subView<0, 1>()),
-               toConstSIMDView(mNSamples),
-               toSIMDView(mStates).template subView<0, 1>());
-    ransEncode(toConstSIMDView(renormedStates).template subView<1, 1>(),
-               int32ToDouble<SIMDWidth::AVX>(toConstSIMDView(frequencies).subView<1, 1>()),
-               int32ToDouble<SIMDWidth::AVX>(toConstSIMDView(cumulativeFrequencies).subView<1, 1>()),
-               toConstSIMDView(mNSamples),
-               toSIMDView(mStates).template subView<1, 1>());
-
-    return streamPosition;
-  }
+  return streamPosition;
 }
 
 template <SIMDWidth simdWidth_V>
