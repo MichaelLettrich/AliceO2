@@ -104,11 +104,19 @@ o2_add_executable(Encoder
                   SOURCES benchmarks/bench_ransEncoder.cxx
                   COMPONENT_NAME rANS
                   IS_BENCHMARK
-  TARGETVARNAME ransEncoderBenchmark
-  PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
+                  TARGETVARNAME ransEncoderBenchmark
+                  PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
 target_compile_options(${ransEncoderBenchmark} PRIVATE  -O3 -march=native -fopenmp)
 target_link_libraries(${ransEncoderBenchmark} PRIVATE -ltbb)
 
+o2_add_executable(LiteralEncoder
+                  SOURCES benchmarks/bench_ransLiteralEncoder.cxx
+                  COMPONENT_NAME rANS
+                  IS_BENCHMARK
+                  TARGETVARNAME ransLiteralEncoderBenchmark
+                  PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
+target_compile_options(${ransLiteralEncoderBenchmark} PRIVATE  -O3 -march=native -fopenmp)
+target_link_libraries(${ransLiteralEncoderBenchmark} PRIVATE -ltbb)
 
 o2_add_executable(Encode
                   SOURCES benchmarks/bench_ransEncode.cxx
