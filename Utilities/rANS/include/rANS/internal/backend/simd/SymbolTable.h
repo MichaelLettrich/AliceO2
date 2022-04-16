@@ -51,12 +51,28 @@ class SymbolTable
   inline const Symbol& at(size_t index) const { return mData[index]; };
   inline const Symbol& getEscapeSymbol() const noexcept { return mData.back(); };
   inline bool isEscapeSymbol(symbol_t symbol) const noexcept { return (*this)[symbol].getCumulative() == this->getEscapeSymbol().getCumulative(); };
+  inline bool isEscapeSymbol(const Symbol& symbol) const noexcept { return symbol.getCumulative() == this->getEscapeSymbol().getCumulative(); };
 
-  inline size_t getAlphabetRangeBits() const noexcept { return numBitsForNSymbols(this->size()); };
-  inline size_t getNUsedAlphabetSymbols() const noexcept { return mNUsedAlphabetSymbols; };
-  inline size_t getPrecision() const noexcept { return mPrecision; };
-  inline symbol_t getMinSymbol() const noexcept { return mOffset; };
-  inline symbol_t getMaxSymbol() const noexcept { return getMinSymbol() + size() - 1; };
+  inline size_t getAlphabetRangeBits() const noexcept
+  {
+    return numBitsForNSymbols(this->size());
+  };
+  inline size_t getNUsedAlphabetSymbols() const noexcept
+  {
+    return mNUsedAlphabetSymbols;
+  };
+  inline size_t getPrecision() const noexcept
+  {
+    return mPrecision;
+  };
+  inline symbol_t getMinSymbol() const noexcept
+  {
+    return mOffset;
+  };
+  inline symbol_t getMaxSymbol() const noexcept
+  {
+    return getMinSymbol() + size() - 1;
+  };
 
  private:
   std::vector<Symbol> mData{};
@@ -111,14 +127,14 @@ inline SymbolTable::SymbolTable(const RenormedFrequencyTable& frequencyTable) : 
 
 inline const Symbol& SymbolTable::operator[](symbol_t symbol) const noexcept
 {
-  // const size_t index = static_cast<size_t>(symbol - mOffset);
-  // // static cast to unsigned: idx < 0 => (uint)idx > MAX_INT => idx > mIndex.size()
-  // if (index < mData.size()) {
-  //   return this->at(index);
-  // } else {
-  //   return this->getEscapeSymbol();
-  // }
-  return this->at(symbol - mOffset);
+  const size_t index = static_cast<size_t>(symbol - mOffset);
+  // static cast to unsigned: idx < 0 => (uint)idx > MAX_INT => idx > mIndex.size()
+  if (index < mData.size()) {
+    return this->at(index);
+  } else {
+    return this->getEscapeSymbol();
+  }
+  // return this->at(symbol - mOffset);
 }
 
 } // namespace simd

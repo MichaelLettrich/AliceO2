@@ -27,6 +27,8 @@
 #include "rANS/rans.h"
 #include "rANS/SIMDEncoder.h"
 #include "rANS/SIMDDecoder.h"
+#include "rANS/LiteralSIMDEncoder.h"
+#include "rANS/LiteralSIMDDecoder.h"
 
 struct EmptyTestString {
   std::string data{};
@@ -185,6 +187,48 @@ struct EncodeDecodeLiteral : public EncodeDecodeBase<o2::rans::LiteralEncoder, o
   std::vector<typename Params<coder_T>::source_t> literals;
 };
 
+template <typename coder_T, typename stream_T, typename source_V>
+using literalSimdEncoderSSE_t = o2::rans::LiteralSIMDEncoder<coder_T, stream_T, source_V, 4, 2>;
+
+template <typename coder_T, typename stream_T, typename source_V>
+using literalSimdDecoderSSE_t = o2::rans::LiteralSIMDDecoder<coder_T, stream_T, source_V, 4, 2>;
+
+template <typename coder_T, class dictString_T, class testString_T>
+struct EncodeDecodeLiteralSSE : public EncodeDecodeBase<literalSimdEncoderSSE_t, literalSimdDecoderSSE_t, coder_T, dictString_T, testString_T> {
+  void encode() override
+  {
+    BOOST_CHECK_NO_THROW(this->encoder.process(std::begin(this->source.data), std::end(this->source.data), std::back_inserter(this->encodeBuffer), literals));
+  };
+  void decode() override
+  {
+    BOOST_CHECK_NO_THROW(this->decoder.process(this->encodeBuffer.end(), std::back_inserter(this->decodeBuffer), this->source.data.size(), literals));
+    BOOST_CHECK(literals.empty());
+  };
+
+  std::vector<typename Params<coder_T>::source_t> literals;
+};
+
+template <typename coder_T, typename stream_T, typename source_V>
+using literalSimdEncoderAVX_t = o2::rans::LiteralSIMDEncoder<coder_T, stream_T, source_V, 8, 4>;
+
+template <typename coder_T, typename stream_T, typename source_V>
+using literalSimdDecoderAVX_t = o2::rans::LiteralSIMDDecoder<coder_T, stream_T, source_V, 8, 4>;
+
+template <typename coder_T, class dictString_T, class testString_T>
+struct EncodeDecodeLiteralAVX : public EncodeDecodeBase<literalSimdEncoderAVX_t, literalSimdDecoderAVX_t, coder_T, dictString_T, testString_T> {
+  void encode() override
+  {
+    BOOST_CHECK_NO_THROW(this->encoder.process(std::begin(this->source.data), std::end(this->source.data), std::back_inserter(this->encodeBuffer), literals));
+  };
+  void decode() override
+  {
+    BOOST_CHECK_NO_THROW(this->decoder.process(this->encodeBuffer.end(), std::back_inserter(this->decodeBuffer), this->source.data.size(), literals));
+    BOOST_CHECK(literals.empty());
+  };
+
+  std::vector<typename Params<coder_T>::source_t> literals;
+};
+
 template <typename coder_T, class dictString_T, class testString_T>
 struct EncodeDecodeDedup : public EncodeDecodeBase<o2::rans::DedupEncoder, o2::rans::DedupDecoder, coder_T, dictString_T, testString_T> {
   void encode() override
@@ -216,10 +260,16 @@ using testCase_t = boost::mpl::vector<EncodeDecode<uint32_t, EmptyTestString, Em
                                       EncodeDecodeLiteral<uint64_t, FullTestString, FullTestString>,
                                       EncodeDecodeLiteral<uint32_t, EmptyTestString, FullTestString>,
                                       EncodeDecodeLiteral<uint64_t, EmptyTestString, FullTestString>,
-                                      EncodeDecodeDedup<uint32_t, EmptyTestString, EmptyTestString>,
-                                      EncodeDecodeDedup<uint64_t, EmptyTestString, EmptyTestString>,
-                                      EncodeDecodeDedup<uint32_t, FullTestString, FullTestString>,
-                                      EncodeDecodeDedup<uint64_t, FullTestString, FullTestString>>;
+                                      EncodeDecodeLiteralSSE<uint64_t, EmptyTestString, EmptyTestString>,
+                                      EncodeDecodeLiteralSSE<uint64_t, FullTestString, FullTestString>,
+                                      EncodeDecodeLiteralSSE<uint64_t, EmptyTestString, FullTestString>,
+                                      EncodeDecodeLiteralAVX<uint64_t, EmptyTestString, EmptyTestString>,
+                                      EncodeDecodeLiteralAVX<uint64_t, FullTestString, FullTestString>,
+                                      EncodeDecodeLiteralAVX<uint64_t, EmptyTestString, FullTestString>>;
+// EncodeDecodeDedup<uint32_t, EmptyTestString, EmptyTestString>,
+// EncodeDecodeDedup<uint64_t, EmptyTestString, EmptyTestString>,
+// EncodeDecodeDedup<uint32_t, FullTestString, FullTestString>,
+// EncodeDecodeDedup<uint64_t, FullTestString, FullTestString>>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_encodeDecode, testCase_T, testCase_t)
 {
