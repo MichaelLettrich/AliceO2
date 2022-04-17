@@ -119,26 +119,26 @@ static void ransSymbolTableAccessHeavy(benchmark::State& st)
   st.SetBytesProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size() * sizeof(source_T));
 };
 
-template <typename source_T, o2::rans::internal::simd::SIMDWidth width_V>
-static void ransSymbolTableAccessSIMD(benchmark::State& st)
-{
-  using namespace o2::rans;
-  static constexpr size_t nElems = o2::rans::internal::simd::getElementCount<ransState_t>(width_V);
+// template <typename source_T, o2::rans::internal::simd::SIMDWidth width_V>
+// static void ransSymbolTableAccessSIMD(benchmark::State& st)
+// {
+//   using namespace o2::rans;
+//   static constexpr size_t nElems = o2::rans::internal::simd::getElementCount<ransState_t>(width_V);
 
-  const auto& data = getData<source_T>();
+//   const auto& data = getData<source_T>();
 
-  internal::simd::SymbolTable symbolTable(data.getRenormedFrequencies());
+//   internal::simd::SymbolTable symbolTable(data.getRenormedFrequencies());
 
-  for (auto _ : st) {
-    for (size_t i = 0; i < data.getSourceMessage().size(); i += nElems) {
-      benchmark::DoNotOptimize(internal::getSymbols<const source_T*, nElems>(&(data.getSourceMessage()[i]), symbolTable));
-      benchmark::ClobberMemory();
-    }
-  }
+//   for (auto _ : st) {
+//     for (size_t i = 0; i < data.getSourceMessage().size(); i += nElems) {
+//       benchmark::DoNotOptimize(internal::getSymbols<const source_T*, nElems>(&(data.getSourceMessage()[i]), symbolTable));
+//       benchmark::ClobberMemory();
+//     }
+//   }
 
-  st.SetItemsProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size());
-  st.SetBytesProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size() * sizeof(source_T));
-};
+//   st.SetItemsProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size());
+//   st.SetBytesProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size() * sizeof(source_T));
+// };
 
 BENCHMARK_TEMPLATE1(ransSymbolTableAccessLight, uint8_t);
 BENCHMARK_TEMPLATE1(ransSymbolTableAccessLight, uint16_t);
@@ -148,12 +148,12 @@ BENCHMARK_TEMPLATE1(ransSymbolTableAccessHeavy, uint8_t);
 BENCHMARK_TEMPLATE1(ransSymbolTableAccessHeavy, uint16_t);
 BENCHMARK_TEMPLATE1(ransSymbolTableAccessHeavy, uint32_t);
 
-BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint8_t, o2::rans::internal::simd::SIMDWidth::SSE);
-BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint16_t, o2::rans::internal::simd::SIMDWidth::SSE);
-BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint32_t, o2::rans::internal::simd::SIMDWidth::SSE);
+// BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint8_t, o2::rans::internal::simd::SIMDWidth::SSE);
+// BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint16_t, o2::rans::internal::simd::SIMDWidth::SSE);
+// BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint32_t, o2::rans::internal::simd::SIMDWidth::SSE);
 
-BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint8_t, o2::rans::internal::simd::SIMDWidth::AVX);
-BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint16_t, o2::rans::internal::simd::SIMDWidth::AVX);
-BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint32_t, o2::rans::internal::simd::SIMDWidth::AVX);
+// BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint8_t, o2::rans::internal::simd::SIMDWidth::AVX);
+// BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint16_t, o2::rans::internal::simd::SIMDWidth::AVX);
+// BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint32_t, o2::rans::internal::simd::SIMDWidth::AVX);
 
 BENCHMARK_MAIN();
