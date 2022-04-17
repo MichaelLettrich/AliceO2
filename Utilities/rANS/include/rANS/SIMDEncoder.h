@@ -67,43 +67,40 @@ inline source_IT getSymbols(source_IT symbolIter, const internal::simd::SymbolTa
 };
 
 template <typename source_IT, uint8_t nHardwareStreams_V>
-inline std::tuple<source_IT, simd::AlignedArray<const internal::simd::Symbol*, simd::SIMDWidth::AVX, nHardwareStreams_V>> getSymbols(source_IT symbolIter, const simd::SymbolTable& symbolTable) noexcept
+inline std::tuple<source_IT, simd::UnrolledSymbols> getSymbols(source_IT symbolIter, const simd::SymbolTable& symbolTable) noexcept
 {
   const symbol_t minSymbol = symbolTable.getMinSymbol();
   const auto tableBegin = symbolTable.data();
 
-  if constexpr (nHardwareStreams_V == 2) {
-    return {
-      symbolIter - 2,
-      {tableBegin + *(symbolIter - 2) - minSymbol,
-       tableBegin + *(symbolIter - 1) - minSymbol}};
-  } else if constexpr (nHardwareStreams_V == 4) {
-    return {
-      symbolIter - 4,
-      {tableBegin + *(symbolIter - 4) - minSymbol,
-       tableBegin + *(symbolIter - 3) - minSymbol,
-       tableBegin + *(symbolIter - 2) - minSymbol,
-       tableBegin + *(symbolIter - 1) - minSymbol}};
-  } else if constexpr (nHardwareStreams_V == 8) {
-    return {
-      symbolIter - 8,
-      {tableBegin + *(symbolIter - 8) - minSymbol,
-       tableBegin + *(symbolIter - 7) - minSymbol,
-       tableBegin + *(symbolIter - 6) - minSymbol,
-       tableBegin + *(symbolIter - 5) - minSymbol,
-       tableBegin + *(symbolIter - 4) - minSymbol,
-       tableBegin + *(symbolIter - 3) - minSymbol,
-       tableBegin + *(symbolIter - 2) - minSymbol,
-       tableBegin + *(symbolIter - 1) - minSymbol}};
+  simd::UnrolledSymbols unrolledSymbols;
+
+  if constexpr (nHardwareStreams_V == 4) {
+    using namespace simd;
+
+    AlignedArray<const Symbol*, SIMDWidth::SSE, 4> ret{tableBegin + *(symbolIter - 4) - minSymbol,
+                                                       tableBegin + *(symbolIter - 3) - minSymbol,
+                                                       tableBegin + *(symbolIter - 2) - minSymbol,
+                                                       tableBegin + *(symbolIter - 1) - minSymbol};
+
+    aosToSoa(ArrayView{ret}.template subView<0, 2>(), toSIMDView(unrolledSymbols.frequencies).template subView<0, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<0, 1>());
+    aosToSoa(ArrayView{ret}.template subView<2, 2>(), toSIMDView(unrolledSymbols.frequencies).template subView<1, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<1, 1>());
+
+    return {symbolIter - nHardwareStreams_V, unrolledSymbols};
+  } else {
+    using namespace simd;
+    AlignedArray<const Symbol*, SIMDWidth::SSE, 8> ret{tableBegin + *(symbolIter - 8) - minSymbol,
+                                                       tableBegin + *(symbolIter - 7) - minSymbol,
+                                                       tableBegin + *(symbolIter - 6) - minSymbol,
+                                                       tableBegin + *(symbolIter - 5) - minSymbol,
+                                                       tableBegin + *(symbolIter - 4) - minSymbol,
+                                                       tableBegin + *(symbolIter - 3) - minSymbol,
+                                                       tableBegin + *(symbolIter - 2) - minSymbol,
+                                                       tableBegin + *(symbolIter - 1) - minSymbol};
+    aosToSoa(ArrayView{ret}.template subView<0, 4>(), toSIMDView(unrolledSymbols.frequencies).template subView<0, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<0, 1>());
+    aosToSoa(ArrayView{ret}.template subView<4, 4>(), toSIMDView(unrolledSymbols.frequencies).template subView<1, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<1, 1>());
+    return {symbolIter - nHardwareStreams_V, unrolledSymbols};
   }
-  // else {
-  //   std::array<internal::simd::Symbol, nHardwareStreams_V> encoderSymbols{};
-  //   for (auto encSymbolIter = encoderSymbols.rbegin(); encSymbolIter != encoderSymbols.rend(); ++encSymbolIter) {
-  //     *encSymbolIter = symbolTable[*(--symbolIter)];
-  //   }
-  //   return {symbolIter, encoderSymbols};
-  // }
-}; // namespace internal
+};
 } // namespace internal
 
 template <typename coder_T,

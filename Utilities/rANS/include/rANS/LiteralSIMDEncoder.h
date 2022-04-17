@@ -26,6 +26,7 @@
 #include "rANS/internal/backend/simd/types.h"
 #include "rANS/internal/backend/simd/Encoder.h"
 #include "rANS/internal/backend/simd/Symbol.h"
+#include "rANS/internal/backend/simd/SymbolMapper.h"
 #include "rANS/internal/helper.h"
 #include "rANS/RenormedFrequencyTable.h"
 #include "rANS/internal/backend/simd/SymbolTable.h"
@@ -106,7 +107,7 @@ inline std::tuple<source_IT, simd::AlignedArray<const internal::simd::Symbol*, s
 
     return {symbolIter - 8, ret};
   }
-}; // namespace internal
+};
 } // namespace internal
 
 template <typename coder_T,
@@ -166,16 +167,20 @@ stream_IT LiteralSIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareS
   stream_IT outputIter = outputBegin;
   source_IT inputIT = inputEnd;
 
+  simd::SymbolMapper<simdWidth> mapper{this->mSymbolTable};
+  auto literalIter = literals.data();
+
   auto maskedEncode = [this, &literals](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder, size_t nActiveStreams = nParallelStreams_V) {
     std::array<const internal::simd::Symbol*, nParallelStreams_V> encoderSymbols{};
     for (auto encSymbolIter = encoderSymbols.rend() - nActiveStreams; encSymbolIter != encoderSymbols.rend(); ++encSymbolIter) {
-      *encSymbolIter = lookupSymbol(--symbolIter, this->mSymbolTable, literals);
+      *encSymbolIter = o2::rans::internal::lookupSymbol(--symbolIter, this->mSymbolTable, literals);
     }
     return std::tuple(symbolIter, coder.putSymbols(outputIter, encoderSymbols, nActiveStreams));
   };
 
-  auto encode = [this, &literals](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder) {
-    auto [newSymbolIter, encoderSymbols] = getSymbols<source_IT, nParallelStreams_V>(symbolIter, this->mSymbolTable, literals);
+  auto encode = [this, &literalIter, &literals, &mapper](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder) {
+    auto [newSymbolIter, newLiteralIter, encoderSymbols] = mapper.template readSymbols<source_IT>(symbolIter, literalIter);
+    literalIter = newLiteralIter;
     return std::make_tuple(newSymbolIter, coder.putSymbols(outputIter, encoderSymbols));
   };
 
@@ -206,6 +211,14 @@ stream_IT LiteralSIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareS
     std::tie(inputIT, outputIter) = maskedEncode(inputIT, outputIter, *(coderIter), nMaskedEncodes);
     coderIter++;
   }
+
+  // right spot for iterators;
+  size_t s = std::distance(inputBegin, inputEnd);
+  size_t newSize = ((s / nStreams_V) + 1) * nStreams_V;
+  size_t pos = literals.size();
+  literals.resize(newSize);
+  literalIter = literals.data() + pos;
+
   // now encode the rest of the remainder symbols
   // LOG(trace) << "remainder";
   for (coderIter; coderIter != std::rend(interleavedCoders); ++coderIter) {
@@ -222,6 +235,8 @@ stream_IT LiteralSIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareS
     //   std::tie(inputIT, outputIter) = encode(inputIT, outputIter, *coderIter);
     // }
   }
+
+  literals.resize(std::distance(literals.data(), literalIter));
 
   // LOG(trace) << "flushing";
   for (coderIter = std::rbegin(interleavedCoders); coderIter != std::rend(interleavedCoders); ++coderIter) {
