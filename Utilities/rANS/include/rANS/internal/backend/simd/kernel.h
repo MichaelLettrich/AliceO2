@@ -22,7 +22,7 @@
 #include <array>
 #include <tuple>
 
-#include "rANS/internal/backend/simd/Symbol.h"
+#include "rANS/internal/backend/simd/SymbolTable.h"
 #include "rANS/internal/backend/simd/types.h"
 #include "rANS/internal/backend/simd/utils.h"
 #include "rANS/internal/helper.h"
@@ -1269,6 +1269,63 @@ inline auto ransRenorm(epi64cV_t<SIMDWidth::AVX, 2> states, epi32cV_t<SIMDWidth:
   return std::make_tuple(outputIter, newState);
 };
 #endif /* __AVX2__ */
+
+template <typename source_IT>
+inline const internal::simd::Symbol* lookupSymbol(source_IT iter, const simd::SymbolTable& symbolTable, std::vector<typename std::iterator_traits<source_IT>::value_type>& literals) noexcept
+{
+  const auto symbol = *iter;
+  const auto* encoderSymbol = &(symbolTable[symbol]);
+  if (symbolTable.isEscapeSymbol(*encoderSymbol)) {
+    literals.push_back(symbol);
+  }
+  return encoderSymbol;
+};
+
+struct UnrolledSymbols {
+  epi32_t<SIMDWidth::SSE, 2> frequencies;
+  epi32_t<SIMDWidth::SSE, 2> cumulativeFrequencies;
+};
+
+template <typename source_IT, SIMDWidth width_V>
+std::tuple<source_IT, UnrolledSymbols> getSymbols(source_IT symbolIter, const o2::rans::internal::simd::SymbolTable& symbolTable, std::vector<typename std::iterator_traits<source_IT>::value_type>& literals)
+{
+  UnrolledSymbols unrolledSymbols;
+
+  if constexpr (width_V == SIMDWidth::SSE) {
+    AlignedArray<const Symbol*, simd::SIMDWidth::SSE, 4> ret;
+    ret[3] = lookupSymbol(symbolIter - 1, symbolTable, literals);
+    ret[2] = lookupSymbol(symbolIter - 2, symbolTable, literals);
+    ret[1] = lookupSymbol(symbolIter - 3, symbolTable, literals);
+    ret[0] = lookupSymbol(symbolIter - 4, symbolTable, literals);
+
+    aosToSoa(ArrayView{ret}.template subView<0, 2>(),
+             toSIMDView(unrolledSymbols.frequencies).template subView<0, 1>(),
+             toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<0, 1>());
+    aosToSoa(ArrayView{ret}.template subView<2, 2>(),
+             toSIMDView(unrolledSymbols.frequencies).template subView<1, 1>(),
+             toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<1, 1>());
+    //aosToSoa(ret, toSIMDView(unrolledSymbols.frequencies), toSIMDView(unrolledSymbols.cumulativeFrequencies));
+    return {symbolIter - 4, unrolledSymbols};
+  } else {
+    AlignedArray<const Symbol*, simd::SIMDWidth::SSE, 8> ret;
+    ret[7] = lookupSymbol(symbolIter - 1, symbolTable, literals);
+    ret[6] = lookupSymbol(symbolIter - 2, symbolTable, literals);
+    ret[5] = lookupSymbol(symbolIter - 3, symbolTable, literals);
+    ret[4] = lookupSymbol(symbolIter - 4, symbolTable, literals);
+    ret[3] = lookupSymbol(symbolIter - 5, symbolTable, literals);
+    ret[2] = lookupSymbol(symbolIter - 6, symbolTable, literals);
+    ret[1] = lookupSymbol(symbolIter - 7, symbolTable, literals);
+    ret[0] = lookupSymbol(symbolIter - 8, symbolTable, literals);
+
+    aosToSoa(ArrayView{ret}.template subView<0, 4>(),
+             toSIMDView(unrolledSymbols.frequencies).template subView<0, 1>(),
+             toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<0, 1>());
+    aosToSoa(ArrayView{ret}.template subView<4, 4>(),
+             toSIMDView(unrolledSymbols.frequencies).template subView<1, 1>(),
+             toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<1, 1>());
+    return {symbolIter - 8, unrolledSymbols};
+  }
+};
 
 } // namespace simd
 } // namespace internal
