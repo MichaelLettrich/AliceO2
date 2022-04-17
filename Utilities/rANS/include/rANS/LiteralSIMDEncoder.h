@@ -106,7 +106,7 @@ inline std::tuple<source_IT, simd::AlignedArray<const internal::simd::Symbol*, s
 
     return {symbolIter - 8, ret};
   }
-}; // namespace internal
+};
 } // namespace internal
 
 template <typename coder_T,
@@ -169,13 +169,13 @@ stream_IT LiteralSIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareS
   auto maskedEncode = [this, &literals](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder, size_t nActiveStreams = nParallelStreams_V) {
     std::array<const internal::simd::Symbol*, nParallelStreams_V> encoderSymbols{};
     for (auto encSymbolIter = encoderSymbols.rend() - nActiveStreams; encSymbolIter != encoderSymbols.rend(); ++encSymbolIter) {
-      *encSymbolIter = lookupSymbol(--symbolIter, this->mSymbolTable, literals);
+      *encSymbolIter = o2::rans::internal::lookupSymbol(--symbolIter, this->mSymbolTable, literals);
     }
     return std::tuple(symbolIter, coder.putSymbols(outputIter, encoderSymbols, nActiveStreams));
   };
 
   auto encode = [this, &literals](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder) {
-    auto [newSymbolIter, encoderSymbols] = getSymbols<source_IT, nParallelStreams_V>(symbolIter, this->mSymbolTable, literals);
+    auto [newSymbolIter, encoderSymbols] = simd::getSymbols<source_IT, simdWidth>(symbolIter, this->mSymbolTable, literals);
     return std::make_tuple(newSymbolIter, coder.putSymbols(outputIter, encoderSymbols));
   };
 
