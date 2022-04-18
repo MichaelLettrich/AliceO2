@@ -26,6 +26,7 @@
 #include "rANS/internal/backend/simd/types.h"
 #include "rANS/internal/backend/simd/Encoder.h"
 #include "rANS/internal/backend/simd/Symbol.h"
+#include "rANS/internal/backend/simd/SymbolMapper.h"
 #include "rANS/internal/helper.h"
 #include "rANS/RenormedFrequencyTable.h"
 #include "rANS/internal/backend/simd/SymbolTable.h"
@@ -166,6 +167,8 @@ stream_IT LiteralSIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareS
   stream_IT outputIter = outputBegin;
   source_IT inputIT = inputEnd;
 
+  simd::SymbolMapper<simd::SIMDWidth::SSE> mapper{this->mSymbolTable};
+
   auto maskedEncode = [this, &literals](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder, size_t nActiveStreams = nParallelStreams_V) {
     std::array<const internal::simd::Symbol*, nParallelStreams_V> encoderSymbols{};
     for (auto encSymbolIter = encoderSymbols.rend() - nActiveStreams; encSymbolIter != encoderSymbols.rend(); ++encSymbolIter) {
@@ -174,9 +177,14 @@ stream_IT LiteralSIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareS
     return std::tuple(symbolIter, coder.putSymbols(outputIter, encoderSymbols, nActiveStreams));
   };
 
-  auto encode = [this, &literals](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder) {
-    auto [newSymbolIter, encoderSymbols] = simd::getSymbols<source_IT, simdWidth>(symbolIter, this->mSymbolTable, literals);
-    return std::make_tuple(newSymbolIter, coder.putSymbols(outputIter, encoderSymbols));
+  auto encode = [this, &literals, &mapper](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder) {
+    if constexpr (simdWidth == simd::SIMDWidth::SSE) {
+      auto [newSymbolIter, encoderSymbols] = mapper.template readSymbols<source_IT>(symbolIter, literals);
+      return std::make_tuple(newSymbolIter, coder.putSymbols(outputIter, encoderSymbols));
+    } else {
+      auto [newSymbolIter, encoderSymbols] = simd::getSymbols<source_IT, simdWidth>(symbolIter, this->mSymbolTable, literals);
+      return std::make_tuple(newSymbolIter, coder.putSymbols(outputIter, encoderSymbols));
+    }
   };
 
   // create coders

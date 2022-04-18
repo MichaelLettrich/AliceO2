@@ -119,6 +119,7 @@ static void ransCompressionBenchmark(benchmark::State& st, fixture_T& fixture)
   const auto& sourceMessage = getMessage<typename fixture_T::source_t>();
   std::vector<uint32_t> encodeBuffer(2 * sourceMessage.size());
   std::vector<typename fixture_T::source_t> literalsBuffer;
+  literalsBuffer.reserve(sourceMessage.size());
   std::vector<typename fixture_T::source_t> decodeBuffer;
   auto encodeBufferEnd = &(*encodeBuffer.end());
 
@@ -154,9 +155,9 @@ static void ransCompressionBenchmark(benchmark::State& st, fixture_T& fixture)
 };
 
 template <typename source_T>
-using sseRansEncoder_t = typename o2::rans::LiteralSIMDEncoder<uint64_t, uint32_t, source_T, 8, 2>;
+using sseRansEncoder_t = typename o2::rans::LiteralSIMDEncoder<uint64_t, uint32_t, source_T, 16, 2>;
 template <typename source_T>
-using sseRansDecoder_t = typename o2::rans::LiteralSIMDDecoder<uint64_t, uint32_t, source_T, 8, 2>;
+using sseRansDecoder_t = typename o2::rans::LiteralSIMDDecoder<uint64_t, uint32_t, source_T, 16, 2>;
 
 template <typename source_T>
 using avxRansEncoder_t = typename o2::rans::LiteralSIMDEncoder<uint64_t, uint32_t, source_T, 16, 4>;

@@ -605,6 +605,17 @@ std::ostream& operator<<(std::ostream& stream, const AlignedArray<T, width_V, si
   return stream;
 };
 
+template <SIMDWidth width_V, size_t size_V>
+std::ostream& operator<<(std::ostream& stream, const AlignedArray<uint8_t, width_V, size_V>& vec)
+{
+  stream << "[";
+  for (const auto& elem : vec) {
+    stream << static_cast<uint32_t>(elem) << ", ";
+  }
+  stream << "]";
+  return stream;
+};
+
 template <typename T, SIMDWidth width_V, size_t size_V>
 std::string asHex(const AlignedArray<T, width_V, size_V>& vec)
 {
