@@ -119,7 +119,7 @@ static void ransCompressionBenchmark(benchmark::State& st, fixture_T& fixture)
   const auto& sourceMessage = getMessage<typename fixture_T::source_t>();
   std::vector<uint32_t> encodeBuffer(2 * sourceMessage.size());
   std::vector<typename fixture_T::source_t> literalsBuffer;
-  literalsBuffer.reserve(sourceMessage.size());
+  literalsBuffer.reserve(sourceMessage.size() + 256);
   std::vector<typename fixture_T::source_t> decodeBuffer;
   auto encodeBufferEnd = &(*encodeBuffer.end());
 

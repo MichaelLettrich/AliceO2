@@ -147,8 +147,8 @@ class SymbolMapper<SIMDWidth::SSE>
 
   //   template <typename source_IT>
   //   std::tuple<source_IT, UnrolledSymbols> readSymbols(source_IT symbolIter);
-  template <typename source_IT>
-  std::tuple<source_IT, UnrolledSymbols> readSymbols(source_IT symbolIter, std::vector<typename std::iterator_traits<source_IT>::value_type>& literals);
+  template <typename source_IT, typename literal_IT>
+  std::tuple<source_IT, literal_IT, UnrolledSymbols> readSymbols(source_IT symbolIter, literal_IT literalIter);
 
  private:
   const SymbolTable* mSymbolTable{};
@@ -158,8 +158,8 @@ class SymbolMapper<SIMDWidth::SSE>
   __m128i mIncompressibleCumulatedFrequencies;
 };
 
-template <typename source_IT>
-inline auto SymbolMapper<SIMDWidth::SSE>::readSymbols(source_IT symbolIter, std::vector<typename std::iterator_traits<source_IT>::value_type>& literals) -> std::tuple<source_IT, UnrolledSymbols>
+template <typename source_IT, typename literal_IT>
+inline auto SymbolMapper<SIMDWidth::SSE>::readSymbols(source_IT symbolIter, literal_IT literalIter) -> std::tuple<source_IT, literal_IT, UnrolledSymbols>
 {
   using source_t = typename std::iterator_traits<source_IT>::value_type;
 
@@ -215,14 +215,39 @@ inline auto SymbolMapper<SIMDWidth::SSE>::readSymbols(source_IT symbolIter, std:
 
   const uint32_t id = _mm_movemask_ps(_mm_castsi128_ps(isIncompressible));
 
-  const uint32_t nIncompressible = _mm_popcnt_u32(id);
+  if (id > 0) {
+    const uint32_t nIncompressible = _mm_popcnt_u32(id);
+    __m128i shuffleMaskVec = load(toConstSIMDView(SSEIncompressibleMapping[id]));
+    symbolsVec = _mm_shuffle_epi8(symbolsVec, shuffleMaskVec);
+
+    if constexpr (std::is_pointer_v<source_IT>) {
+      // store;
+      if constexpr (std::is_same_v<source_t, uint8_t>) {
+        symbolsVec = _mm_packus_epi32(symbolsVec, symbolsVec);
+        symbolsVec = _mm_packus_epi16(symbolsVec, symbolsVec);
+      } else if constexpr (std::is_same_v<source_t, int8_t>) {
+        symbolsVec = _mm_packs_epi32(symbolsVec, symbolsVec);
+        symbolsVec = _mm_packs_epi16(symbolsVec, symbolsVec);
+      } else if constexpr (std::is_same_v<source_t, uint16_t>) {
+        symbolsVec = _mm_packus_epi32(symbolsVec, symbolsVec);
+      } else if constexpr (std::is_same_v<source_t, int16_t>) {
+        symbolsVec = _mm_packs_epi32(symbolsVec, symbolsVec);
+      }
+      _mm_storeu_si128(reinterpret_cast<__m128i_u*>(literalIter), symbolsVec);
+      literalIter += nIncompressible;
+    } else {
+      auto incompressibleSymbols = store<uint32_t>(symbolsVec);
+      for (size_t i = 0; i < nIncompressible; ++i) {
+        *literalIter = static_cast<typename std::iterator_traits<source_IT>::value_type>(incompressibleSymbols[i]);
+        ++literalIter;
+      }
+    }
+  };
+
   // if (nIncompressible > 0) {
   //   LOG(info) << "Cumul " << store<uint32_t>(mIncompressibleCumulatedFrequencies) << " vs " << store<uint32_t>(cumulativeFrequencies);
   //   LOG(info) << "Incompressible: " << asHex(store<uint32_t>(isIncompressible)) << "at " << store<uint32_t>(isIncompressible);
   // }
-
-  __m128i shuffleMaskVec = load(toConstSIMDView(SSEIncompressibleMapping[id]));
-  symbolsVec = _mm_shuffle_epi8(symbolsVec, shuffleMaskVec);
 
   UnrolledSymbols unrolledSymbols2;
 
@@ -232,8 +257,7 @@ inline auto SymbolMapper<SIMDWidth::SSE>::readSymbols(source_IT symbolIter, std:
   store(cumulativeFrequencies, toSIMDView(unrolledSymbols2.cumulativeFrequencies).template subView<0, 1>());
   store(_mm_bsrli_si128(cumulativeFrequencies, 8), toSIMDView(unrolledSymbols2.cumulativeFrequencies).template subView<1, 1>());
 
-  // store;
-  auto incompressibleSymbols = store<uint32_t>(symbolsVec);
+  //auto incompressibleSymbols = store<uint32_t>(symbolsVec);
 
   // std::vector<typename std::iterator_traits<source_IT>::value_type> fakeLiterals;
   // fakeLiterals.reserve(4);
@@ -280,15 +304,16 @@ inline auto SymbolMapper<SIMDWidth::SSE>::readSymbols(source_IT symbolIter, std:
   //   checkEqual(incompressibleSymbols[i], fakeLiterals[i]);
   // }
 
-  for (size_t i = 0; i < nIncompressible; ++i) {
-    literals.push_back(static_cast<typename std::iterator_traits<source_IT>::value_type>(incompressibleSymbols[i]));
-  }
+  // for (size_t i = 0; i < nIncompressible; ++i) {
+  //   *literalIter = static_cast<typename std::iterator_traits<source_IT>::value_type>(incompressibleSymbols[i]);
+  //   ++literalIter;
+  // }
 
   // for (auto& s : fakeLiterals) {
   //   literals.push_back(s);
   // }
 
-  return {symbolIter - 4, unrolledSymbols2};
+  return {symbolIter - 4, literalIter, unrolledSymbols2};
 };
 
 } // namespace simd
