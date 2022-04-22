@@ -167,7 +167,7 @@ stream_IT LiteralSIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareS
   stream_IT outputIter = outputBegin;
   source_IT inputIT = inputEnd;
 
-  simd::SymbolMapper<simd::SIMDWidth::SSE> mapper{this->mSymbolTable};
+  simd::SymbolMapper<simdWidth> mapper{this->mSymbolTable};
   auto literalIter = literals.data();
 
   auto maskedEncode = [this, &literals](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder, size_t nActiveStreams = nParallelStreams_V) {
@@ -179,14 +179,9 @@ stream_IT LiteralSIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareS
   };
 
   auto encode = [this, &literalIter, &literals, &mapper](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder) {
-    if constexpr (simdWidth == simd::SIMDWidth::SSE) {
-      auto [newSymbolIter, newLiteralIter, encoderSymbols] = mapper.template readSymbols<source_IT>(symbolIter, literalIter);
-      literalIter = newLiteralIter;
-      return std::make_tuple(newSymbolIter, coder.putSymbols(outputIter, encoderSymbols));
-    } else {
-      auto [newSymbolIter, encoderSymbols] = simd::getSymbols<source_IT, simdWidth>(symbolIter, this->mSymbolTable, literals);
-      return std::make_tuple(newSymbolIter, coder.putSymbols(outputIter, encoderSymbols));
-    }
+    auto [newSymbolIter, newLiteralIter, encoderSymbols] = mapper.template readSymbols<source_IT>(symbolIter, literalIter);
+    literalIter = newLiteralIter;
+    return std::make_tuple(newSymbolIter, coder.putSymbols(outputIter, encoderSymbols));
   };
 
   // create coders
@@ -217,14 +212,12 @@ stream_IT LiteralSIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareS
     coderIter++;
   }
 
-  if constexpr (simdWidth == simd::SIMDWidth::SSE) {
-    // right spot for iterators;
-    size_t s = std::distance(inputBegin, inputEnd);
-    size_t newSize = ((s / nStreams_V) + 1) * nStreams_V;
-    size_t pos = literals.size();
-    literals.resize(newSize);
-    literalIter = literals.data() + pos;
-  }
+  // right spot for iterators;
+  size_t s = std::distance(inputBegin, inputEnd);
+  size_t newSize = ((s / nStreams_V) + 1) * nStreams_V;
+  size_t pos = literals.size();
+  literals.resize(newSize);
+  literalIter = literals.data() + pos;
 
   // now encode the rest of the remainder symbols
   // LOG(trace) << "remainder";
@@ -243,9 +236,7 @@ stream_IT LiteralSIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareS
     // }
   }
 
-  if constexpr (simdWidth == simd::SIMDWidth::SSE) {
-    literals.resize(std::distance(literals.data(), literalIter));
-  }
+  literals.resize(std::distance(literals.data(), literalIter));
 
   // LOG(trace) << "flushing";
   for (coderIter = std::rbegin(interleavedCoders); coderIter != std::rend(interleavedCoders); ++coderIter) {
