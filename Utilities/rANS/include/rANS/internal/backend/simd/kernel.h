@@ -376,8 +376,8 @@ struct SymbolUnpacked {
 
 inline SymbolUnpacked aosToSoaImpl(ArrayView<const Symbol*, 2> in) noexcept
 {
-  __m128i in0Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[0]->data()));
-  __m128i in1Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[1]->data()));
+  __m128i in0Reg = _mm_loadu_si128(reinterpret_cast<__m128i const*>(in[0]->data()));
+  __m128i in1Reg = _mm_loadu_si128(reinterpret_cast<__m128i const*>(in[1]->data()));
 
   __m128i res0Reg = _mm_unpacklo_epi32(in0Reg, in1Reg);
   __m128i res1Reg = _mm_shuffle_epi32(res0Reg, _MM_SHUFFLE(0, 0, 3, 2));
@@ -387,8 +387,8 @@ inline SymbolUnpacked aosToSoaImpl(ArrayView<const Symbol*, 2> in) noexcept
 
 inline void aosToSoaImpl(ArrayView<const Symbol*, 2> in, __m128i* __restrict__ frequency, __m128i* __restrict__ cumulatedFrequency) noexcept
 {
-  __m128i in0Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[0]->data()));
-  __m128i in1Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[1]->data()));
+  __m128i in0Reg = _mm_loadu_si128(reinterpret_cast<__m128i const*>(in[0]->data()));
+  __m128i in1Reg = _mm_loadu_si128(reinterpret_cast<__m128i const*>(in[1]->data()));
 
   *frequency = _mm_unpacklo_epi32(in0Reg, in1Reg);
   *cumulatedFrequency = _mm_shuffle_epi32(*frequency, _MM_SHUFFLE(0, 0, 3, 2));
@@ -409,10 +409,10 @@ inline void aosToSoa(ArrayView<const Symbol*, 2> in, epi32V_t<SIMDWidth::SSE> fr
 
 inline SymbolUnpacked aosToSoaImpl(ArrayView<const Symbol*, 4> in) noexcept
 {
-  __m128i in0Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[0]->data()));
-  __m128i in1Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[1]->data()));
-  __m128i in2Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[2]->data()));
-  __m128i in3Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[3]->data()));
+  __m128i in0Reg = _mm_loadu_si128(reinterpret_cast<__m128i const*>(in[0]->data()));
+  __m128i in1Reg = _mm_loadu_si128(reinterpret_cast<__m128i const*>(in[1]->data()));
+  __m128i in2Reg = _mm_loadu_si128(reinterpret_cast<__m128i const*>(in[2]->data()));
+  __m128i in3Reg = _mm_loadu_si128(reinterpret_cast<__m128i const*>(in[3]->data()));
 
   __m128i merged0Reg = _mm_unpacklo_epi32(in0Reg, in1Reg);
   __m128i merged1Reg = _mm_unpacklo_epi32(in2Reg, in3Reg);
@@ -424,10 +424,10 @@ inline SymbolUnpacked aosToSoaImpl(ArrayView<const Symbol*, 4> in) noexcept
 
 inline void aosToSoaImpl(ArrayView<const Symbol*, 4> in, __m128i* __restrict__ frequency, __m128i* __restrict__ cumulatedFrequency) noexcept
 {
-  __m128i in0Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[0]->data()));
-  __m128i in1Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[1]->data()));
-  __m128i in2Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[2]->data()));
-  __m128i in3Reg = _mm_load_si128(reinterpret_cast<__m128i const*>(in[3]->data()));
+  __m128i in0Reg = _mm_loadu_si128(reinterpret_cast<__m128i const*>(in[0]->data()));
+  __m128i in1Reg = _mm_loadu_si128(reinterpret_cast<__m128i const*>(in[1]->data()));
+  __m128i in2Reg = _mm_loadu_si128(reinterpret_cast<__m128i const*>(in[2]->data()));
+  __m128i in3Reg = _mm_loadu_si128(reinterpret_cast<__m128i const*>(in[3]->data()));
 
   __m128i merged0Reg = _mm_unpacklo_epi32(in0Reg, in1Reg);
   __m128i merged1Reg = _mm_unpacklo_epi32(in2Reg, in3Reg);
