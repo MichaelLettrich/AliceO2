@@ -199,10 +199,10 @@ inline auto SymbolMapper<SIMDWidth::SSE>::readSymbols(source_IT symbolIter, lite
 
   auto offset = store<uint32_t>(offsetsVec);
 
-  __m128i symbol0 = _mm_load_si128(reinterpret_cast<__m128i const*>(&mSymbolTable->at(offset[0])));
-  __m128i symbol1 = _mm_load_si128(reinterpret_cast<__m128i const*>(&mSymbolTable->at(offset[1])));
-  __m128i symbol2 = _mm_load_si128(reinterpret_cast<__m128i const*>(&mSymbolTable->at(offset[2])));
-  __m128i symbol3 = _mm_load_si128(reinterpret_cast<__m128i const*>(&mSymbolTable->at(offset[3])));
+  __m128i symbol0 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(&mSymbolTable->at(offset[0])));
+  __m128i symbol1 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(&mSymbolTable->at(offset[1])));
+  __m128i symbol2 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(&mSymbolTable->at(offset[2])));
+  __m128i symbol3 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(&mSymbolTable->at(offset[3])));
 
   // Unpack Symbols
   __m128i merged0 = _mm_unpacklo_epi32(symbol0, symbol1);
@@ -385,24 +385,26 @@ inline auto SymbolMapper<SIMDWidth::AVX>::readSymbols(source_IT symbolIter, lite
   auto symbolsVecCopy = symbolsVec;
 
   // range check
-  const __m256i isGT = _mm256_cmpgt_epi32(symbolsVec, mMaxVec);
-  const __m256i isLT = _mm256_cmpgt_epi32(mMinVec, symbolsVec);
+  __m256i offsetsVec = _mm256_sub_epi32(symbolsVec, mMinVec);
+  const __m256i isGT = _mm256_cmpgt_epi32(offsetsVec, mEscapeIdxVec);
+  const __m256i isLT = _mm256_cmpgt_epi32(_mm256_setzero_si256(), offsetsVec);
   const __m256i isOutOfRange = _mm256_or_si256(isGT, isLT);
   // make sure we're in the right range
-  const __m256i offsetsVec = _mm256_blendv_epi8(_mm256_sub_epi32(symbolsVec, mMinVec), mEscapeIdxVec, isOutOfRange);
+  offsetsVec = _mm256_blendv_epi8(offsetsVec, mEscapeIdxVec, isOutOfRange);
 
   auto offset = store<uint32_t>(offsetsVec);
 
   __m128i symbols[8];
+  const auto tableBegin = mSymbolTable->data();
 
-  symbols[0] = _mm_load_si128(reinterpret_cast<__m128i const*>(&mSymbolTable->at(offset[0])));
-  symbols[1] = _mm_load_si128(reinterpret_cast<__m128i const*>(&mSymbolTable->at(offset[1])));
-  symbols[2] = _mm_load_si128(reinterpret_cast<__m128i const*>(&mSymbolTable->at(offset[2])));
-  symbols[3] = _mm_load_si128(reinterpret_cast<__m128i const*>(&mSymbolTable->at(offset[3])));
-  symbols[4] = _mm_load_si128(reinterpret_cast<__m128i const*>(&mSymbolTable->at(offset[4])));
-  symbols[5] = _mm_load_si128(reinterpret_cast<__m128i const*>(&mSymbolTable->at(offset[5])));
-  symbols[6] = _mm_load_si128(reinterpret_cast<__m128i const*>(&mSymbolTable->at(offset[6])));
-  symbols[7] = _mm_load_si128(reinterpret_cast<__m128i const*>(&mSymbolTable->at(offset[7])));
+  symbols[0] = _mm_loadu_si128(reinterpret_cast<__m128i const*>(tableBegin + offset[0]));
+  symbols[1] = _mm_loadu_si128(reinterpret_cast<__m128i const*>(tableBegin + offset[1]));
+  symbols[2] = _mm_loadu_si128(reinterpret_cast<__m128i const*>(tableBegin + offset[2]));
+  symbols[3] = _mm_loadu_si128(reinterpret_cast<__m128i const*>(tableBegin + offset[3]));
+  symbols[4] = _mm_loadu_si128(reinterpret_cast<__m128i const*>(tableBegin + offset[4]));
+  symbols[5] = _mm_loadu_si128(reinterpret_cast<__m128i const*>(tableBegin + offset[5]));
+  symbols[6] = _mm_loadu_si128(reinterpret_cast<__m128i const*>(tableBegin + offset[6]));
+  symbols[7] = _mm_loadu_si128(reinterpret_cast<__m128i const*>(tableBegin + offset[7]));
 
   __m128i frequencies[2];
   __m128i cumulativeFrequencies[2];
