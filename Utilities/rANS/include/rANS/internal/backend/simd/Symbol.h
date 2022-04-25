@@ -31,7 +31,7 @@ namespace internal
 namespace simd
 {
 
-class alignas(getAlignment(SIMDWidth::SSE)) Symbol
+class Symbol
 {
  public:
   constexpr Symbol() noexcept {}; //NOLINT
