@@ -121,6 +121,8 @@ class LiteralSIMDEncoder
   using encoderSymbolTable_t = internal::simd::SymbolTable;
 
  public:
+  using source_t = source_T;
+
   //TODO(milettri): fix once ROOT cling respects the standard http://wg21.link/p1286r2
   LiteralSIMDEncoder() noexcept {}; //NOLINT
   LiteralSIMDEncoder(const RenormedFrequencyTable& frequencyTable) : mSymbolTable{frequencyTable} {};

@@ -149,6 +149,21 @@ o2_add_executable(Streaming
     target_link_libraries(${ransStreamingBenchmark} PRIVATE PkgConfig::Vtune)
   endif()
 
+
+o2_add_executable(TPCEncodeDecode
+                  SOURCES benchmarks/bench_ransTPC.cxx
+                  COMPONENT_NAME rANS
+                  IS_BENCHMARK
+                  PUBLIC_LINK_LIBRARIES O2::rANS 
+                  TARGETVARNAME ransTPCBenchmark
+                  PUBLIC_LINK_LIBRARIES O2::rANS Boost::program_options FairLogger::FairLogger RapidJSON::RapidJSON)
+  target_compile_options(${ransTPCBenchmark} PRIVATE  -O3 -march=native -fopenmp)
+  target_link_libraries(${ransTPCBenchmark} PRIVATE -ltbb)
+  if(${ENABLE_VTUNE_PROFILER})
+  target_compile_definitions(${ransTPCBenchmark} PRIVATE ENABLE_VTUNE_PROFILER)
+  target_link_libraries(${ransTPCBenchmark} PRIVATE PkgConfig::Vtune)
+endif()
+
 endif()
 
 o2_add_executable(SIMD
