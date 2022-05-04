@@ -35,6 +35,13 @@ template <typename Hist_IT>
 class HistogramView
 {
  public:
+  HistogramView() = default;
+  HistogramView(const HistogramView&) = default;
+  HistogramView(HistogramView&&) = default;
+  HistogramView& operator=(const HistogramView&) = default;
+  HistogramView& operator=(HistogramView&&) = default;
+  ~HistogramView() = default;
+
   HistogramView(Hist_IT begin, Hist_IT end, std::ptrdiff_t offset = 0) : mBegin{begin}, mEnd{end}, mOffset{offset} {};
 
   inline size_t size() const { return std::distance(mBegin, mEnd); };
@@ -56,9 +63,16 @@ class HistogramView
   inline auto rend() const { return std::make_reverse_iterator(this->begin()); };
 
  private:
-  Hist_IT mBegin;
-  Hist_IT mEnd;
+  Hist_IT mBegin{};
+  Hist_IT mEnd{};
   std::ptrdiff_t mOffset{};
+};
+
+template <typename Hist_IT>
+std::ostream& operator<<(std::ostream& os, const HistogramView<Hist_IT>& view)
+{
+  os << fmt::format("HistogramView: size {}, offset {}", view.size(), view.getOffset());
+  return os;
 };
 
 template <typename Hist_IT>
