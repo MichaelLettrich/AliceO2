@@ -101,6 +101,9 @@ set_package_properties(CURL PROPERTIES TYPE REQUIRED)
 find_package(TBB)
 set_package_properties(TBB PROPERTIES TYPE REQUIRED)
 
+find_package(absl CONFIG)
+set_package_properties(absl PROPERTIES TYPE REQUIRED)
+
 find_package(JAliEnROOT MODULE)
 set_package_properties(JAliEnROOT PROPERTIES TYPE RECOMMENDED)
 
