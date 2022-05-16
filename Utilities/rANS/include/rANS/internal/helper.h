@@ -32,9 +32,9 @@ namespace rans
 namespace internal
 {
 
-inline constexpr size_t toBytes(size_t bits) { return (bits / 8) + (bits % 8 != 0); };
+inline constexpr size_t toBytes(size_t bits) noexcept { return (bits / 8) + (bits % 8 != 0); };
 
-inline constexpr size_t toBits(size_t bytes) { return bytes * 8; };
+inline constexpr size_t toBits(size_t bytes) noexcept { return bytes * 8; };
 
 template <typename T>
 inline constexpr bool needs64Bit() noexcept
