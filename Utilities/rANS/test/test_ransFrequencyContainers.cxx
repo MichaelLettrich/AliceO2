@@ -22,26 +22,26 @@
 #include <boost/mpl/vector.hpp>
 #include <gsl/span>
 
-#include "rANS/StaticFrequencyTableContainer.h"
-#include "rANS/HashMapFrequencyContainer.h"
+#include "rANS/StaticFrequencyTable.h"
+#include "rANS/HashFrequencyTable.h"
 
 using namespace o2::rans;
 
 using staticFrequencyTables_t = boost::mpl::vector<
-  StaticFrequencyContainer<char>,
-  StaticFrequencyContainer<uint8_t>,
-  StaticFrequencyContainer<int8_t>,
-  StaticFrequencyContainer<uint16_t>,
-  StaticFrequencyContainer<int16_t>>;
+  StaticFrequencyTable<char>,
+  StaticFrequencyTable<uint8_t>,
+  StaticFrequencyTable<int8_t>,
+  StaticFrequencyTable<uint16_t>,
+  StaticFrequencyTable<int16_t>>;
 
 using hashFrequencyTables_t = boost::mpl::vector<
-  HashMapFrequencyContainer<char>,
-  HashMapFrequencyContainer<uint8_t>,
-  HashMapFrequencyContainer<int8_t>,
-  HashMapFrequencyContainer<uint16_t>,
-  HashMapFrequencyContainer<int16_t>,
-  HashMapFrequencyContainer<uint32_t>,
-  HashMapFrequencyContainer<int32_t>>;
+  HashFrequencyTable<char>,
+  HashFrequencyTable<uint8_t>,
+  HashFrequencyTable<int8_t>,
+  HashFrequencyTable<uint16_t>,
+  HashFrequencyTable<int16_t>,
+  HashFrequencyTable<uint32_t>,
+  HashFrequencyTable<int32_t>>;
 
 namespace std
 {
@@ -59,8 +59,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_emptyStaticTables, frequencyTable_T, staticFr
   using source_type = typename frequencyTable_T::source_type;
   frequencyTable_T frequencyTable{};
 
+  const size_t tableSize = 1ul << (sizeof(source_type) * 8);
+
   BOOST_CHECK_EQUAL(frequencyTable.empty(), true);
-  BOOST_CHECK_EQUAL(frequencyTable.size(), 1ul << (sizeof(source_type) * 8));
+  BOOST_CHECK_EQUAL(frequencyTable.size(), tableSize);
   BOOST_CHECK(frequencyTable.begin() != frequencyTable.end());
   BOOST_CHECK(frequencyTable.cbegin() != frequencyTable.cend());
 };
