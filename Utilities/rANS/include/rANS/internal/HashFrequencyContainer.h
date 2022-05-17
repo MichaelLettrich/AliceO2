@@ -64,8 +64,6 @@ class HashFrequencyContainer : public FrequencyContainer<source_T,
 
   [[nodiscard]] inline constexpr size_type size() const noexcept { return this->mContainer.size(); };
 
-  [[nodiscard]] inline source_type getOffset() const noexcept { return 0; };
-
   [[nodiscard]] inline size_type computeNUsedAlphabetSymbols() const noexcept { return this->size(); };
 
  protected:
