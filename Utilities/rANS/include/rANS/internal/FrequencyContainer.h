@@ -60,12 +60,13 @@ class FrequencyContainer
 
   [[nodiscard]] inline size_type getNumSamples() const noexcept { return mNSamples; };
 
-  [[nodiscard]] inline source_type getOffset() const noexcept { return static_cast<derived_T*>(this)->getOffset(); };
+  [[nodiscard]] inline source_type getOffset() const noexcept { return mOffset; };
 
   [[nodiscard]] inline container_type release() &&
   {
     container_type t{};
     std::swap(t, mContainer);
+    mOffset = 0;
     mNSamples = 0;
     return t;
   };
@@ -74,6 +75,7 @@ class FrequencyContainer
   FrequencyContainer() = default;
 
   container_type mContainer{};
+  source_type mOffset{};
   size_type mNSamples{};
 };
 } // namespace rans

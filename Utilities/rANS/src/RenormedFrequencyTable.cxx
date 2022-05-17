@@ -134,22 +134,32 @@ RenormedFrequencyTable renormCutoffIncompressible(FrequencyTable frequencyTable,
     LOG(warning) << "rescaling Frequency Table for empty message";
   }
 
+  const symbol_t minSymbol = frequencyTable.getMinSymbol();
+  const symbol_t maxSymbol = frequencyTable.getMaxSymbol();
+  const double_t nSamples = frequencyTable.getNumSamples();
+  const double_t nIncompressibleSymbols = frequencyTable.getIncompressibleSymbolFrequency();
+  const count_t nUsedAlphabetSymbols = frequencyTable.getNUsedAlphabetSymbols();
+
+  if (nUsedAlphabetSymbols == 1) {
+    newPrecision = 1;
+  }
+
   if (newPrecision == 0) {
-    newPrecision = computeRenormingPrecision(frequencyTable);
+    newPrecision = computeRenormingPrecision(nUsedAlphabetSymbols);
   }
 
   const count_t nSamplesRescaled = 1 << newPrecision;
-  const double_t probabilityCutOffThreshold = 1 / static_cast<double_t>(1 << (newPrecision + lowProbabilityCutoffBits));
+  const double_t probabilityCutOffThreshold = 1 / static_cast<double_t>(1ul << (newPrecision + lowProbabilityCutoffBits));
 
   // scaling
-  double_t incompressibleSymbolProbability = static_cast<double_t>(frequencyTable.getIncompressibleSymbolFrequency()) / nSamplesRescaled;
+  double_t incompressibleSymbolProbability = nIncompressibleSymbols / nSamplesRescaled;
   count_t nSamplesRescaledUncorrected = 0;
-  std::vector<size_t> correctableIndices;
-  correctableIndices.reserve(frequencyTable.getNUsedAlphabetSymbols());
+  std::vector<uint32_t> correctableIndices;
+  correctableIndices.reserve(nUsedAlphabetSymbols);
 
   auto scaleFrequency = [nSamplesRescaled](double_t symbolProbability) { return symbolProbability * nSamplesRescaled; };
-  auto roundDownFrequency = [](double_t i) { return static_cast<count_t>(i); };
-  auto roundUpFrequency = [roundDownFrequency](count_t i) { return roundDownFrequency(i) + 1; };
+  auto roundDownFrequency = [](double_t x) { return static_cast<count_t>(x); };
+  auto roundUpFrequency = [roundDownFrequency](double_t x) { return roundDownFrequency(x) + 1; };
   auto roundFrequency = [roundDownFrequency, roundUpFrequency](double_t rescaledFrequency) {
     if (rescaledFrequency * rescaledFrequency <= (roundDownFrequency(rescaledFrequency) * roundUpFrequency(rescaledFrequency))) {
       return roundDownFrequency(rescaledFrequency);
@@ -158,22 +168,25 @@ RenormedFrequencyTable renormCutoffIncompressible(FrequencyTable frequencyTable,
     }
   };
 
-  histogram_t rescaledFrequencies(frequencyTable.size());
+  // histogram_t rescaledFrequencies(frequencyTable.size());
+  histogram_t rescaledFrequencies = std::move(frequencyTable).release();
 
-  for (size_t i = 0; i < frequencyTable.size(); ++i) {
-    const count_t frequency = frequencyTable.at(i);
-    const double_t symbolProbability = static_cast<double_t>(frequency) / static_cast<double_t>(frequencyTable.getNumSamples());
-    if (symbolProbability < probabilityCutOffThreshold) {
-      incompressibleSymbolProbability += symbolProbability;
-      rescaledFrequencies[i] = 0;
-    } else {
-      const double_t scaledFrequencyD = scaleFrequency(symbolProbability);
-      count_t rescaledFrequency = roundFrequency(scaledFrequencyD);
-      assert(rescaledFrequency > 0);
-      rescaledFrequencies[i] = rescaledFrequency;
-      nSamplesRescaledUncorrected += rescaledFrequency;
-      if (rescaledFrequency > 1) {
-        correctableIndices.push_back(i);
+  for (uint32_t i = 0; i < rescaledFrequencies.size(); ++i) {
+    const count_t frequency = rescaledFrequencies[i];
+    if (frequency > 0) {
+      const double_t symbolProbability = static_cast<double_t>(frequency) / nSamples;
+      if (symbolProbability < probabilityCutOffThreshold) {
+        incompressibleSymbolProbability += symbolProbability;
+        rescaledFrequencies[i] = 0;
+      } else {
+        const double_t scaledFrequencyD = scaleFrequency(symbolProbability);
+        count_t rescaledFrequency = roundFrequency(scaledFrequencyD);
+        assert(rescaledFrequency > 0);
+        rescaledFrequencies[i] = rescaledFrequency;
+        nSamplesRescaledUncorrected += rescaledFrequency;
+        if (rescaledFrequency > 1) {
+          correctableIndices.push_back(i);
+        }
       }
     }
   }
@@ -214,7 +227,7 @@ RenormedFrequencyTable renormCutoffIncompressible(FrequencyTable frequencyTable,
     throw std::runtime_error(fmt::format("rANS rescaling incomplete: {} corrections Remaining", nCorrections));
   }
 
-  FrequencyTable newFrequencyTable{rescaledFrequencies.begin(), rescaledFrequencies.end(), frequencyTable.getMinSymbol(), incompressibleSymbolFrequency};
+  FrequencyTable newFrequencyTable{rescaledFrequencies.begin(), rescaledFrequencies.end(), minSymbol, incompressibleSymbolFrequency};
 
   t.stop();
   LOG(debug1) << __func__ << " inclusive time (ms): " << t.getDurationMS();

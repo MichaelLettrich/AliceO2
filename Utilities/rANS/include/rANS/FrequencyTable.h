@@ -40,6 +40,18 @@ namespace rans
 class FrequencyTable
 {
  public:
+  using source_type = int32_t;
+  using index_type = int32_t;
+  using value_type = count_t;
+  using container_type = histogram_t;
+  using size_type = size_t;
+  using difference_type = std::ptrdiff_t;
+  using reference = value_type&;
+  using const_reference = const value_type&;
+  using pointer = value_type*;
+  using const_pointer = const value_type*;
+  using const_iterator = const value_type*;
+
   using iterator_t = count_t*;
   using constIterator_t = const count_t*;
 
@@ -131,6 +143,8 @@ double_t computeEntropy(const FrequencyTable& table);
 
 count_t computeRenormingPrecision(const FrequencyTable& frequencyTable);
 
+count_t computeRenormingPrecision(count_t nUsedAlphabetSymbols);
+
 std::ostream& operator<<(std::ostream& out, const FrequencyTable& fTable);
 
 } // namespace rans
@@ -156,7 +170,7 @@ template <typename Source_IT, std::enable_if_t<internal::isIntegralIter_v<Source
 inline FrequencyTable& FrequencyTable::addSamples(Source_IT begin, Source_IT end, bool extendTable)
 {
   if (begin != end) {
-    const auto& [minIter, maxIter] = std::minmax_element(begin, end);
+    const auto [minIter, maxIter] = std::minmax_element(begin, end);
     addSamples(begin, end, *minIter, *maxIter, extendTable);
   } else {
     LOG(warning) << "Passed empty message to " << __func__; // RS this is ok for empty columns

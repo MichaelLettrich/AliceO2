@@ -34,7 +34,9 @@ FrequencyTable& FrequencyTable::trim()
 
 FrequencyTable& FrequencyTable::resize(symbol_t min, symbol_t max, bool truncate)
 {
-  assert(max >= min);
+  if (min > max) {
+    throw std::runtime_error(fmt::format("{} failed: min {} > max {} ", __func__, min, max));
+  }
 
   const size_t newSize = max - min + 1;
   const symbol_t oldOffset = mOffset;
@@ -74,6 +76,16 @@ double_t computeEntropy(const FrequencyTable& table)
 count_t computeRenormingPrecision(const FrequencyTable& frequencyTable)
 {
   const uint8_t minBits = std::ceil(std::log2(frequencyTable.getNUsedAlphabetSymbols()));
+  const uint8_t estimate = minBits * 3u / 2u;
+  const uint8_t maxThreshold = std::max(minBits, MaxRenormThreshold);
+  const uint8_t minThreshold = std::max(estimate, MinRenormThreshold);
+
+  return std::min(minThreshold, maxThreshold);
+};
+
+count_t computeRenormingPrecision(count_t nUsedAlphabetSymbols)
+{
+  const uint8_t minBits = internal::log2UInt(nUsedAlphabetSymbols);
   const uint8_t estimate = minBits * 3u / 2u;
   const uint8_t maxThreshold = std::max(minBits, MaxRenormThreshold);
   const uint8_t minThreshold = std::max(estimate, MinRenormThreshold);
