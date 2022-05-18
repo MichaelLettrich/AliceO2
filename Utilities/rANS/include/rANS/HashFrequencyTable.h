@@ -70,13 +70,9 @@ template <typename source_T>
 template <typename source_IT>
 auto HashFrequencyTable<source_T>::addSamples(source_IT begin, source_IT end) -> HashFrequencyTable&
 {
-  if constexpr (std::is_pointer_v<source_IT>) {
-    return addSamples({begin, end});
-  } else {
-    std::for_each(begin, end, [this](const source_type& symbol) { 
+  std::for_each(begin, end, [this](const source_type& symbol) { 
       ++this->mNSamples;
       ++this->mContainer[static_cast<index_type>(symbol)]; });
-  }
   return *this;
 }
 

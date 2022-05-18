@@ -43,7 +43,7 @@ class FrequencyTableBase
 
   inline derived_T& addSamples(gsl::span<const source_type> samples)
   {
-    return addSamples(samples.begin(), samples.end());
+    return addSamples(samples.data(), samples.data() + samples.size());
   };
 
   template <typename freq_IT>
@@ -53,9 +53,9 @@ class FrequencyTableBase
     return static_cast<derived_T*>(this)->addFrequencies(begin, end, offset);
   };
 
-  inline derived_T& addFrequencies(gsl::span<const value_type> span, source_type offset)
+  inline derived_T& addFrequencies(gsl::span<const value_type> frequencies, source_type offset)
   {
-    return addFrequencies(span.begin(), span.end(), offset);
+    return addFrequencies(frequencies.data(), frequencies.data() + frequencies.size(), offset);
   };
 
   derived_T& operator+(derived_T& other)
