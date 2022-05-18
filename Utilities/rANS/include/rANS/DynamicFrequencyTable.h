@@ -100,7 +100,8 @@ template <typename source_T>
 template <typename source_IT>
 inline auto DynamicFrequencyTable<source_T>::addSamples(gsl::span<const source_type> span, source_type min, source_type max) -> DynamicFrequencyTable&
 {
-  return addSamples(span.begin(), span.end(), min, max);
+
+  return addSamples(span.data(), span.data() + span.size(), min, max);
 }
 
 template <typename source_T>
