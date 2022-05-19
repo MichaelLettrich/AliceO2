@@ -20,37 +20,35 @@
 #include <cstdint>
 #include <string>
 
+#include "rANS/internal/ContainerInterface.h"
+
 namespace o2
 {
 namespace rans
 {
 
 template <class source_T, class index_T, class value_T, class container_T, class derived_T>
-class FrequencyContainer
+class FrequencyContainer : public ContainerInterface<source_T, index_T, value_T, container_T,
+                                                     FrequencyContainer<source_T, index_T, value_T, container_T, derived_T>>
 {
+  using base_type = ContainerInterface<source_T, index_T, value_T, container_T,
+                                       FrequencyContainer<source_T, index_T, value_T, container_T, derived_T>>;
+
  public:
-  using source_type = source_T;
-  using index_type = index_T;
-  using value_type = value_T;
-  using container_type = container_T;
-  using size_type = size_t;
-  using difference_type = std::ptrdiff_t;
-  using reference = value_type&;
-  using const_reference = const value_type&;
-  using pointer = value_type*;
-  using const_pointer = const value_type*;
-  using const_iterator = typename container_type::const_iterator;
+  using source_type = typename base_type::source_type;
+  using index_type = typename base_type::index_type;
+  using value_type = typename base_type::value_type;
+  using container_type = typename base_type::container_type;
+  using size_type = typename base_type::size_type;
+  using difference_type = typename base_type::difference_type;
+  using reference = typename base_type::reference;
+  using const_reference = typename base_type::const_reference;
+  using pointer = typename base_type::pointer;
+  using const_pointer = typename base_type::const_pointer;
+  using const_iterator = typename base_type::const_iterator;
 
   // accessors
   [[nodiscard]] inline value_type operator[](source_type sourceSymbol) const { static_cast<derived_T*>(this)->operator[](sourceSymbol); };
-
-  [[nodiscard]] inline const_iterator cbegin() const noexcept { return mContainer.begin(); };
-
-  [[nodiscard]] inline const_iterator cend() const noexcept { return mContainer.end(); };
-
-  [[nodiscard]] inline const_iterator begin() const noexcept { return cbegin(); };
-
-  [[nodiscard]] inline const_iterator end() const noexcept { return cend(); };
 
   [[nodiscard]] inline size_type size() const noexcept { return static_cast<derived_T*>(this)->size(); };
 
@@ -64,17 +62,24 @@ class FrequencyContainer
 
   [[nodiscard]] inline container_type release() &&
   {
-    container_type t{};
-    std::swap(t, mContainer);
-    mOffset = 0;
-    mNSamples = 0;
-    return t;
+    using std::swap;
+    FrequencyContainer tmp{};
+    swap(tmp, *this);
+    return tmp.mContainer;
+  };
+
+  friend void swap(FrequencyContainer& a, FrequencyContainer& b)
+  {
+    using std::swap;
+    swap(a.mOffset, b.mOffset);
+    swap(a.mNSamples, b.mNSamples);
+    swap(static_cast<typename FrequencyContainer::base_type&>(a),
+         static_cast<typename FrequencyContainer::base_type&>(b));
   };
 
  protected:
   FrequencyContainer() = default;
 
-  container_type mContainer{};
   source_type mOffset{};
   size_type mNSamples{};
 };
