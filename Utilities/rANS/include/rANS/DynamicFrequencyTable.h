@@ -34,13 +34,13 @@ namespace rans
 {
 
 template <typename source_T>
-class DynamicFrequencyTable : public DynamicFrequencyContainer<source_T>,
+class DynamicFrequencyTable : public internal::DynamicFrequencyContainer<source_T>,
                               public FrequencyTableBase<source_T,
-                                                        typename DynamicFrequencyContainer<source_T>::value_type,
+                                                        typename internal::DynamicFrequencyContainer<source_T>::value_type,
                                                         DynamicFrequencyTable<source_T>>
 {
-  using containerBase_type = DynamicFrequencyContainer<source_T>;
-  using frequencyTableBase_type = FrequencyTableBase<source_T, typename DynamicFrequencyContainer<source_T>::value_type, DynamicFrequencyTable<source_T>>;
+  using containerBase_type = internal::DynamicFrequencyContainer<source_T>;
+  using frequencyTableBase_type = FrequencyTableBase<source_T, typename internal::DynamicFrequencyContainer<source_T>::value_type, DynamicFrequencyTable<source_T>>;
 
  public:
   using source_type = source_T;
@@ -81,6 +81,13 @@ class DynamicFrequencyTable : public DynamicFrequencyContainer<source_T>,
   DynamicFrequencyTable& resize(source_type min, source_type max);
 
   inline DynamicFrequencyTable& resize(size_type newSize) { return resize(this->getMinSymbol(), this->getMinSymbol() + newSize); };
+
+  friend void swap(DynamicFrequencyTable& a, DynamicFrequencyTable& b) noexcept
+  {
+    using std::swap;
+    swap(static_cast<typename DynamicFrequencyTable::containerBase_type&>(a),
+         static_cast<typename DynamicFrequencyTable::containerBase_type&>(b));
+  };
 };
 
 template <typename source_T>
