@@ -60,13 +60,13 @@ inline size_t itemsPerQWord()
 } // namespace internal
 
 template <typename source_T>
-class StaticFrequencyTable : public StaticFrequencyContainer<source_T>,
+class StaticFrequencyTable : public internal::StaticFrequencyContainer<source_T>,
                              public FrequencyTableBase<source_T,
-                                                       typename StaticFrequencyContainer<source_T>::value_type,
+                                                       typename internal::StaticFrequencyContainer<source_T>::value_type,
                                                        StaticFrequencyTable<source_T>>
 {
-  using containerBase_type = StaticFrequencyContainer<source_T>;
-  using frequencyTableBase_type = FrequencyTableBase<source_T, typename StaticFrequencyContainer<source_T>::value_type, StaticFrequencyTable<source_T>>;
+  using containerBase_type = internal::StaticFrequencyContainer<source_T>;
+  using frequencyTableBase_type = FrequencyTableBase<source_T, typename internal::StaticFrequencyContainer<source_T>::value_type, StaticFrequencyTable<source_T>>;
 
  public:
   using source_type = source_T;
@@ -98,6 +98,13 @@ class StaticFrequencyTable : public StaticFrequencyContainer<source_T>,
   StaticFrequencyTable& addFrequencies(freq_IT begin, freq_IT end, source_type offset);
 
   using frequencyTableBase_type::addFrequencies;
+
+  friend void swap(StaticFrequencyTable& a, StaticFrequencyTable& b) noexcept
+  {
+    using std::swap;
+    swap(static_cast<typename StaticFrequencyTable::containerBase_type&>(a),
+         static_cast<typename StaticFrequencyTable::containerBase_type&>(b));
+  };
 };
 
 template <typename source_T>
@@ -117,6 +124,11 @@ auto StaticFrequencyTable<source_T>::addSamples(source_IT begin, source_IT end) 
 template <typename source_T>
 auto StaticFrequencyTable<source_T>::addSamples(gsl::span<const source_type> samples) -> StaticFrequencyTable&
 {
+
+  if (samples.empty()) {
+    return *this;
+  }
+
   const auto begin = samples.data();
   const auto end = begin + samples.size();
   constexpr size_t ElemsPerQWord = sizeof(uint64_t) / sizeof(source_type);
