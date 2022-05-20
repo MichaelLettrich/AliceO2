@@ -26,6 +26,8 @@ namespace o2
 {
 namespace rans
 {
+namespace internal
+{
 
 template <class source_T, class index_T, class value_T, class container_T, class derived_T>
 class FrequencyContainer : public ContainerInterface<source_T, index_T, value_T, container_T,
@@ -48,30 +50,19 @@ class FrequencyContainer : public ContainerInterface<source_T, index_T, value_T,
   using const_iterator = typename base_type::const_iterator;
 
   // accessors
-  [[nodiscard]] inline value_type operator[](source_type sourceSymbol) const { static_cast<derived_T*>(this)->operator[](sourceSymbol); };
+  [[nodiscard]] inline value_type operator[](source_type sourceSymbol) const { static_cast<const derived_T*>(this)->operator[](sourceSymbol); };
 
-  [[nodiscard]] inline size_type size() const noexcept { return static_cast<derived_T*>(this)->size(); };
+  [[nodiscard]] inline size_type size() const noexcept { return static_cast<const derived_T*>(this)->size(); };
 
   [[nodiscard]] inline bool empty() const noexcept { return mNSamples == 0; };
 
-  [[nodiscard]] inline size_type computeNUsedAlphabetSymbols() const noexcept { return static_cast<derived_T*>(this)->computeNUsedAlphabetSymbols(); };
+  [[nodiscard]] inline size_type computeNUsedAlphabetSymbols() const noexcept { return static_cast<const derived_T*>(this)->computeNUsedAlphabetSymbols(); };
 
   [[nodiscard]] inline size_type getNumSamples() const noexcept { return mNSamples; };
 
-  [[nodiscard]] inline source_type getOffset() const noexcept { return mOffset; };
-
-  [[nodiscard]] inline container_type release() &&
+  friend void swap(FrequencyContainer& a, FrequencyContainer& b) noexcept
   {
     using std::swap;
-    FrequencyContainer tmp{};
-    swap(tmp, *this);
-    return tmp.mContainer;
-  };
-
-  friend void swap(FrequencyContainer& a, FrequencyContainer& b)
-  {
-    using std::swap;
-    swap(a.mOffset, b.mOffset);
     swap(a.mNSamples, b.mNSamples);
     swap(static_cast<typename FrequencyContainer::base_type&>(a),
          static_cast<typename FrequencyContainer::base_type&>(b));
@@ -80,9 +71,10 @@ class FrequencyContainer : public ContainerInterface<source_T, index_T, value_T,
  protected:
   FrequencyContainer() = default;
 
-  source_type mOffset{};
   size_type mNSamples{};
 };
+
+} // namespace internal
 } // namespace rans
 } // namespace o2
 

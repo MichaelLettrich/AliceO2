@@ -36,22 +36,26 @@ namespace cpp
 class DecoderSymbol
 {
  public:
+  using value_type = count_t;
+
   //TODO(milettri): fix once ROOT cling respects the standard http://wg21.link/p1286r2
   constexpr DecoderSymbol() noexcept {}; //NOLINT
   // Initialize a decoder symbol to start "start" and frequency "freq"
-  constexpr DecoderSymbol(count_t frequency, count_t cumulative, size_t symbolTablePrecision)
+  constexpr DecoderSymbol(value_type frequency, value_type cumulative, size_t symbolTablePrecision)
     : mCumulative(cumulative), mFrequency(frequency)
   {
     (void)symbolTablePrecision; // silence compiler warnings if assert not compiled.
     assert(mCumulative <= pow2(symbolTablePrecision));
     assert(mFrequency <= pow2(symbolTablePrecision) - mCumulative);
   };
-  inline constexpr count_t getFrequency() const noexcept { return mFrequency; };
-  inline constexpr count_t getCumulative() const noexcept { return mCumulative; };
+  inline constexpr value_type getFrequency() const noexcept { return mFrequency; };
+  inline constexpr value_type getCumulative() const noexcept { return mCumulative; };
+
+  inline bool operator==(const DecoderSymbol& other) const { return this->mCumulative == other.mCumulative; };
 
  private:
-  count_t mCumulative{}; // Start of range.
-  count_t mFrequency{};  // Symbol frequency.
+  value_type mCumulative{}; // Start of range.
+  value_type mFrequency{};  // Symbol frequency.
 };
 
 } // namespace cpp

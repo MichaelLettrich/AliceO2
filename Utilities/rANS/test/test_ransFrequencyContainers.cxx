@@ -681,7 +681,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_renormIncompressible, frequencyTable_T, frequ
 
   if constexpr (std::is_same_v<frequencyTable_T, HashFrequencyTable<uint8_t>>) {
     for (uint8_t index = 0; index < rescaledFrequencies.size(); ++index) {
-      renormedFrequencyTable[index] == rescaledFrequencies[index];
+      BOOST_CHECK_EQUAL(renormedFrequencyTable[index + 6], rescaledFrequencies[index]);
     }
   } else if constexpr (std::is_same_v<frequencyTable_T, FrequencyTable>) {
     BOOST_CHECK_EQUAL_COLLECTIONS(renormedFrequencyTable.begin(), renormedFrequencyTable.end(), rescaledFrequencies.begin(), rescaledFrequencies.end());

@@ -25,6 +25,9 @@ namespace o2
 namespace rans
 {
 
+namespace internal
+{
+
 template <class source_T, class index_T, class value_T, class container_T, class derived_T>
 class ContainerInterface
 {
@@ -42,8 +45,6 @@ class ContainerInterface
   using const_iterator = typename container_type::const_iterator;
 
   // accessors
-  [[nodiscard]] inline value_type operator[](source_type sourceSymbol) const { static_cast<derived_T*>(this)->operator[](sourceSymbol); };
-
   [[nodiscard]] inline const_iterator cbegin() const noexcept { return mContainer.begin(); };
 
   [[nodiscard]] inline const_iterator cend() const noexcept { return mContainer.end(); };
@@ -52,29 +53,28 @@ class ContainerInterface
 
   [[nodiscard]] inline const_iterator end() const noexcept { return cend(); };
 
-  [[nodiscard]] inline size_type size() const noexcept { return static_cast<derived_T*>(this)->size(); };
+  [[nodiscard]] inline size_type size() const noexcept { return static_cast<const derived_T*>(this)->size(); };
 
   [[nodiscard]] inline bool empty() const noexcept { return mContainer.empty(); };
 
-  [[nodiscard]] inline container_type release() &&
-  {
-    using std::swap;
-    ContainerInterface tmp{};
-    swap(tmp, *this);
-    return tmp.mContainer;
-  };
+  [[nodiscard]] inline source_type getOffset() const noexcept { return mOffset; };
 
-  friend void swap(ContainerInterface& a, ContainerInterface& b)
+  [[nodiscard]] inline container_type release() && noexcept { return std::move(this->mContainer); };
+
+  friend void swap(ContainerInterface& a, ContainerInterface& b) noexcept
   {
     using std::swap;
+    swap(a.mOffset, b.mOffset);
     swap(a.mContainer, b.mContainer);
   };
 
  protected:
   ContainerInterface() = default;
 
+  source_type mOffset{};
   container_type mContainer{};
 };
+} // namespace internal
 } // namespace rans
 } // namespace o2
 

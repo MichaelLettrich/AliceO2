@@ -26,6 +26,8 @@ namespace o2
 {
 namespace rans
 {
+namespace internal
+{
 
 template <typename source_T>
 class HashFrequencyContainer : public FrequencyContainer<source_T,
@@ -66,10 +68,18 @@ class HashFrequencyContainer : public FrequencyContainer<source_T,
 
   [[nodiscard]] inline size_type computeNUsedAlphabetSymbols() const noexcept { return this->size(); };
 
+  friend void swap(HashFrequencyContainer& a, HashFrequencyContainer& b) noexcept
+  {
+    using std::swap;
+    swap(static_cast<typename HashFrequencyContainer::base_type&>(a),
+         static_cast<typename HashFrequencyContainer::base_type&>(b));
+  };
+
  protected:
   HashFrequencyContainer() = default;
 };
 
+} // namespace internal
 } // namespace rans
 } // namespace o2
 

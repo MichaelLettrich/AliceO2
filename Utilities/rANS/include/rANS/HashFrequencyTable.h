@@ -28,13 +28,13 @@ namespace rans
 {
 
 template <typename source_T>
-class HashFrequencyTable : public HashFrequencyContainer<source_T>,
+class HashFrequencyTable : public internal::HashFrequencyContainer<source_T>,
                            public FrequencyTableBase<source_T,
-                                                     typename HashFrequencyContainer<source_T>::value_type,
+                                                     typename internal::HashFrequencyContainer<source_T>::value_type,
                                                      HashFrequencyTable<source_T>>
 {
-  using containerBase_type = HashFrequencyContainer<source_T>;
-  using frequencyTableBase_type = FrequencyTableBase<source_T, typename HashFrequencyContainer<source_T>::value_type, HashFrequencyTable<source_T>>;
+  using containerBase_type = internal::HashFrequencyContainer<source_T>;
+  using frequencyTableBase_type = FrequencyTableBase<source_T, typename internal::HashFrequencyContainer<source_T>::value_type, HashFrequencyTable<source_T>>;
 
  public:
   using source_type = typename containerBase_type::source_type;
@@ -64,6 +64,13 @@ class HashFrequencyTable : public HashFrequencyContainer<source_T>,
   HashFrequencyTable& addFrequencies(freq_IT begin, freq_IT end, source_type offset);
 
   using frequencyTableBase_type::addFrequencies;
+
+  friend void swap(HashFrequencyTable& a, HashFrequencyTable& b) noexcept
+  {
+    using std::swap;
+    swap(static_cast<typename HashFrequencyTable::base_type&>(a),
+         static_cast<typename HashFrequencyTable::base_type&>(b));
+  };
 };
 
 template <typename source_T>

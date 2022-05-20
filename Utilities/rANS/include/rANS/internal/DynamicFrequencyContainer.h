@@ -29,6 +29,8 @@ namespace o2
 {
 namespace rans
 {
+namespace internal
+{
 
 template <typename source_T>
 class DynamicFrequencyContainer : public FrequencyContainer<
@@ -60,11 +62,18 @@ class DynamicFrequencyContainer : public FrequencyContainer<
 
   [[nodiscard]] inline const_pointer data() const noexcept { return this->mContainer.data(); };
 
-  [[nodiscard]] inline constexpr size_type size() const noexcept { return this->mContainer.size(); };
+  [[nodiscard]] inline size_type size() const noexcept { return this->mContainer.size(); };
 
   [[nodiscard]] inline size_type computeNUsedAlphabetSymbols() const noexcept
   {
     return std::count_if(this->begin(), this->end(), [](value_type v) { return v != static_cast<value_type>(0); });
+  };
+
+  friend void swap(DynamicFrequencyContainer& a, DynamicFrequencyContainer& b) noexcept
+  {
+    using std::swap;
+    swap(static_cast<typename DynamicFrequencyContainer::base_type&>(a),
+         static_cast<typename DynamicFrequencyContainer::base_type&>(b));
   };
 
  protected:
@@ -82,6 +91,7 @@ class DynamicFrequencyContainer : public FrequencyContainer<
   };
 };
 
+} // namespace internal
 } // namespace rans
 } // namespace o2
 

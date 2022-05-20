@@ -36,6 +36,10 @@ namespace rans
 template <typename source_T>
 inline constexpr size_t computeRenormingPrecision(size_t nUsedAlphabetSymbols)
 {
+  if (nUsedAlphabetSymbols == 0) {
+    return 0;
+  }
+
   if constexpr (sizeof(source_T) == 1) {
     return 14;
   }
@@ -48,6 +52,9 @@ inline constexpr size_t computeRenormingPrecision(size_t nUsedAlphabetSymbols)
     return std::min(lowerBound, upperBound);
   };
 }
+
+namespace renorm_impl
+{
 
 template <typename frequencyTable_T>
 inline size_t getIncompressibleSymbolFrequency(const frequencyTable_T&)
@@ -74,7 +81,11 @@ inline size_t getNUsedAlphabetSymbols(const DynamicFrequencyTable<source_T>& f)
 template <typename frequencyTable_T>
 inline size_t getNUsedAlphabetSymbols(const frequencyTable_T& f)
 {
-  return f.size();
+  if (f.empty()) {
+    return 0;
+  } else {
+    return f.size();
+  }
 }
 
 inline auto getOffset(const FrequencyTable& f)
@@ -87,6 +98,8 @@ inline uint32_t getOffset(const frequencyTable_T& f)
 {
   return f.getOffset();
 }
+
+} // namespace renorm_impl
 
 template <class frequencyTable_T>
 decltype(auto) renormCutoffIncompressible(frequencyTable_T unrenomredTable, uint8_t newPrecision = 0, uint8_t lowProbabilityCutoffBits = 3)
@@ -102,14 +115,10 @@ decltype(auto) renormCutoffIncompressible(frequencyTable_T unrenomredTable, uint
   using container_type = typename frequencyTable_T::container_type;
   using iterator_type = typename container_type::iterator;
 
-  const source_type offset = getOffset(unrenomredTable);
+  const source_type offset = renorm_impl::getOffset(unrenomredTable);
   const double_t nSamples = unrenomredTable.getNumSamples();
-  const double_t nIncompressibleSymbols = getIncompressibleSymbolFrequency(unrenomredTable);
-  const count_type nUsedAlphabetSymbols = getNUsedAlphabetSymbols(unrenomredTable);
-
-  if (nUsedAlphabetSymbols == 1) {
-    newPrecision = 1;
-  }
+  const double_t nIncompressibleSymbols = renorm_impl::getIncompressibleSymbolFrequency(unrenomredTable);
+  const count_type nUsedAlphabetSymbols = renorm_impl::getNUsedAlphabetSymbols(unrenomredTable);
 
   if (newPrecision == 0) {
     newPrecision = computeRenormingPrecision<source_type>(nUsedAlphabetSymbols);
@@ -196,7 +205,12 @@ decltype(auto) renormCutoffIncompressible(frequencyTable_T unrenomredTable, uint
   // correction
   std::stable_sort(correctableIndices.begin(), correctableIndices.end(), [&rescaledFrequencies](const iterator_type& a, const iterator_type& b) {
     if constexpr (std::is_same_v<container_type, typename HashFrequencyTable<source_type>::container_type>) {
-      return a->second < b->second;
+      // iterator over unodered_map is by storage location and not key. For same (stable) results of array and hash map approach, we need to enforce the same order.
+      if (a->second == b->second) {
+        return a->first < b->first;
+      } else {
+        return a->second < b->second;
+      }
     } else {
       return *a < *b;
     }

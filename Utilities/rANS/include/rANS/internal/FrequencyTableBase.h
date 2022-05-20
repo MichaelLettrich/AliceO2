@@ -38,7 +38,12 @@ class FrequencyTableBase
   inline derived_T& addSamples(source_IT begin, source_IT end)
   {
     static_assert(internal::isCompatibleIter_v<source_type, source_IT>);
-    return static_cast<derived_T*>(this)->addSamples(begin, end);
+
+    if (begin == end) {
+      return static_cast<derived_T&>(*this);
+    } else {
+      return static_cast<derived_T*>(this)->addSamples(begin, end);
+    }
   };
 
   inline derived_T& addSamples(gsl::span<const source_type> samples)
@@ -50,7 +55,12 @@ class FrequencyTableBase
   inline derived_T& addFrequencies(freq_IT begin, freq_IT end, source_type offset)
   {
     static_assert(internal::isCompatibleIter_v<value_type, freq_IT>);
-    return static_cast<derived_T*>(this)->addFrequencies(begin, end, offset);
+
+    if (begin == end) {
+      return static_cast<derived_T&>(*this);
+    } else {
+      return static_cast<derived_T*>(this)->addFrequencies(begin, end, offset);
+    }
   };
 
   inline derived_T& addFrequencies(gsl::span<const value_type> frequencies, source_type offset)

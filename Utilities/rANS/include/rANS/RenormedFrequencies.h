@@ -65,17 +65,23 @@ class RenormedFrequencyTable_Impl : public frequencyContainer_T
 
   [[nodiscard]] inline bool hasIncompressibleSymbol() const noexcept { return mNIncompressible != 0; };
 
+  friend void swap(RenormedFrequencyTable_Impl& a, RenormedFrequencyTable_Impl& b) noexcept
+  {
+    using std::swap;
+    swap(static_cast<typename RenormedFrequencyTable_Impl::base_type&>(a),
+         static_cast<typename RenormedFrequencyTable_Impl::base_type&>(b));
+  };
+
  private:
   value_type mNIncompressible{};
 };
 
 template <typename source_T>
-using RenormedStaticFrequencyTable = RenormedFrequencyTable_Impl<StaticFrequencyContainer<source_T>>;
+using RenormedStaticFrequencyTable = RenormedFrequencyTable_Impl<internal::StaticFrequencyContainer<source_T>>;
 template <typename source_T>
-using RenormedDynamicFrequencyTable = RenormedFrequencyTable_Impl<DynamicFrequencyContainer<source_T>>;
+using RenormedDynamicFrequencyTable = RenormedFrequencyTable_Impl<internal::DynamicFrequencyContainer<source_T>>;
 template <typename source_T>
-using RenormedHashFrequencyTable = RenormedFrequencyTable_Impl<HashFrequencyContainer<source_T>>;
-
+using RenormedHashFrequencyTable = RenormedFrequencyTable_Impl<internal::HashFrequencyContainer<source_T>>;
 } // namespace rans
 } // namespace o2
 
