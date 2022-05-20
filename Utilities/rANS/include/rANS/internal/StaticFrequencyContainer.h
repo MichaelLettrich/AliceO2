@@ -29,6 +29,8 @@ namespace o2
 {
 namespace rans
 {
+namespace internal
+{
 
 template <typename source_T>
 class StaticFrequencyContainer : public FrequencyContainer<
@@ -54,12 +56,6 @@ class StaticFrequencyContainer : public FrequencyContainer<
 
   static_assert(sizeof(index_type) <= 2, "This datatype requires a <=16Bit datatype for source_T");
 
-  ~StaticFrequencyContainer() = default;
-  StaticFrequencyContainer(const StaticFrequencyContainer&) = default;
-  StaticFrequencyContainer(StaticFrequencyContainer&&) = default;
-  StaticFrequencyContainer& operator=(const StaticFrequencyContainer&) = default;
-  StaticFrequencyContainer& operator=(StaticFrequencyContainer&&) = default;
-
   // accessors
   [[nodiscard]] inline value_type operator[](source_type sourceSymbol) const { return this->mContainer[static_cast<index_type>(sourceSymbol)]; };
 
@@ -72,6 +68,13 @@ class StaticFrequencyContainer : public FrequencyContainer<
     return std::count_if(this->begin(), this->end(), [](value_type v) { return v != static_cast<value_type>(0); });
   };
 
+  friend void swap(StaticFrequencyContainer& a, StaticFrequencyContainer& b) noexcept
+  {
+    using std::swap;
+    swap(static_cast<typename StaticFrequencyContainer::base_type&>(a),
+         static_cast<typename StaticFrequencyContainer::base_type&>(b));
+  };
+
  protected:
   StaticFrequencyContainer()
   {
@@ -79,6 +82,7 @@ class StaticFrequencyContainer : public FrequencyContainer<
   };
 };
 
+} // namespace internal
 } // namespace rans
 } // namespace o2
 
