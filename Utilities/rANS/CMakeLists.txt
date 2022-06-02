@@ -92,6 +92,14 @@ o2_add_test(EncodeDecode
             COMPONENT_NAME rANS
             LABELS utils)
 
+o2_add_test(EncodeDecodeNew
+            NAME EncodeDecodeNew
+            SOURCES test/test_ransEncodeDecodeNew.cxx
+            PUBLIC_LINK_LIBRARIES O2::rANS
+            COMPONENT_NAME rANS
+            LABELS utils)
+
+
 o2_add_test(EncodeDecodeLargeScale
             NAME EncodeDecodeLargeScale
             SOURCES test/test_ransEncodeDecodeLargeScale.cxx
@@ -179,16 +187,16 @@ o2_add_executable(TPCEncodeDecode
   target_link_libraries(${ransTPCBenchmark} PRIVATE PkgConfig::Vtune)
 endif()
 
-o2_add_executable(TPCBuildFrequencyTable
-                  SOURCES benchmarks/bench_ransTPCFrequencyTable.cxx
-                  COMPONENT_NAME rANS
-                  IS_BENCHMARK
-                  PUBLIC_LINK_LIBRARIES O2::rANS 
-                  TARGETVARNAME ransTPCBenchmark
-                  PUBLIC_LINK_LIBRARIES O2::rANS Boost::program_options FairLogger::FairLogger RapidJSON::RapidJSON)
+if(${ENABLE_VTUNE_PROFILER})
+  o2_add_executable(TPCBuildFrequencyTable
+                    SOURCES benchmarks/bench_ransTPCFrequencyTable.cxx
+                    COMPONENT_NAME rANS
+                    IS_BENCHMARK
+                    PUBLIC_LINK_LIBRARIES O2::rANS 
+                    TARGETVARNAME ransTPCBenchmark
+                    PUBLIC_LINK_LIBRARIES O2::rANS Boost::program_options FairLogger::FairLogger RapidJSON::RapidJSON)
   target_compile_options(${ransTPCBenchmark} PRIVATE  -O3 -march=native)
   target_link_libraries(${ransTPCBenchmark} PRIVATE -ltbb)
-  if(${ENABLE_VTUNE_PROFILER})
   target_compile_definitions(${ransTPCBenchmark} PRIVATE ENABLE_VTUNE_PROFILER)
   target_link_libraries(${ransTPCBenchmark} PRIVATE PkgConfig::Vtune)
 endif()
