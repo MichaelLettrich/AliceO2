@@ -68,7 +68,6 @@ class DynamicFrequencyTable : public internal::DynamicFrequencyContainer<source_
   template <typename source_IT>
   DynamicFrequencyTable& addSamples(source_IT begin, source_IT end, source_type min, source_type max);
 
-  template <typename source_IT>
   DynamicFrequencyTable& addSamples(gsl::span<const source_type> span, source_type min, source_type max);
 
   // operations
@@ -104,7 +103,6 @@ inline auto DynamicFrequencyTable<source_T>::addSamples(source_IT begin, source_
 }
 
 template <typename source_T>
-template <typename source_IT>
 inline auto DynamicFrequencyTable<source_T>::addSamples(gsl::span<const source_type> span, source_type min, source_type max) -> DynamicFrequencyTable&
 {
 
