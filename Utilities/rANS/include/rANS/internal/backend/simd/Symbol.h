@@ -34,6 +34,10 @@ namespace simd
 class Symbol
 {
  public:
+  using value_type = uint32_t;
+  using size_type = size_t;
+  using difference_type = std::ptrdiff_t;
+
   constexpr Symbol() noexcept {}; //NOLINT
   constexpr Symbol(uint32_t frequency, uint32_t cumulative) noexcept : mSymbol{frequency, cumulative} {};
   // legacy
@@ -52,6 +56,11 @@ class Symbol
   constexpr uint32_t getCumulative() const noexcept
   {
     return mSymbol[1];
+  };
+
+  constexpr bool operator==(const Symbol& other) const noexcept
+  {
+    return this->getCumulative() == other.getCumulative();
   };
 
  private:
