@@ -45,7 +45,7 @@ class SymbolTableContainer : public ContainerInterface<source_T, index_T, value_
  public:
   using source_type = typename base_type::source_type;
   using index_type = typename base_type::index_type;
-  using value_type = typename base_type::value_type;
+  using symbol_type = typename base_type::value_type;
   using container_type = typename base_type::container_type;
   using size_type = typename base_type::size_type;
   using difference_type = typename base_type::difference_type;
@@ -81,7 +81,7 @@ class SymbolTableContainer : public ContainerInterface<source_T, index_T, value_
  protected:
   SymbolTableContainer() = default;
 
-  value_type mEscapeSymbol{};
+  symbol_type mEscapeSymbol{};
   size_type mSymbolTablePrecision{};
 };
 
