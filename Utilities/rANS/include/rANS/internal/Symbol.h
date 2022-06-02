@@ -9,16 +9,17 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// @file   EncoderSymbol.h
+/// @file   Symbol.h
 /// @author Michael Lettrich
 /// @since  2019-05-21
-/// @brief  Structure containing all relevant information to encode a symbol.
+/// @brief  Structure containing all relevant information for decoding a rANS encoded symbol
 
-#ifndef RANS_INTERNAL_CPP_ENCODERSYMBOL_H
-#define RANS_INTERNAL_CPP_ENCODERSYMBOL_H
+#ifndef RANS_INTERNAL_SYMBOL_H
+#define RANS_INTERNAL_SYMBOL_H
 
-#include <cstdint>
 #include <cassert>
+#include <cstdint>
+#include <cstring>
 
 #include <fairlogger/Logger.h>
 
@@ -31,23 +32,53 @@ namespace rans
 {
 namespace internal
 {
-namespace cpp
+// Decoder symbols are straightforward.
+class Symbol
 {
-// Encoder symbol description
-// This (admittedly odd) selection of parameters was chosen to make
-// RansEncPutSymbol as cheap as possible.
-template <typename T>
+ public:
+  using value_type = count_t;
+  using size_type = size_t;
+  using difference_type = std::ptrdiff_t;
 
-class EncoderSymbol
+  //TODO(milettri): fix once ROOT cling respects the standard http://wg21.link/p1286r2
+  constexpr Symbol() noexcept {}; //NOLINT
+  constexpr Symbol(value_type frequency, value_type cumulative, size_type symbolTablePrecision)
+    : mFrequency(frequency), mCumulative(cumulative)
+  {
+    (void)symbolTablePrecision; // silence compiler warnings if assert not compiled.
+    assert(mCumulative <= pow2(symbolTablePrecision));
+    assert(mFrequency <= pow2(symbolTablePrecision) - mCumulative);
+  };
+  [[nodiscard]] inline constexpr value_type getFrequency() const noexcept { return mFrequency; };
+  [[nodiscard]] inline constexpr value_type getCumulative() const noexcept { return mCumulative; };
+
+  [[nodiscard]] inline bool operator==(const Symbol& other) const { return this->mCumulative == other.mCumulative; };
+
+  friend std::ostream& operator<<(std::ostream& os, const Symbol& symbol)
+  {
+    os << fmt::format("Symbol:{{Frequency: {}, Cumulative: {}}}", symbol.getFrequency(), symbol.getCumulative());
+    return os;
+  }
+
+ protected:
+  value_type mFrequency{};
+  value_type mCumulative{};
+};
+
+class PrecomputedSymbol : public Symbol
 {
- private:
-  __extension__ using uint128_t = unsigned __int128;
+  using base_type = Symbol;
 
  public:
-  //TODO(milettri): fix once ROOT cling respects the standard http://wg21.link/p1286r2
-  constexpr EncoderSymbol() noexcept {}; //NOLINT
+  using value_type = typename base_type::value_type;
+  using state_type = uint64_t;
+  using size_type = typename base_type::size_type;
+  using difference_type = typename base_type::difference_type;
 
-  constexpr EncoderSymbol(count_t frequency, count_t cumulative, size_t symbolTablePrecision)
+  //TODO(milettri): fix once ROOT cling respects the standard http://wg21.link/p1286r2
+  constexpr PrecomputedSymbol() noexcept {}; //NOLINT
+
+  constexpr PrecomputedSymbol(value_type frequency, value_type cumulative, size_t symbolTablePrecision) : base_type{}
   {
     assert(cumulative <= pow2(symbolTablePrecision));
     assert(frequency <= pow2(symbolTablePrecision) - cumulative);
@@ -70,7 +101,7 @@ class EncoderSymbol
     // the fast encoder agree.
 
     mFrequency = frequency;
-    mFrequencyComplement = static_cast<T>((pow2(symbolTablePrecision)) - frequency);
+    mFrequencyComplement = static_cast<state_type>((pow2(symbolTablePrecision)) - frequency);
     if (frequency < 2) {
       // frequency=0 symbols are never valid to encode, so it doesn't matter what
       // we set our values to.
@@ -98,47 +129,42 @@ class EncoderSymbol
       //
       // so we have cumulative = bias + 1 - M, or equivalently
       //   bias = cumulative + M - 1.
-      mReciprocalFrequency = static_cast<T>(~0ul);
+      mReciprocalFrequency = static_cast<state_type>(~0ul);
       mReciprocalShift = 0;
-      mBias = cumulative + (pow2(symbolTablePrecision)) - 1;
+      mCumulative = cumulative + (pow2(symbolTablePrecision)) - 1;
     } else {
       // Alverson, "Integer Division using reciprocals"
       const uint32_t shift = std::ceil(std::log2(frequency));
 
-      if constexpr (needs64Bit<T>()) {
-        // long divide ((uint128) (1 << (shift + 63)) + frequency-1) / frequency
-        // by splitting it into two 64:64 bit divides (this works because
-        // the dividend has a simple form.)
-        uint64_t x0 = frequency - 1;
-        const uint64_t x1 = 1ull << (shift + 31);
+      // long divide ((uint128) (1 << (shift + 63)) + frequency-1) / frequency
+      // by splitting it into two 64:64 bit divides (this works because
+      // the dividend has a simple form.)
+      uint64_t x0 = frequency - 1;
+      const uint64_t x1 = 1ull << (shift + 31);
 
-        const uint64_t t1 = x1 / frequency;
-        x0 += (x1 % frequency) << 32;
-        const uint64_t t0 = x0 / frequency;
+      const uint64_t t1 = x1 / frequency;
+      x0 += (x1 % frequency) << 32;
+      const uint64_t t0 = x0 / frequency;
 
-        mReciprocalFrequency = t0 + (t1 << 32);
-      } else {
-        mReciprocalFrequency = static_cast<count_t>(((1ull << (shift + 31)) + frequency - 1) / frequency);
-      }
+      mReciprocalFrequency = t0 + (t1 << 32);
+
       mReciprocalShift = shift - 1;
 
       // With these values, 'q' is the correct quotient, so we
       // have bias=cumulative.
-      mBias = cumulative;
+      mCumulative = cumulative;
     }
   };
 
-  inline constexpr T getReciprocalFrequency() const noexcept { return mReciprocalFrequency; };
-  inline constexpr count_t getFrequency() const noexcept { return mFrequency; };
-  inline constexpr count_t getBias() const noexcept { return mBias; };
-  inline constexpr count_t getFrequencyComplement() const noexcept { return mFrequencyComplement; };
-  inline constexpr count_t getReciprocalShift() const noexcept { return mReciprocalShift; };
+  inline constexpr state_type getReciprocalFrequency() const noexcept { return mReciprocalFrequency; };
+  inline constexpr value_type getFrequencyComplement() const noexcept { return mFrequencyComplement; };
+  inline constexpr value_type getReciprocalShift() const noexcept { return mReciprocalShift; };
 
-  friend std::ostream& operator<<(std::ostream& os, const EncoderSymbol& symbol)
+  friend std::ostream& operator<<(std::ostream& os, const PrecomputedSymbol& symbol)
   {
-    os << fmt::format("EncoderSymbol:{{Frequency: {},Bias: {}, ReciprocalFrequency {}, FrequencyComplement {}, mReciprocalShift {}}}",
+    os << fmt::format("PrecomputedSymbol{{Frequency: {},Cumulative: {}, ReciprocalFrequency {}, FrequencyComplement {}, mReciprocalShift {}}}",
                       symbol.getFrequency(),
-                      symbol.getBias(),
+                      symbol.getCumulative(),
                       symbol.getReciprocalFrequency(),
                       symbol.getFrequencyComplement(),
                       symbol.getReciprocalShift());
@@ -146,16 +172,13 @@ class EncoderSymbol
   };
 
  private:
-  T mReciprocalFrequency{};       // Fixed-point reciprocal frequency
-  count_t mFrequency{};           // (Exclusive) upper bound of pre-normalization interval
-  count_t mBias{};                // Bias
-  count_t mFrequencyComplement{}; // Complement of frequency: (1 << symbolTablePrecision) - frequency
-  count_t mReciprocalShift{};     // Reciprocal shift
+  state_type mReciprocalFrequency{}; // Fixed-point reciprocal frequency
+  value_type mFrequencyComplement{}; // Complement of frequency: (1 << symbolTablePrecision) - frequency
+  value_type mReciprocalShift{};     // Reciprocal shift
 };
 
-} // namespace cpp
 } // namespace internal
 } // namespace rans
 } // namespace o2
 
-#endif /* RANS_INTERNAL_CPP_ENCODERSYMBOL_H */
+#endif /* RANS_INTERNAL_SYMBOL_H */
