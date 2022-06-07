@@ -60,10 +60,10 @@ class EncoderFacade
   template <typename stream_IT, typename source_IT, typename literals_IT = std::nullptr_t, std::enable_if_t<internal::isCompatibleIter_v<source_type, source_IT>, bool> = true>
   stream_IT process(source_IT inputBegin, source_IT inputEnd, stream_IT outputBegin, literals_IT literalsBegin = nullptr) const;
 
-  template <typename stream_IT, typename source_IT, typename literals_IT = std::nullptr_t, std::enable_if_t<internal::isCompatibleIter_v<source_type, source_IT>, bool> = true>
-  inline stream_IT process(gsl::span<const source_type> inputStream, gsl::span<stream_type> outputStream, literals_IT literalsBegin = nullptr) const
+  template <typename literals_IT = std::nullptr_t>
+  inline stream_type* process(gsl::span<const source_type> inputStream, gsl::span<stream_type> outputStream, literals_IT literalsBegin = nullptr) const
   {
-    return process(inputStream.begin(), inputStream.begin() + inputStream.size(), outputStream.begin(), literalsBegin);
+    return process(inputStream.data(), inputStream.data() + inputStream.size(), outputStream.data(), literalsBegin);
   };
 
  protected:
@@ -103,11 +103,11 @@ stream_IT EncoderFacade<encoder_T, symbolTable_T, nStreams_V>::process(source_IT
   const size_t nPartialCoderIterations = nRemainderSymbols / NCoderStreams;
   const size_t nFractionalEncodes = nRemainderSymbols % NCoderStreams;
 
-  LOGP(info, "inputBufferSize: {}", inputBufferSize);
-  LOGP(info, "nAllCoderIterations: {}", nAllCoderIterations);
-  LOGP(info, "nRemainderSymbols: {}", nRemainderSymbols);
-  LOGP(info, "nPartialCoderIterations: {}", nPartialCoderIterations);
-  LOGP(info, "nFractionalEncodes: {}", nFractionalEncodes);
+  // LOGP(info, "inputBufferSize: {}", inputBufferSize);
+  // LOGP(info, "nAllCoderIterations: {}", nAllCoderIterations);
+  // LOGP(info, "nRemainderSymbols: {}", nRemainderSymbols);
+  // LOGP(info, "nPartialCoderIterations: {}", nPartialCoderIterations);
+  // LOGP(info, "nFractionalEncodes: {}", nFractionalEncodes);
 
   // from here on, everything runs backwards!
   // We are encoding symbols from the end of the message to the beginning of the message.
@@ -126,7 +126,7 @@ stream_IT EncoderFacade<encoder_T, symbolTable_T, nStreams_V>::process(source_IT
 
   auto activeCoder = coders.rend() - nPartialCoderIterations;
 
-  uint32_t counter = 0;
+  // uint32_t counter = 0;
 
   if (nFractionalEncodes) {
     // LOG(trace) << "masked encodes";
@@ -136,7 +136,7 @@ stream_IT EncoderFacade<encoder_T, symbolTable_T, nStreams_V>::process(source_IT
     typename coder_type::symbol_type encoderSymbol;
     inputIter = symbolMapper.unpackSymbols(inputIter, encoderSymbol, nFractionalEncodes);
     outputIter = activeCoder->putSymbols(outputIter, encoderSymbol, nFractionalEncodes);
-    ++counter;
+    // ++counter;
 
     ++activeCoder;
   }
@@ -148,7 +148,7 @@ stream_IT EncoderFacade<encoder_T, symbolTable_T, nStreams_V>::process(source_IT
       typename coder_type::symbol_type encoderSymbol;
       inputIter = symbolMapper.unpackSymbols(inputIter, encoderSymbol);
       outputIter = activeCoder->putSymbols(outputIter, encoderSymbol);
-      ++counter;
+      // ++counter;
     }
     activeCoder = coders.rbegin();
   }
@@ -158,7 +158,7 @@ stream_IT EncoderFacade<encoder_T, symbolTable_T, nStreams_V>::process(source_IT
     outputIter = activeCoder->flush(outputIter);
   }
 
-  LOGP(info, "nEncodes: {}", counter);
+  // LOGP(info, "nEncodes: {}", counter);
 
   // first iterator past the range so that sizes, distances and iterators work correctly.
   ++outputIter;

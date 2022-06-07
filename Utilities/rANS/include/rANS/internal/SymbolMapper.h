@@ -67,7 +67,7 @@ class SymbolMapperIterface
   template <typename source_IT>
   [[nodiscard]] inline const symbol_type& lookupSymbol(source_IT sourceIter)
   {
-    LOGP(info, "unpacking {}", fmt::ptr(sourceIter));
+    // LOGP(info, "unpacking {}", fmt::ptr(sourceIter));
 
     const symbol_type& symbol = (*mSymbolTable)[*sourceIter];
 
