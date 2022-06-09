@@ -41,24 +41,6 @@ namespace o2
 namespace rans
 {
 
-namespace internal
-{
-
-inline uint64_t load64(const void* __restrict src)
-{
-  uint64_t ret;
-  std::memcpy(&ret, src, 8);
-  return ret;
-};
-
-template <typename T>
-inline size_t itemsPerQWord()
-{
-  return sizeof(uint64_t) / sizeof(T);
-}
-
-} // namespace internal
-
 template <typename source_T>
 class StaticFrequencyTable : public internal::StaticFrequencyContainer<source_T>,
                              public FrequencyTableBase<source_T,
@@ -137,7 +119,7 @@ auto StaticFrequencyTable<source_T>::addSamples(gsl::span<const source_type> sam
 
   if constexpr (sizeof(source_type) == 1) {
 
-    alignas(64) value_type histograms[3][256]{0}; // al"ign to cache-line
+    alignas(64) value_type histograms[3][256]{0}; // align to cache-line
 
     auto addQWord = [&, this](uint64_t in64) {
       uint64_t i = in64;
