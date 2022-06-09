@@ -124,7 +124,10 @@ stream_IT EncoderFacade<encoder_T, symbolTable_T, nStreams_V>::process(source_IT
 
   SymbolMapper<symbolTable_type, coder_type, literals_IT> symbolMapper{this->mSymbolTable, literalsIter};
 
-  auto activeCoder = coders.rend() - nPartialCoderIterations;
+  coder_type* coderRBegin = &(*coders.rbegin());
+  coder_type* coderREnd = &(*coders.rend());
+
+  coder_type* activeCoder = coderREnd + nPartialCoderIterations;
 
   // uint32_t counter = 0;
 
@@ -132,29 +135,29 @@ stream_IT EncoderFacade<encoder_T, symbolTable_T, nStreams_V>::process(source_IT
     // LOG(trace) << "masked encodes";
     // one more encoding step than nRemainderLoopIterations for masked encoding
     // will not cause out of range
-    --activeCoder;
+    ++activeCoder;
     typename coder_type::symbol_type encoderSymbol;
     inputIter = symbolMapper.unpackSymbols(inputIter, encoderSymbol, nFractionalEncodes);
     outputIter = activeCoder->putSymbols(outputIter, encoderSymbol, nFractionalEncodes);
     // ++counter;
 
-    ++activeCoder;
+    --activeCoder;
   }
 
   // we are encoding backwards!
   while (inputIter != inputREnd) {
     // iterate over coders with wrap around
-    for (; activeCoder != coders.rend(); ++activeCoder) {
+    for (; activeCoder != coderREnd; --activeCoder) {
       typename coder_type::symbol_type encoderSymbol;
       inputIter = symbolMapper.unpackSymbols(inputIter, encoderSymbol);
       outputIter = activeCoder->putSymbols(outputIter, encoderSymbol);
       // ++counter;
     }
-    activeCoder = coders.rbegin();
+    activeCoder = coderRBegin;
   }
 
   // LOG(trace) << "flushing";
-  for (activeCoder = std::rbegin(coders); activeCoder != std::rend(coders); ++activeCoder) {
+  for (activeCoder = coderRBegin; activeCoder != coderREnd; --activeCoder) {
     outputIter = activeCoder->flush(outputIter);
   }
 
