@@ -23,15 +23,155 @@
 #include <gsl/span>
 
 #include <fairlogger/Logger.h>
+#include <immintrin.h>
+#include <utility>
 
+#include "rANS/internal/helper.h"
 #include "rANS/internal/FrequencyTableBase.h"
 #include "rANS/internal/DynamicFrequencyContainer.h"
 #include "rANS/utils/HistogramView.h"
+
+#include "rANS/internal/backend/simd/kernel.h"
 
 namespace o2
 {
 namespace rans
 {
+
+namespace internal
+{
+
+namespace impl
+{
+template <typename source_T>
+inline std::pair<source_T, source_T> minmaxImpl(const source_T* begin, const source_T* end)
+{
+  const auto [minIter, maxIter] = std::minmax_element(begin, end);
+  return {*minIter, *maxIter};
+};
+
+template <>
+std::pair<uint32_t, uint32_t> minmaxImpl<uint32_t>(const uint32_t* begin, const uint32_t* end)
+{
+  constexpr size_t ElemsPerLane = 4;
+  constexpr size_t nUnroll = 2 * ElemsPerLane;
+  auto iter = begin;
+
+  uint32_t min = *iter;
+  uint32_t max = *iter;
+
+  if (end - nUnroll > begin) {
+
+    __m128i minVec[2];
+    __m128i maxVec[2];
+    __m128i tmpVec[2];
+
+    minVec[0] = _mm_loadu_si128(reinterpret_cast<const __m128i_u*>(iter));
+    minVec[1] = minVec[0];
+    maxVec[0] = minVec[0];
+    maxVec[1] = minVec[0];
+
+    for (; iter < end - nUnroll; iter += nUnroll) {
+      tmpVec[0] = _mm_loadu_si128(reinterpret_cast<const __m128i_u*>(iter));
+      minVec[0] = _mm_min_epi32(minVec[0], tmpVec[0]);
+      maxVec[0] = _mm_max_epi32(maxVec[0], tmpVec[0]);
+
+      tmpVec[1] = _mm_loadu_si128(reinterpret_cast<const __m128i_u*>(iter) + 1);
+      minVec[1] = _mm_min_epi32(minVec[1], tmpVec[1]);
+      maxVec[1] = _mm_max_epi32(maxVec[1], tmpVec[1]);
+
+      __builtin_prefetch(iter + 512, 0);
+    }
+
+    minVec[0] = _mm_min_epu32(minVec[0], minVec[1]);
+    maxVec[0] = _mm_max_epu32(maxVec[0], maxVec[1]);
+
+    uint32_t tmpMin[ElemsPerLane];
+    uint32_t tmpMax[ElemsPerLane];
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(tmpMin), minVec[0]);
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(tmpMax), maxVec[0]);
+
+    for (size_t i = 0; i < ElemsPerLane; ++i) {
+      min = std::min(tmpMin[i], min);
+      max = std::max(tmpMax[i], max);
+    }
+  }
+
+  while (iter != end) {
+    min = std::min(*iter, min);
+    max = std::max(*iter, max);
+    ++iter;
+  }
+
+  return {min, max};
+};
+
+template <>
+std::pair<int32_t, int32_t> minmaxImpl<int32_t>(const int32_t* begin, const int32_t* end)
+{
+  constexpr size_t ElemsPerLane = 4;
+  constexpr size_t nUnroll = 2 * ElemsPerLane;
+  auto iter = begin;
+
+  int32_t min = *iter;
+  int32_t max = *iter;
+
+  if (end - nUnroll > begin) {
+
+    __m128i minVec[2];
+    __m128i maxVec[2];
+    __m128i tmpVec[2];
+
+    minVec[0] = _mm_loadu_si128(reinterpret_cast<const __m128i_u*>(iter));
+    minVec[1] = minVec[0];
+    maxVec[0] = minVec[0];
+    maxVec[1] = minVec[0];
+
+    for (; iter < end - nUnroll; iter += nUnroll) {
+      tmpVec[0] = _mm_loadu_si128(reinterpret_cast<const __m128i_u*>(iter));
+      minVec[0] = _mm_min_epu32(minVec[0], tmpVec[0]);
+      maxVec[0] = _mm_max_epu32(maxVec[0], tmpVec[0]);
+
+      tmpVec[1] = _mm_loadu_si128(reinterpret_cast<const __m128i_u*>(iter) + 1);
+      minVec[1] = _mm_min_epu32(minVec[1], tmpVec[1]);
+      maxVec[1] = _mm_max_epu32(maxVec[1], tmpVec[1]);
+
+      __builtin_prefetch(iter + 512, 0);
+    }
+
+    minVec[0] = _mm_min_epu32(minVec[0], minVec[1]);
+    maxVec[0] = _mm_max_epu32(maxVec[0], maxVec[1]);
+
+    int32_t tmpMin[ElemsPerLane];
+    int32_t tmpMax[ElemsPerLane];
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(tmpMin), minVec[0]);
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(tmpMax), maxVec[0]);
+
+    for (size_t i = 0; i < ElemsPerLane; ++i) {
+      min = std::min(tmpMin[i], min);
+      max = std::max(tmpMax[i], max);
+    }
+  }
+
+  while (iter != end) {
+    min = std::min(*iter, min);
+    max = std::max(*iter, max);
+    ++iter;
+  }
+
+  return {min, max};
+};
+}; // namespace impl
+
+template <typename source_T>
+inline std::pair<source_T, source_T> minmax(gsl::span<const source_T> range)
+{
+  const auto begin = range.data();
+  const auto end = begin + range.size();
+  return impl::minmaxImpl<source_T>(begin, end);
+};
+
+}; // namespace internal
 
 template <typename source_T>
 class DynamicFrequencyTable : public internal::DynamicFrequencyContainer<source_T>,
@@ -60,7 +200,7 @@ class DynamicFrequencyTable : public internal::DynamicFrequencyContainer<source_
   template <typename freq_IT>
   DynamicFrequencyTable(freq_IT begin, freq_IT end, source_type offset) : containerBase_type(), frequencyTableBase_type{begin, end, offset} {};
 
-  using frequencyTableBase_type::addSamples;
+  DynamicFrequencyTable& addSamples(gsl::span<const source_type> span);
 
   template <typename source_IT>
   DynamicFrequencyTable& addSamples(source_IT begin, source_IT end);
@@ -79,7 +219,10 @@ class DynamicFrequencyTable : public internal::DynamicFrequencyContainer<source_
 
   DynamicFrequencyTable& resize(source_type min, source_type max);
 
-  inline DynamicFrequencyTable& resize(size_type newSize) { return resize(this->getMinSymbol(), this->getMinSymbol() + newSize); };
+  inline DynamicFrequencyTable& resize(size_type newSize)
+  {
+    return resize(this->getMinSymbol(), this->getMinSymbol() + newSize);
+  };
 
   friend void swap(DynamicFrequencyTable& a, DynamicFrequencyTable& b) noexcept
   {
@@ -88,6 +231,17 @@ class DynamicFrequencyTable : public internal::DynamicFrequencyContainer<source_
          static_cast<typename DynamicFrequencyTable::containerBase_type&>(b));
   };
 };
+template <typename source_T>
+inline auto DynamicFrequencyTable<source_T>::addSamples(gsl::span<const source_type> samples) -> DynamicFrequencyTable&
+{
+  if (samples.size() > 0) {
+    const auto [min, max] = internal::minmax(samples);
+    addSamples(samples, min, max);
+  } else {
+    LOG(warning) << "Passed empty message to " << __func__; // RS this is ok for empty columns
+  }
+  return *this;
+}
 
 template <typename source_T>
 template <typename source_IT>
@@ -103,11 +257,50 @@ inline auto DynamicFrequencyTable<source_T>::addSamples(source_IT begin, source_
 }
 
 template <typename source_T>
-inline auto DynamicFrequencyTable<source_T>::addSamples(gsl::span<const source_type> span, source_type min, source_type max) -> DynamicFrequencyTable&
+inline auto DynamicFrequencyTable<source_T>::addSamples(gsl::span<const source_type> samples, source_type min, source_type max) -> DynamicFrequencyTable&
 {
+  if (samples.empty()) {
+    return *this;
+  }
 
-  return addSamples(span.data(), span.data() + span.size(), min, max);
-}
+  if constexpr (sizeof(source_T) == 4) {
+    this->resize(min, max);
+
+    const auto begin = samples.data();
+    const auto end = begin + samples.size();
+    constexpr size_t ElemsPerQWord = sizeof(uint64_t) / sizeof(source_type);
+    constexpr size_t nUnroll = 4 * ElemsPerQWord;
+    auto iter = begin;
+
+    const source_type offset = this->getOffset();
+
+    auto addQWord = [&, this](uint64_t in64) {
+      uint64_t i = in64;
+      ++this->mContainer[static_cast<source_type>(i) - offset];
+      i = in64 >> 32;
+      ++this->mContainer[static_cast<source_type>(i) - offset];
+    };
+
+    if (end - nUnroll > begin) {
+      for (; iter < end - nUnroll; iter += nUnroll) {
+        addQWord(internal::load64(iter));
+        addQWord(internal::load64(iter + ElemsPerQWord));
+        addQWord(internal::load64(iter + 2 * ElemsPerQWord));
+        addQWord(internal::load64(iter + 3 * ElemsPerQWord));
+        this->mNSamples += nUnroll;
+        __builtin_prefetch(iter + 512, 0);
+      }
+    }
+
+    while (iter != end) {
+      ++this->mNSamples;
+      ++this->mContainer[(*iter++) - offset];
+    }
+  } else {
+    return addSamples(samples.data(), samples.data() + samples.size(), min, max);
+  }
+  return *this;
+};
 
 template <typename source_T>
 template <typename source_IT>
