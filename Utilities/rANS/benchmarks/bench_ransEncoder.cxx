@@ -244,9 +244,9 @@ BENCHMARK_REGISTER_F(Fixture, ransCompression_64_32_32);
 BENCHMARK_REGISTER_F(Fixture, SSEransCompression_64_32_8);
 BENCHMARK_REGISTER_F(Fixture, SSEransCompression_64_32_16);
 BENCHMARK_REGISTER_F(Fixture, SSEransCompression_64_32_32);
-// BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_8);
-// BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_16);
-// BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_32);
+BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_8);
+BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_16);
+BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_32);
 
 // BENCHMARK_REGISTER_F(Fixture, simpleRansCompression_64_32_8)->Iterations(nIterations8);
 // BENCHMARK_REGISTER_F(Fixture, simpleRansCompression_64_32_16)->Iterations(nIterations16);
@@ -257,8 +257,8 @@ BENCHMARK_REGISTER_F(Fixture, SSEransCompression_64_32_32);
 // BENCHMARK_REGISTER_F(Fixture, SSEransCompression_64_32_8)->Iterations(nIterations8);
 // BENCHMARK_REGISTER_F(Fixture, SSEransCompression_64_32_16)->Iterations(nIterations16);
 // BENCHMARK_REGISTER_F(Fixture, SSEransCompression_64_32_32)->Iterations(nIterations32);
-BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_8)->Iterations(nIterations8);
-BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_16)->Iterations(nIterations16);
-BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_32)->Iterations(nIterations32);
+// BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_8)->Iterations(nIterations8);
+// BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_16)->Iterations(nIterations16);
+// BENCHMARK_REGISTER_F(Fixture, AVXransCompression_64_32_32)->Iterations(nIterations32);
 
 BENCHMARK_MAIN();
