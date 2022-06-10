@@ -16,12 +16,25 @@
 #include <fairlogger/Logger.h>
 
 #include "rANS/rans.h"
-#include "rANS/LiteralSIMDEncoder.h"
-#include "rANS/LiteralSIMDDecoder.h"
+#include "rANS/FrequencyTable.h"
 #include "rANS/StaticFrequencyTable.h"
+#include "rANS/DynamicFrequencyTable.h"
 #include "rANS/HashFrequencyTable.h"
+#include "rANS/RenormedFrequencies.h"
+#include "rANS/RenormedFrequencyTable.h"
+#include "rANS/renorm.h"
 
 namespace bpo = boost::program_options;
+
+#ifdef ENABLE_VTUNE_PROFILER
+__itt_domain* dynamicDomain = __itt_domain_create("dynamicDomain");
+__itt_domain* staticDomain = __itt_domain_create("staticDomain");
+__itt_domain* hashDomain = __itt_domain_create("hashDomain");
+__itt_domain* oldDomain = __itt_domain_create("oldDomain");
+
+__itt_string_handle* frequencyTask = __itt_string_handle_create("FrequencyTable");
+__itt_string_handle* renormTask = __itt_string_handle_create("Renorming");
+#endif
 
 template <typename source_T>
 double_t computeExpectedCodewordLength(const o2::rans::FrequencyTable& frequencies, const o2::rans::RenormedFrequencyTable& rescaled)
@@ -125,7 +138,7 @@ struct TPCCompressedClusters {
   std::vector<uint8_t> qPtA{};
   std::vector<uint8_t> rowA{};
   std::vector<uint8_t> sliceA{};
-  std::vector<int32_t> timeA{};
+  std::vector<uint32_t> timeA{};
   std::vector<uint16_t> padA{};
 
   std::vector<uint16_t> qTotU{};
@@ -310,52 +323,153 @@ TPCCompressedClusters readFile(const std::string& filename)
 };
 
 template <typename source_T>
-double_t buildDynamicFrequencyTable(const std::vector<source_T>& inputData)
+double_t computeBandwidth(size_t sizeBytes, double_t timerMS)
 {
-  using namespace o2;
-  rans::internal::RANSTimer timer{};
-  timer.start();
-  auto frequencyTable = rans::makeFrequencyTableFromSamples(inputData.begin(), inputData.end());
-  timer.stop();
-  return timer.getDurationMS();
+  return (static_cast<double_t>(sizeBytes * sizeof(source_T)) / 1024 / 1024) / (timerMS / 1000);
 };
 
 template <typename source_T>
-double_t buildBoundedDynamicFrequencyTable(const std::vector<source_T>& inputData)
+void buildDynamicFrequencyTable(const std::vector<source_T>& inputData, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
 {
   using namespace o2;
   rans::internal::RANSTimer timer{};
+  double_t timeMs = 0;
 
   timer.start();
-  auto frequencyTable = rans::makeFrequencyTableFromSamples(inputData.begin(), inputData.end());
+
+  __itt_task_begin(oldDomain, __itt_null, __itt_null, frequencyTask);
+  rans::FrequencyTable frequencyTable{};
+  frequencyTable.addSamples(inputData.begin(), inputData.end());
+  __itt_task_end(oldDomain);
+
   timer.stop();
-  return timer.getDurationMS();
+  writer.Key("FrequencyTable");
+  timeMs = timer.getDurationMS();
+  writer.Double(timeMs);
+  LOGP(info, "\t\tBuilt frequency table in {} ms ( {} MiB/s)", timeMs, computeBandwidth<source_T>(inputData.size(), timeMs));
+  writer.Key("Renorm");
+  try {
+    timer.start();
+    __itt_task_begin(oldDomain, __itt_null, __itt_null, renormTask);
+    auto renormedFrequencyTable = rans::renormCutoffIncompressible<>(std::move(frequencyTable));
+    __itt_task_end(oldDomain);
+    timer.stop();
+    timeMs = timer.getDurationMS();
+    writer.Double(timeMs);
+  } catch (...) {
+    LOGP(warning, "failed to renorm");
+    timeMs = 0;
+    writer.String("NaN");
+  }
+  LOGP(info, "\t\tRenormed in {} ms ( {} MiB/s)", timeMs, computeBandwidth<source_T>(inputData.size(), timeMs));
 };
 
 template <typename source_T>
-double_t buildStaticFrequencyTable(const std::vector<source_T>& inputData)
+void buildBoundedDynamicFrequencyTable(const std::vector<source_T>& inputData, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
 {
   using namespace o2;
   rans::internal::RANSTimer timer{};
+  double_t timeMs = 0;
 
   timer.start();
-  rans::StaticFrequencyTable<source_T> frequencyTable{};
+
+  __itt_task_begin(dynamicDomain, __itt_null, __itt_null, frequencyTask);
+  auto frequencyTable = rans::DynamicFrequencyTable<source_T>{};
   frequencyTable.addSamples(gsl::make_span(inputData));
+  __itt_task_end(dynamicDomain);
+
   timer.stop();
-  return timer.getDurationMS();
+  writer.Key("FrequencyTable");
+  timeMs = timer.getDurationMS();
+  writer.Double(timer.getDurationMS());
+  LOGP(info, "\t\tBuilt frequency table in {} ms ( {} MiB/s)", timeMs, computeBandwidth<source_T>(inputData.size(), timeMs));
+  writer.Key("Renorm");
+  try {
+    timer.start();
+    __itt_task_begin(dynamicDomain, __itt_null, __itt_null, renormTask);
+    auto renormedFrequencyTable = rans::renormCutoffIncompressible(std::move(frequencyTable));
+    __itt_task_end(dynamicDomain);
+    timer.stop();
+    timeMs = timer.getDurationMS();
+    writer.Double(timeMs);
+  } catch (...) {
+    LOGP(warning, "failed to renorm");
+    timeMs = 0;
+    writer.String("NaN");
+  }
+  LOGP(info, "\t\tRenormed in {} ms ( {} MiB/s)", timeMs, computeBandwidth<source_T>(inputData.size(), timeMs));
 };
 
 template <typename source_T>
-double_t buildHashFrequencyTable(const std::vector<source_T>& inputData)
+void buildStaticFrequencyTable(const std::vector<source_T>& inputData, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
 {
   using namespace o2;
   rans::internal::RANSTimer timer{};
+  double_t timeMs = 0;
 
   timer.start();
-  rans::HashFrequencyTable<source_T> frequencyTable{};
+
+  __itt_task_begin(staticDomain, __itt_null, __itt_null, frequencyTask);
+  auto frequencyTable = rans::StaticFrequencyTable<source_T>{};
   frequencyTable.addSamples(gsl::make_span(inputData));
+  __itt_task_end(staticDomain);
+
   timer.stop();
-  return timer.getDurationMS();
+  writer.Key("FrequencyTable");
+  timeMs = timer.getDurationMS();
+  writer.Double(timeMs);
+  LOGP(info, "\t\tBuilt frequency table in {} ms ( {} MiB/s)", timeMs, computeBandwidth<source_T>(inputData.size(), timeMs));
+  writer.Key("Renorm");
+  try {
+    timer.start();
+    __itt_task_begin(staticDomain, __itt_null, __itt_null, renormTask);
+    auto renormedFrequencyTable = rans::renormCutoffIncompressible(std::move(frequencyTable));
+    __itt_task_end(staticDomain);
+    timer.stop();
+    timeMs = timer.getDurationMS();
+    writer.Double(timeMs);
+  } catch (...) {
+    LOGP(warning, "failed to renorm");
+    timeMs = 0;
+    writer.String("NaN");
+  }
+  LOGP(info, "\t\tRenormed in {} ms ( {} MiB/s)", timeMs, computeBandwidth<source_T>(inputData.size(), timeMs));
+};
+
+template <typename source_T>
+void buildHashFrequencyTable(const std::vector<source_T>& inputData, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
+{
+  using namespace o2;
+  rans::internal::RANSTimer timer{};
+  double_t timeMs = 0;
+
+  timer.start();
+
+  __itt_task_begin(hashDomain, __itt_null, __itt_null, frequencyTask);
+  auto frequencyTable = rans::HashFrequencyTable<source_T>{};
+  frequencyTable.addSamples(gsl::make_span(inputData));
+  __itt_task_end(hashDomain);
+
+  timer.stop();
+  writer.Key("FrequencyTable");
+  timeMs = timer.getDurationMS();
+  writer.Double(timeMs);
+  LOGP(info, "\t\tBuilt frequency table in {} ms ( {} MiB/s)", timeMs, computeBandwidth<source_T>(inputData.size(), timeMs));
+  writer.Key("Renorm");
+  try {
+    timer.start();
+    __itt_task_begin(hashDomain, __itt_null, __itt_null, renormTask);
+    auto renormedFrequencyTable = rans::renormCutoffIncompressible(std::move(frequencyTable));
+    __itt_task_end(hashDomain);
+    timer.stop();
+    timeMs = timer.getDurationMS();
+    writer.Double(timeMs);
+  } catch (...) {
+    LOGP(warning, "failed to renorm");
+    timeMs = 0;
+    writer.String("NaN");
+  }
+  LOGP(info, "\t\tRenormed in {} ms ( {} MiB/s)", timeMs, computeBandwidth<source_T>(inputData.size(), timeMs));
 };
 
 template <typename source_T,
@@ -367,53 +481,47 @@ void processColumn(const std::string& name, const std::vector<source_T>& inputDa
 {
   using namespace o2;
 
-  writer.Key(name.c_str());
   writer.StartObject();
+  writer.Key("column");
+  writer.String(name.c_str());
 
   writer.Key("Timing");
   writer.StartObject();
 
+  LOG(info) << "##########################";
   LOGP(info, "processing: {} (nItems: {}, size: {} MiB)", name, inputData.size(), inputData.size() * sizeof(source_T) / 1024.0 / 1024.0);
 
-  auto computeBandwidth = [&](double_t timerMS) {
-    return (static_cast<double_t>(inputData.size() * sizeof(source_T)) / 1024 / 1024) / (timerMS / 1000);
-  };
-
   writer.Key("DynamicFrequencyTable");
+  LOGP(info, "DynamicFrequencyTable");
+  writer.StartObject();
   if constexpr (dynamicEnable) {
-    const double_t timeMs = buildDynamicFrequencyTable<source_T>(inputData);
-    writer.Double(timeMs);
-    LOGP(info, "Built DynamicFrequencyTable in {} ms ( {} MiB/s)", timeMs, computeBandwidth(timeMs));
-  } else {
-    writer.String("NaN");
-  };
+    buildDynamicFrequencyTable<source_T>(inputData, writer);
+  }
+  writer.EndObject();
 
   writer.Key("DynamicBoundedFrequencyTable");
+  LOGP(info, "DynamicBoundedFrequencyTable");
+  writer.StartObject();
   if constexpr (boundedDynamicEnable) {
-    const double_t timeMs = buildDynamicFrequencyTable<source_T>(inputData);
-    writer.Double(timeMs);
-    LOGP(info, "Built DynamicBoundedFrequencyTable in {} ms ( {} MiB/s)", timeMs, computeBandwidth(timeMs));
-  } else {
-    writer.String("NaN");
-  };
+    buildBoundedDynamicFrequencyTable<source_T>(inputData, writer);
+  }
+  writer.EndObject();
 
   writer.Key("StaticFrequencyTable");
+  LOGP(info, "StaticFrequencyTable");
+  writer.StartObject();
   if constexpr (staticEnable) {
-    const double_t timeMs = buildStaticFrequencyTable<source_T>(inputData);
-    writer.Double(timeMs);
-    LOGP(info, "Built StaticFrequencyTable in {} ms ( {} MiB/s)", timeMs, computeBandwidth(timeMs));
-  } else {
-    writer.String("NaN");
-  };
+    buildStaticFrequencyTable<source_T>(inputData, writer);
+  }
+  writer.EndObject();
 
   writer.Key("HashFrequencyTable");
+  LOGP(info, "HashFrequencyTable");
+  writer.StartObject();
   if constexpr (hashEnable) {
-    const double_t timeMs = buildHashFrequencyTable<source_T>(inputData);
-    writer.Double(timeMs);
-    LOGP(info, "Built HashFrequencyTable in {} ms ( {} MiB/s)", timeMs, computeBandwidth(timeMs));
-  } else {
-    writer.String("NaN");
-  };
+    buildHashFrequencyTable<source_T>(inputData, writer);
+  }
+  writer.EndObject();
 
   writer.EndObject(); // Timing
 
@@ -432,6 +540,9 @@ void processColumn(const std::string& name, const std::vector<source_T>& inputDa
 
 int main(int argc, char* argv[])
 {
+#ifdef ENABLE_VTUNE_PROFILER
+  __itt_pause();
+#endif
 
   bpo::options_description options("Allowed options");
   // clang-format off
@@ -478,12 +589,15 @@ int main(int argc, char* argv[])
   }
   rapidjson::OStreamWrapper stream{of};
   rapidjson::Writer<rapidjson::OStreamWrapper> writer{stream};
-  writer.StartObject();
+  writer.StartArray();
 
   TPCCompressedClusters compressedClusters = readFile(inFile);
   LOG(info) << "loaded Compressed Clusters from file";
   LOG(info) << "######################################################";
 
+#ifdef ENABLE_VTUNE_PROFILER
+  __itt_resume();
+#endif
   processColumn<uint16_t, true, true, true, true>("qTotA", compressedClusters.qTotA, writer);
   processColumn<uint16_t, true, true, true, true>("qMaxA", compressedClusters.qMaxA, writer);
   processColumn<uint8_t, true, true, true, true>("flagsA", compressedClusters.flagsA, writer);
@@ -496,7 +610,7 @@ int main(int argc, char* argv[])
   processColumn<uint8_t, true, true, true, true>("qPtA", compressedClusters.qPtA, writer);
   processColumn<uint8_t, true, true, true, true>("rowA", compressedClusters.rowA, writer);
   processColumn<uint8_t, true, true, true, true>("sliceA", compressedClusters.sliceA, writer);
-  processColumn<int32_t, false, false, false, true>("timeA", compressedClusters.timeA, writer);
+  processColumn<uint32_t, true, true, false, true>("timeA", compressedClusters.timeA, writer);
   processColumn<uint16_t, true, true, true, true>("padA", compressedClusters.padA, writer);
   processColumn<uint16_t, true, true, true, true>("qTotU", compressedClusters.qTotU, writer);
   processColumn<uint16_t, true, true, true, true>("qMaxU", compressedClusters.qMaxU, writer);
@@ -508,7 +622,11 @@ int main(int argc, char* argv[])
   processColumn<uint16_t, true, true, true, true>("nTrackClusters", compressedClusters.nTrackClusters, writer);
   processColumn<uint32_t, true, true, false, true>("nSliceRowClusters", compressedClusters.nSliceRowClusters, writer);
 
-  writer.EndObject();
+#ifdef ENABLE_VTUNE_PROFILER
+  __itt_pause();
+#endif
+
+  writer.EndArray();
   writer.Flush();
   of.close();
 };
