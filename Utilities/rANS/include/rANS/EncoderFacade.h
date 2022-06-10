@@ -101,9 +101,9 @@ class EncoderFacade
   static constexpr size_type NCoders = NStreams / NCoderStreams;
 
   //compile time preconditions:
-  static_assert(internal::isPow2(nStreams_V));
-  static_assert(coder_type::getNstreams() <= EncoderFacade::getNStreams());
-  static_assert(NCoders * NCoderStreams == NStreams);
+  static_assert(internal::isPow2(nStreams_V), "the number of streams must be a power of 2");
+  static_assert(coder_type::getNstreams() <= EncoderFacade::getNStreams(), "The specified coder type has more streams than your encoder");
+  static_assert(NCoders % 2 == 0, "At least 2 encoders must run in parallel");
 };
 
 template <class encoder_T, class symbolTable_T, std::size_t nStreams_V>
@@ -153,10 +153,10 @@ decltype(auto) EncoderFacade<encoder_T, symbolTable_T, nStreams_V>::process(sour
 
   SymbolMapper<symbolTable_type, coder_type, literals_IT> symbolMapper{this->mSymbolTable, literalsIter};
 
-  coder_type* coderRBegin = &(*coders.rbegin());
-  coder_type* coderREnd = &(*coders.rend());
+  coder_type* codersRBegin = &(*coders.rbegin());
+  coder_type* codersREnd = &(*coders.rend());
 
-  coder_type* activeCoder = coderREnd + nPartialCoderIterations;
+  coder_type* activeCoder = codersREnd + nPartialCoderIterations;
 
   // uint32_t counter = 0;
 
@@ -174,19 +174,28 @@ decltype(auto) EncoderFacade<encoder_T, symbolTable_T, nStreams_V>::process(sour
   }
 
   // we are encoding backwards!
+
+  // align encoders
+  if ((activeCoder - codersREnd) & 1) {
+    typename coder_type::symbol_type encoderSymbol;
+    inputIter = symbolMapper.unpackSymbols(inputIter, encoderSymbol);
+    outputIter = (activeCoder--)->putSymbols(outputIter, encoderSymbol);
+  }
+
   while (inputIter != inputREnd) {
     // iterate over coders with wrap around
-    for (; activeCoder != coderREnd; --activeCoder) {
+    while (activeCoder != codersREnd) {
       typename coder_type::symbol_type encoderSymbol;
       inputIter = symbolMapper.unpackSymbols(inputIter, encoderSymbol);
-      outputIter = activeCoder->putSymbols(outputIter, encoderSymbol);
-      // ++counter;
+      outputIter = (activeCoder--)->putSymbols(outputIter, encoderSymbol);
+      inputIter = symbolMapper.unpackSymbols(inputIter, encoderSymbol);
+      outputIter = (activeCoder--)->putSymbols(outputIter, encoderSymbol);
     }
-    activeCoder = coderRBegin;
+    activeCoder = codersRBegin;
   }
 
   // LOG(trace) << "flushing";
-  for (activeCoder = coderRBegin; activeCoder != coderREnd; --activeCoder) {
+  for (activeCoder = codersRBegin; activeCoder != codersREnd; --activeCoder) {
     outputIter = activeCoder->flush(outputIter);
   }
 
