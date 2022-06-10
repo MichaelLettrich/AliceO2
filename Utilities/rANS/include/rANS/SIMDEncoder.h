@@ -38,34 +38,21 @@ namespace rans
 namespace internal
 {
 
-// template <typename source_IT>
-// inline source_IT getSymbols(source_IT symbolIter, const internal::simd::SymbolTable& symbolTable, const simd::Symbol** dst) noexcept
-// {
-//   const source_IT ptr = symbolIter - 4;
-//   const symbol_t minSymbol = symbolTable.getMinSymbol();
-//   const auto tableBegin = symbolTable.data();
+inline uint64_t l64(const void* __restrict src)
+{
+  uint64_t ret;
+  std::memcpy(&ret, src, 8);
+  return ret;
+};
 
-//   if constexpr (std::is_pointer_v<source_IT> && std::is_same_v<typename std::iterator_traits<source_IT>::value_type, uint32_t>) {
-//     const uintptr_t diff = reinterpret_cast<uintptr_t>(tableBegin - minSymbol);
-//     __m128i sourceData = _mm_loadu_si128(reinterpret_cast<const __m128i_u*>(ptr));
-//     __m256i index = _mm256_cvtepi32_epi64(sourceData);
-//     static_assert(sizeof(simd::Symbol) == (1u << 4u));
-//     index = _mm256_slli_epi64(index, 4);
-//     index = _mm256_add_epi64(index, _mm256_set1_epi64x(diff));
+inline uint32_t l32(const void* __restrict src)
+{
+  uint32_t ret;
+  std::memcpy(&ret, src, 4);
+  return ret;
+};
 
-//     _mm256_store_si256(reinterpret_cast<__m256i*>(dst), index);
-
-//     auto pos = [&](size_t i) { return reinterpret_cast<uintptr_t>(tableBegin + *(symbolIter - i) - minSymbol); };
-
-//   } else {
-//     dst[0] = tableBegin + *(symbolIter - 4) - minSymbol;
-//     dst[1] = tableBegin + *(symbolIter - 3) - minSymbol;
-//     dst[2] = tableBegin + *(symbolIter - 2) - minSymbol;
-//     dst[3] = tableBegin + *(symbolIter - 1) - minSymbol;
-//   }
-//   return ptr;
-// };
-
+// template <typename source_IT, uint8_t nHardwareStreams_V, std::enable_if_t<!std::is_pointer_v<source_IT>, bool> = false>
 template <typename source_IT, uint8_t nHardwareStreams_V>
 inline std::tuple<source_IT, simd::UnrolledSymbols> getSymbols(source_IT symbolIter, const simd::SymbolTable& symbolTable) noexcept
 {
@@ -101,6 +88,139 @@ inline std::tuple<source_IT, simd::UnrolledSymbols> getSymbols(source_IT symbolI
     return {symbolIter - nHardwareStreams_V, unrolledSymbols};
   }
 };
+
+// template <typename source_IT, uint8_t nHardwareStreams_V, std::enable_if_t<std::is_pointer_v<source_IT> && sizeof(typename std::iterator_traits<source_IT>::value_type) == 1, bool> = true>
+// inline std::tuple<source_IT, simd::UnrolledSymbols> getSymbols(source_IT symbolIter, const simd::SymbolTable& symbolTable) noexcept
+// {
+//   const symbol_t minSymbol = symbolTable.getMinSymbol();
+//   const auto tableBegin = symbolTable.data();
+
+//   using source_type = typename std::iterator_traits<source_IT>::value_type;
+
+//   simd::UnrolledSymbols unrolledSymbols;
+
+//   if constexpr (nHardwareStreams_V == 4) {
+//     using namespace simd;
+//     uint64_t i = l32(symbolIter - 4);
+
+//     AlignedArray<const Symbol*, SIMDWidth::SSE, 4> ret{tableBegin + static_cast<source_type>(i >> 24) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i >> 16) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i >> 8) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i) - minSymbol};
+
+//     aosToSoa(ArrayView{ret}.template subView<0, 2>(), toSIMDView(unrolledSymbols.frequencies).template subView<0, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<0, 1>());
+//     aosToSoa(ArrayView{ret}.template subView<2, 2>(), toSIMDView(unrolledSymbols.frequencies).template subView<1, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<1, 1>());
+
+//     return {symbolIter - nHardwareStreams_V, unrolledSymbols};
+//   } else {
+//     uint64_t i = l64(symbolIter - 8);
+
+//     using namespace simd;
+//     AlignedArray<const Symbol*, SIMDWidth::SSE, 8> ret{tableBegin + static_cast<source_type>(i >> 56) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i >> 48) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i >> 40) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i >> 32) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i >> 24) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i >> 16) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i >> 8) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i) - minSymbol};
+//     aosToSoa(ArrayView{ret}.template subView<0, 4>(), toSIMDView(unrolledSymbols.frequencies).template subView<0, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<0, 1>());
+//     aosToSoa(ArrayView{ret}.template subView<4, 4>(), toSIMDView(unrolledSymbols.frequencies).template subView<1, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<1, 1>());
+//     return {symbolIter - nHardwareStreams_V, unrolledSymbols};
+//   }
+// };
+
+// template <typename source_IT, uint8_t nHardwareStreams_V, std::enable_if_t<std::is_pointer_v<source_IT> && sizeof(typename std::iterator_traits<source_IT>::value_type) == 2, bool> = true>
+// inline std::tuple<source_IT, simd::UnrolledSymbols> getSymbols(source_IT symbolIter, const simd::SymbolTable& symbolTable) noexcept
+// {
+//   const symbol_t minSymbol = symbolTable.getMinSymbol();
+//   const auto tableBegin = symbolTable.data();
+
+//   using source_type = typename std::iterator_traits<source_IT>::value_type;
+
+//   simd::UnrolledSymbols unrolledSymbols;
+
+//   if constexpr (nHardwareStreams_V == 4) {
+//     using namespace simd;
+
+//     uint64_t i = l64(symbolIter - 4);
+
+//     AlignedArray<const Symbol*, SIMDWidth::SSE, 4> ret{tableBegin + static_cast<source_type>(i >> 48) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i >> 32) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i >> 16) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i) - minSymbol};
+
+//     aosToSoa(ArrayView{ret}.template subView<0, 2>(), toSIMDView(unrolledSymbols.frequencies).template subView<0, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<0, 1>());
+//     aosToSoa(ArrayView{ret}.template subView<2, 2>(), toSIMDView(unrolledSymbols.frequencies).template subView<1, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<1, 1>());
+
+//     return {symbolIter - nHardwareStreams_V, unrolledSymbols};
+//   } else {
+//     using namespace simd;
+
+//     uint64_t i1234 = l64(symbolIter - 4);
+//     uint64_t i5678 = l64(symbolIter - 8);
+
+//     AlignedArray<const Symbol*, SIMDWidth::SSE, 8> ret{tableBegin + static_cast<source_type>(i5678 >> 48) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i5678 >> 32) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i5678 >> 16) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i5678) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i1234 >> 48) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i1234 >> 32) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i1234 >> 16) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i1234) - minSymbol};
+//     aosToSoa(ArrayView{ret}.template subView<0, 4>(), toSIMDView(unrolledSymbols.frequencies).template subView<0, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<0, 1>());
+//     aosToSoa(ArrayView{ret}.template subView<4, 4>(), toSIMDView(unrolledSymbols.frequencies).template subView<1, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<1, 1>());
+//     return {symbolIter - nHardwareStreams_V, unrolledSymbols};
+//   }
+// };
+
+// template <typename source_IT, uint8_t nHardwareStreams_V, std::enable_if_t<std::is_pointer_v<source_IT> && sizeof(typename std::iterator_traits<source_IT>::value_type) == 4, bool> = true>
+// inline std::tuple<source_IT, simd::UnrolledSymbols> getSymbols(source_IT symbolIter, const simd::SymbolTable& symbolTable) noexcept
+// {
+//   const symbol_t minSymbol = symbolTable.getMinSymbol();
+//   const auto tableBegin = symbolTable.data();
+
+//   using source_type = typename std::iterator_traits<source_IT>::value_type;
+
+//   simd::UnrolledSymbols unrolledSymbols;
+
+//   if constexpr (nHardwareStreams_V == 4) {
+//     using namespace simd;
+
+//     uint64_t i12 = l64(symbolIter - 2);
+//     uint64_t i34 = l64(symbolIter - 4);
+
+//     AlignedArray<const Symbol*, SIMDWidth::SSE, 4> ret{tableBegin + static_cast<source_type>(i34 >> 32) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i34) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i12 >> 32) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i12) - minSymbol};
+
+//     aosToSoa(ArrayView{ret}.template subView<0, 2>(), toSIMDView(unrolledSymbols.frequencies).template subView<0, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<0, 1>());
+//     aosToSoa(ArrayView{ret}.template subView<2, 2>(), toSIMDView(unrolledSymbols.frequencies).template subView<1, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<1, 1>());
+
+//     return {symbolIter - nHardwareStreams_V, unrolledSymbols};
+//   } else {
+//     using namespace simd;
+
+//     uint64_t i12 = l64(symbolIter - 2);
+//     uint64_t i34 = l64(symbolIter - 4);
+//     uint64_t i56 = l64(symbolIter - 6);
+//     uint64_t i78 = l64(symbolIter - 8);
+
+//     AlignedArray<const Symbol*, SIMDWidth::SSE, 8> ret{tableBegin + static_cast<source_type>(i78 >> 32) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i78) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i56 >> 32) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i56) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i34 >> 32) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i34) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i12 >> 32) - minSymbol,
+//                                                        tableBegin + static_cast<source_type>(i12) - minSymbol};
+//     aosToSoa(ArrayView{ret}.template subView<0, 4>(), toSIMDView(unrolledSymbols.frequencies).template subView<0, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<0, 1>());
+//     aosToSoa(ArrayView{ret}.template subView<4, 4>(), toSIMDView(unrolledSymbols.frequencies).template subView<1, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<1, 1>());
+//     return {symbolIter - nHardwareStreams_V, unrolledSymbols};
+//   }
+// };
+
 } // namespace internal
 
 template <typename coder_T,
@@ -148,9 +268,6 @@ template <typename stream_IT,
 stream_IT SIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareStreams_V>::process(source_IT inputBegin, source_IT inputEnd, stream_IT outputBegin) const
 {
   using namespace internal;
-  // LOG(trace) << "start encoding";
-  RANSTimer t;
-  t.start();
 
   if (inputBegin == inputEnd) {
     LOG(warning) << "passed empty message to encoder, skip encoding";
@@ -213,9 +330,6 @@ stream_IT SIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareStreams_
     for (size_t interleavedCoderIdx = nInterleavedStreams_V; interleavedCoderIdx-- > 0;) {
       std::tie(inputIT, outputIter) = encode(inputIT, outputIter, interleavedCoders[interleavedCoderIdx]);
     }
-    // for (coderIter = std::rbegin(interleavedCoders); coderIter != std::rend(interleavedCoders); ++coderIter) {
-    //   std::tie(inputIT, outputIter) = encode(inputIT, outputIter, *coderIter);
-    // }
   }
 
   // LOG(trace) << "flushing";
@@ -225,24 +339,6 @@ stream_IT SIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareStreams_
 
   // first iterator past the range so that sizes, distances and iterators work correctly.
   ++outputIter;
-
-  t.stop();
-  LOG(debug1) << "Encoder::" << __func__ << " {ProcessedBytes: " << inputBufferSize * sizeof(source_T) << ","
-              << " inclusiveTimeMS: " << t.getDurationMS() << ","
-              << " BandwidthMiBPS: " << std::fixed << std::setprecision(2) << (inputBufferSize * sizeof(source_T) * 1.0) / (t.getDurationS() * 1.0 * (1 << 20)) << "}";
-
-// advanced diagnostics for debug builds
-#if !defined(NDEBUG)
-
-  LOG(debug2) << "EncoderProperties: {"
-              << "sourceTypeB: " << sizeof(source_T) << ", "
-              << "streamTypeB: " << sizeof(stream_T) << ", "
-              << "coderTypeB: " << sizeof(coder_T) << ", "
-              << "symbolTablePrecision: " << this->mSymbolTablePrecision << ", "
-              << "inputBufferSizeB: " << (inputBufferSize * sizeof(source_T)) << "}";
-#endif
-
-  LOG(trace) << "done encoding";
 
   return outputIter;
 };

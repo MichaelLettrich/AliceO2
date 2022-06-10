@@ -24,6 +24,7 @@
 #include <iterator>
 #include <sstream>
 #include <vector>
+#include <cstring>
 
 #define rans_likely(x) __builtin_expect((x), 1)
 #define rans_unlikely(x) __builtin_expect((x), 0)
@@ -34,6 +35,19 @@ namespace rans
 {
 namespace internal
 {
+
+template <typename T>
+inline size_t itemsPerQWord()
+{
+  return sizeof(uint64_t) / sizeof(T);
+}
+
+inline uint64_t load64(const void* __restrict src)
+{
+  uint64_t ret;
+  std::memcpy(&ret, src, 8);
+  return ret;
+};
 
 inline constexpr size_t toBytes(size_t bits) noexcept { return (bits / 8) + (bits % 8 != 0); };
 

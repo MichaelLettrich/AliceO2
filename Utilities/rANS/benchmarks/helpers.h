@@ -1,28 +1,20 @@
-#include <vector>
-#include <cstring>
-#include <execution>
-#include <iterator>
-#include <iostream>
 
-#include <absl/container/flat_hash_map.h>
+#ifndef INCLUDE_RANS_BENCHMARKS_HELPERS_
+#define INCLUDE_RANS_BENCHMARKS_HELPERS_
 
 #ifdef ENABLE_VTUNE_PROFILER
 #include <ittnotify.h>
 #endif
 
-#include <boost/program_options.hpp>
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 #include <rapidjson/istreamwrapper.h>
 #include <rapidjson/ostreamwrapper.h>
-#include <fairlogger/Logger.h>
 
 #include "rANS/rans.h"
-#include "rANS/LiteralSIMDEncoder.h"
-#include "rANS/LiteralSIMDDecoder.h"
-#include "rANS/StaticFrequencyTable.h"
 
-namespace bpo = boost::program_options;
+#include <algorithm>
+#include <execution>
 
 template <typename source_T>
 double_t computeExpectedCodewordLength(const o2::rans::FrequencyTable& frequencies, const o2::rans::RenormedFrequencyTable& rescaled)
@@ -155,7 +147,7 @@ class TPCJsonHandler : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, TP
     inline void push_back(unsigned i) { mVectorConcept->push_back(i); };
 
     struct VectorConcept {
-      virtual ~VectorConcept(){};
+      virtual ~VectorConcept() = default;
       virtual void push_back(unsigned i) = 0;
     };
 
@@ -322,6 +314,7 @@ struct EncodeBuffer {
   std::vector<stream_T> buffer{};
   std::vector<source_T> literals{};
   stream_T* encodeIter{buffer.data()};
+  source_T* literalsIter{literals.data()};
 };
 
 template <typename source_T>
@@ -339,248 +332,4 @@ struct DecodeBuffer {
   std::vector<source_T> buffer{};
 };
 
-template <typename encoder_T, typename decoder_T>
-void ransEncodeDecode(const std::string& name, const std::vector<typename encoder_T::source_t>& inputData, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
-{
-  using namespace o2;
-  using source_t = typename encoder_T::source_t;
-  rans::internal::RANSTimer timer{};
-  writer.Key(name.c_str());
-  writer.StartObject();
-
-  EncodeBuffer<source_t> encodeBuffer{inputData.size()};
-  DecodeBuffer<source_t> decodeBuffer{inputData.size()};
-
-  writer.Key("Timing");
-  writer.StartObject();
-
-  LOGP(info, "processing: {} (nItems: {}, size: {} MiB)", name, inputData.size(), inputData.size() * sizeof(source_t) / 1024.0 / 1024.0);
-  timer.start();
-  auto frequencyTable = rans::makeFrequencyTableFromSamples(inputData.begin(), inputData.end());
-  timer.stop();
-  writer.Key("FrequencyTable");
-  writer.Double(timer.getDurationMS());
-  LOGP(info, "Built Frequency Table in {} ms", timer.getDurationMS());
-
-  timer.start();
-  auto renormedFrequencyTable = rans::renormCutoffIncompressible(frequencyTable);
-
-  timer.stop();
-  writer.Key("Renorming");
-  writer.Double(timer.getDurationMS());
-  LOGP(info, "Renormed Frequency Table in {} ms", timer.getDurationMS());
-  timer.start();
-  encoder_T encoder{renormedFrequencyTable};
-  timer.stop();
-  writer.Key("Encoder");
-  writer.Double(timer.getDurationMS());
-  LOGP(info, "Built Encoder in {} ms", timer.getDurationMS());
-  timer.start();
-#ifdef ENABLE_VTUNE_PROFILER
-  __itt_resume();
-#endif
-  encodeBuffer.encodeIter = encoder.process(inputData.data(), inputData.data() + inputData.size(), encodeBuffer.encodeIter, encodeBuffer.literals);
-#ifdef ENABLE_VTUNE_PROFILER
-  __itt_pause();
-#endif
-  timer.stop();
-  writer.Key("Encoding");
-  writer.Double(timer.getDurationMS());
-  LOGP(info, "Encoded {} Bytes in {} ms", inputData.size() * sizeof(source_t), timer.getDurationMS());
-
-  timer.start();
-  decoder_T decoder{renormedFrequencyTable};
-  timer.stop();
-  writer.Key("Decoder");
-  writer.Double(timer.getDurationMS());
-  LOGP(info, "Built Decoder in {} ms", timer.getDurationMS());
-  timer.start();
-  decoder.process(encodeBuffer.encodeIter, decodeBuffer.buffer.data(), inputData.size(), encodeBuffer.literals);
-  timer.stop();
-  writer.Key("Decoding");
-  writer.Double(timer.getDurationMS());
-  LOGP(info, "Decoded {} Bytes in {} ms", inputData.size() * sizeof(source_t), timer.getDurationMS());
-
-  if (!(decodeBuffer == inputData)) {
-    LOGP(warning, "Missmatch between original and decoded Message");
-  }
-  LOG(info) << "finished: " << name;
-
-  writer.EndObject(); // Timing
-
-  // Frequency Table
-  //##########################
-  writer.Key("FrequencyTable");
-  writer.StartObject();
-  writer.Key("nSamples");
-  writer.Uint64(frequencyTable.getNumSamples());
-  writer.Key("Min");
-  writer.Int(frequencyTable.getMinSymbol());
-  writer.Key("Max");
-  writer.Int(frequencyTable.getMaxSymbol());
-  writer.Key("alphabetRangeBits");
-  writer.Int(frequencyTable.getAlphabetRangeBits());
-  writer.Key("nUsedAlphabetSymbols");
-  writer.Uint(frequencyTable.getNUsedAlphabetSymbols());
-  writer.Key("IncompressibleFrequency");
-  writer.Uint(frequencyTable.getIncompressibleSymbolFrequency());
-  writer.EndObject(); // FrequencyTable
-
-  // RescaledFrequencies
-  //##########################
-  writer.Key("RescaledFrequencies");
-  writer.StartObject();
-  writer.Key("nSamples");
-  writer.Uint64(renormedFrequencyTable.getNumSamples());
-  writer.Key("Min");
-  writer.Int(renormedFrequencyTable.getMinSymbol());
-  writer.Key("Max");
-  writer.Int(renormedFrequencyTable.getMaxSymbol());
-  writer.Key("alphabetRangeBits");
-  writer.Int(renormedFrequencyTable.getAlphabetRangeBits());
-  writer.Key("nUsedAlphabetSymbols");
-  writer.Uint(renormedFrequencyTable.getNUsedAlphabetSymbols());
-  writer.Key("IncompressibleFrequency");
-  writer.Uint(renormedFrequencyTable.getIncompressibleSymbolFrequency());
-  writer.Key("RenormingBits");
-  writer.Uint(renormedFrequencyTable.getRenormingBits());
-  writer.EndObject(); // RescaledFrequencies
-
-  // Message Properties
-  //##########################
-  writer.Key("Message");
-  writer.StartObject();
-  writer.Key("Size");
-  writer.Uint64(inputData.size());
-  writer.Key("SymbolSize");
-  writer.Uint(sizeof(source_t));
-  writer.Key("Entropy");
-  writer.Double(o2::rans::computeEntropy(frequencyTable));
-  writer.Key("ExpectedCodewordLength");
-  writer.Double(computeExpectedCodewordLength<source_t>(frequencyTable, renormedFrequencyTable));
-  writer.EndObject(); // Message
-
-  // Message Properties
-  //##########################
-  writer.Key("Compression");
-  writer.StartObject();
-  writer.Key("EncodeBufferSize");
-  writer.Uint64(std::distance(encodeBuffer.buffer.data(), encodeBuffer.encodeIter) * sizeof(uint32_t));
-  writer.Key("LiteralSize");
-  writer.Uint64(encodeBuffer.literals.size() * sizeof(source_t));
-  writer.EndObject(); // Compression
-
-  writer.EndObject(); // Encode/Decode Run
-};
-
-// template <typename encoder_T, typename decoder_T>
-// void ransEncodeDecode(){};
-
-template <template <class> class encoder_T, template <class> class decoder_T>
-void encodeTPC(const std::string& name, const TPCCompressedClusters& compressedClusters, bool mergeColumns, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
-{
-  writer.Key(name.c_str());
-  writer.StartObject();
-  ransEncodeDecode<encoder_T<uint16_t>, decoder_T<uint16_t>>("qTotA", compressedClusters.qTotA, writer);
-  ransEncodeDecode<encoder_T<uint16_t>, decoder_T<uint16_t>>("qMaxA", compressedClusters.qMaxA, writer);
-  ransEncodeDecode<encoder_T<uint8_t>, decoder_T<uint8_t>>("flagsA", compressedClusters.flagsA, writer);
-  ransEncodeDecode<encoder_T<uint8_t>, decoder_T<uint8_t>>("rowDiffA", compressedClusters.rowDiffA, writer);
-  ransEncodeDecode<encoder_T<uint8_t>, decoder_T<uint8_t>>("sliceLegDiffA", compressedClusters.sliceLegDiffA, writer);
-  ransEncodeDecode<encoder_T<uint16_t>, decoder_T<uint16_t>>("padResA", compressedClusters.padResA, writer);
-  ransEncodeDecode<encoder_T<uint32_t>, decoder_T<uint32_t>>("timeResA", compressedClusters.timeResA, writer);
-  ransEncodeDecode<encoder_T<uint8_t>, decoder_T<uint8_t>>("sigmaPadA", compressedClusters.sigmaPadA, writer);
-  ransEncodeDecode<encoder_T<uint8_t>, decoder_T<uint8_t>>("sigmaTimeA", compressedClusters.sigmaTimeA, writer);
-  ransEncodeDecode<encoder_T<uint8_t>, decoder_T<uint8_t>>("qPtA", compressedClusters.qPtA, writer);
-  ransEncodeDecode<encoder_T<uint8_t>, decoder_T<uint8_t>>("rowA", compressedClusters.rowA, writer);
-  ransEncodeDecode<encoder_T<uint8_t>, decoder_T<uint8_t>>("sliceA", compressedClusters.sliceA, writer);
-  // ransEncodeDecode<encoder_T<uint32_t>, decoder_T<uint32_t>>("timeA", compressedClusters.timeA, writer);
-  ransEncodeDecode<encoder_T<uint16_t>, decoder_T<uint16_t>>("padA", compressedClusters.padA, writer);
-  ransEncodeDecode<encoder_T<uint16_t>, decoder_T<uint16_t>>("qTotU", compressedClusters.qTotU, writer);
-  ransEncodeDecode<encoder_T<uint16_t>, decoder_T<uint16_t>>("qMaxU", compressedClusters.qMaxU, writer);
-  ransEncodeDecode<encoder_T<uint8_t>, decoder_T<uint8_t>>("flagsU", compressedClusters.flagsU, writer);
-  ransEncodeDecode<encoder_T<uint16_t>, decoder_T<uint16_t>>("padDiffU", compressedClusters.padDiffU, writer);
-  ransEncodeDecode<encoder_T<uint32_t>, decoder_T<uint32_t>>("timeDiffU", compressedClusters.timeDiffU, writer);
-  ransEncodeDecode<encoder_T<uint8_t>, decoder_T<uint8_t>>("sigmaPadU", compressedClusters.sigmaPadU, writer);
-  ransEncodeDecode<encoder_T<uint8_t>, decoder_T<uint8_t>>("sigmaTimeU", compressedClusters.sigmaTimeU, writer);
-  ransEncodeDecode<encoder_T<uint16_t>, decoder_T<uint16_t>>("nTrackClusters", compressedClusters.nTrackClusters, writer);
-  ransEncodeDecode<encoder_T<uint32_t>, decoder_T<uint32_t>>("nSliceRowClusters", compressedClusters.nSliceRowClusters, writer);
-
-  writer.EndObject();
-};
-
-template <typename source_T>
-using sseRansEncoder_t = typename o2::rans::LiteralSIMDEncoder<uint64_t, uint32_t, source_T, 16, 2>;
-template <typename source_T>
-using sseRansDecoder_t = typename o2::rans::LiteralSIMDDecoder<uint64_t, uint32_t, source_T, 16, 2>;
-
-template <typename source_T>
-using avxRansEncoder_t = typename o2::rans::LiteralSIMDEncoder<uint64_t, uint32_t, source_T, 16, 4>;
-template <typename source_T>
-using avxRansDecoder_t = typename o2::rans::LiteralSIMDDecoder<uint64_t, uint32_t, source_T, 16, 4>;
-
-int main(int argc, char* argv[])
-{
-
-  bpo::options_description options("Allowed options");
-  // clang-format off
-  options.add_options()
-    ("help,h", "print usage message")
-    ("in,i",bpo::value<std::string>(), "file to process")
-    ("out,o",bpo::value<std::string>(), "json output file")
-    ("log_severity,l",bpo::value<std::string>(), "severity of FairLogger");
-  // clang-format on
-
-  bpo::variables_map vm;
-  bpo::store(bpo::parse_command_line(argc, argv, options), vm);
-  bpo::notify(vm);
-
-  if (vm.count("help")) {
-    std::cout << options << "\n";
-    return 0;
-  }
-
-  const std::string inFile = [&]() {
-    if (vm.count("in")) {
-      return vm["in"].as<std::string>();
-    } else {
-      LOG(error) << "missing path to input file";
-      exit(1);
-    }
-  }();
-
-  const std::string outFile = [&]() {
-    if (vm.count("out")) {
-      return vm["out"].as<std::string>();
-    } else {
-      return std::string("out.json");
-    }
-  }();
-
-  if (vm.count("log_severity")) {
-    fair::Logger::SetConsoleSeverity(vm["log_severity"].as<std::string>().c_str());
-  }
-
-  std::ofstream of{outFile};
-  if (!of) {
-    std::runtime_error(fmt::format("could not open output file at path {}", inFile));
-  }
-  rapidjson::OStreamWrapper stream{of};
-  rapidjson::Writer<rapidjson::OStreamWrapper> writer{stream};
-  writer.StartObject();
-
-  TPCCompressedClusters compressedClusters = readFile(inFile);
-  LOG(info) << "loaded Compressed Clusters from file";
-  LOG(info) << "######################################################";
-  LOG(info) << "start rANS LiteralEncode/Decode";
-  encodeTPC<o2::rans::LiteralEncoder64, o2::rans::LiteralDecoder64>("LiteralEncoder64", compressedClusters, false, writer);
-  // LOG(info) << "######################################################";
-  // LOG(info) << "start rANS SSE LiteralEncode/Decode";
-  // encodeTPC<sseRansEncoder_t, sseRansDecoder_t>("SSE16", compressedClusters, false, writer);
-  // LOG(info) << "######################################################";
-  // LOG(info) << "start rANS AVX LiteralEncode/Decode";
-  // encodeTPC<avxRansEncoder_t, avxRansDecoder_t>("AVX16", compressedClusters, false, writer);
-
-  writer.EndObject();
-  writer.Flush();
-  of.close();
-};
+#endif /* INCLUDE_RANS_BENCHMARKS_HELPERS_ */
