@@ -46,10 +46,12 @@ inline constexpr size_t computeRenormingPrecision(size_t nUsedAlphabetSymbols)
   if constexpr (sizeof(source_T) == 2) {
     return 18;
   } else {
-    const uint8_t estimate = internal::log2UInt(nUsedAlphabetSymbols) * 3u / 2u;
-    const uint8_t upperBound = std::min(estimate, MaxRenormThreshold);
-    const uint8_t lowerBound = std::max(estimate, MinRenormThreshold);
-    return std::min(lowerBound, upperBound);
+    const uint8_t minBits = internal::log2UInt(nUsedAlphabetSymbols);
+    const uint8_t estimate = minBits * 3u / 2u;
+    const uint8_t maxThreshold = std::max(minBits, MaxRenormThreshold);
+    const uint8_t minThreshold = std::max(estimate, MinRenormThreshold);
+
+    return std::min(minThreshold, maxThreshold);
   };
 }
 
