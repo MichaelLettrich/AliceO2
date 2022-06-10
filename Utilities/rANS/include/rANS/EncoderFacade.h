@@ -35,6 +35,24 @@ namespace o2
 namespace rans
 {
 
+namespace internal
+{
+namespace encoderFacadeImpl
+{
+
+template <typename stream_IT, typename literals_IT = std::nullptr_t>
+[[nodiscard]] inline constexpr decltype(auto) makeReturn(stream_IT streamPos, literals_IT literalsPos = nullptr) noexcept
+{
+  if constexpr (std::is_null_pointer_v<literals_IT>) {
+    return streamPos;
+  } else {
+    return std::make_pair(streamPos, literalsPos);
+  }
+};
+
+} // namespace encoderFacadeImpl
+} // namespace internal
+
 template <class encoder_T, class symbolTable_T, std::size_t nStreams_V>
 class EncoderFacade
 {
@@ -58,10 +76,10 @@ class EncoderFacade
   [[nodiscard]] inline static constexpr size_type getNStreams() noexcept { return NStreams; };
 
   template <typename stream_IT, typename source_IT, typename literals_IT = std::nullptr_t, std::enable_if_t<internal::isCompatibleIter_v<source_type, source_IT>, bool> = true>
-  stream_IT process(source_IT inputBegin, source_IT inputEnd, stream_IT outputBegin, literals_IT literalsBegin = nullptr) const;
+  decltype(auto) process(source_IT inputBegin, source_IT inputEnd, stream_IT outputBegin, literals_IT literalsBegin = nullptr) const;
 
   template <typename literals_IT = std::nullptr_t>
-  inline stream_type* process(gsl::span<const source_type> inputStream, gsl::span<stream_type> outputStream, literals_IT literalsBegin = nullptr) const
+  inline decltype(auto) process(gsl::span<const source_type> inputStream, gsl::span<stream_type> outputStream, literals_IT literalsBegin = nullptr) const
   {
     return process(inputStream.data(), inputStream.data() + inputStream.size(), outputStream.data(), literalsBegin);
   };
@@ -80,14 +98,15 @@ class EncoderFacade
 
 template <class encoder_T, class symbolTable_T, std::size_t nStreams_V>
 template <typename stream_IT, typename source_IT, typename literals_IT, std::enable_if_t<internal::isCompatibleIter_v<typename symbolTable_T::source_type, source_IT>, bool>>
-stream_IT EncoderFacade<encoder_T, symbolTable_T, nStreams_V>::process(source_IT inputBegin, source_IT inputEnd, stream_IT outputBegin, literals_IT literalsBegin) const
+decltype(auto) EncoderFacade<encoder_T, symbolTable_T, nStreams_V>::process(source_IT inputBegin, source_IT inputEnd, stream_IT outputBegin, literals_IT literalsBegin) const
 {
 
   using namespace internal;
+  using namespace internal::encoderFacadeImpl;
 
   if (inputBegin == inputEnd) {
     LOG(warning) << "passed empty message to encoder, skip encoding";
-    return outputBegin;
+    return makeReturn(outputBegin, literalsBegin);
   }
 
   std::array<coder_type, NCoders> coders;
@@ -166,7 +185,7 @@ stream_IT EncoderFacade<encoder_T, symbolTable_T, nStreams_V>::process(source_IT
   // first iterator past the range so that sizes, distances and iterators work correctly.
   ++outputIter;
 
-  return outputIter;
+  return makeReturn(outputIter, symbolMapper.getIncompressibleIterator());
 }
 
 }; // namespace rans

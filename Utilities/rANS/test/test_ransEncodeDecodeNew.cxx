@@ -118,16 +118,17 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_encodeDecode, test_types, testCase_types)
     BOOST_CHECK_EQUAL_COLLECTIONS(decodeBuffer.begin(), decodeBuffer.end(), encodeString.begin(), encodeString.end());
   }
 
-  std::vector<ransSource_type> literals;
+  std::vector<ransSource_type> literals(encodeString.size());
   std::vector<ransStream_type> encodeBuffer(encodeString.size());
-  auto encodeBufferEnd = encoder.process(encodeString.begin(), encodeString.end(), encodeBuffer.begin(), std::back_inserter(literals));
+  auto [encodeBufferEnd, literalBufferEnd] = encoder.process(encodeString.begin(), encodeString.end(), encodeBuffer.begin(), literals.begin());
   std::vector<ransStream_type> encodeBuffer2(encodeString.size());
-  std::vector<ransSource_type> literals2;
-  auto encodeBuffer2End = encoder.process(gsl::span<const ransSource_type>(encodeString), gsl::make_span(encodeBuffer2), std::back_inserter(literals2));
+  std::vector<ransSource_type> literals2(encodeString.size());
+  auto [encodeBuffer2End, literalBuffer2End] = encoder.process(gsl::span<const ransSource_type>(encodeString), gsl::make_span(encodeBuffer2), literals2.begin());
 
   BOOST_CHECK_EQUAL_COLLECTIONS(encodeBuffer.begin(), encodeBufferEnd, encodeBuffer2.data(), encodeBuffer2End);
-  BOOST_CHECK_EQUAL_COLLECTIONS(literals.begin(), literals.end(), literals2.begin(), literals2.end());
+  BOOST_CHECK_EQUAL_COLLECTIONS(literals.begin(), literalBufferEnd, literals2.begin(), literalBuffer2End);
 
+  literals.resize(std::distance(literals.begin(), literalBufferEnd));
   std::vector<ransSource_type> decodeBuffer(encodeString.size());
   decoder.process(encodeBufferEnd, decodeBuffer.begin(), encodeString.size(), literals);
 
