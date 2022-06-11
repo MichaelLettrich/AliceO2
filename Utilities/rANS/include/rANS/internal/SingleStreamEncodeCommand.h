@@ -78,7 +78,7 @@ class AbstractSingleStreamEncoderCommand : public EncodeCommandInterface<symbol_
   state_type mState{getStreamingLowerBound()};
 
   template <typename stream_IT>
-  [[nodiscard]] inline std::tuple<state_type, stream_IT> renorm(state_type state, stream_IT outputIter, typename symbol_type::value_type frequency)
+  [[nodiscard]] inline std::tuple<state_type, stream_IT> renorm(state_type state, stream_IT outputIter, typename std::remove_pointer_t<typename std::remove_cv_t<symbol_type>>::value_type frequency)
   {
     state_type maxState = ((base_type::getStreamingLowerBound() >> this->mSymbolTablePrecision) << base_type::getStreamOutTypeBits()) * frequency;
     if (state >= maxState) {
@@ -95,9 +95,9 @@ class AbstractSingleStreamEncoderCommand : public EncodeCommandInterface<symbol_
 };
 
 template <size_t lowerBound_V>
-class CompatEncoderCommand : public AbstractSingleStreamEncoderCommand<lowerBound_V, Symbol, CompatEncoderCommand<lowerBound_V>>
+class CompatEncoderCommand : public AbstractSingleStreamEncoderCommand<lowerBound_V, const Symbol*, CompatEncoderCommand<lowerBound_V>>
 {
-  using base_type = AbstractSingleStreamEncoderCommand<lowerBound_V, Symbol, CompatEncoderCommand<lowerBound_V>>;
+  using base_type = AbstractSingleStreamEncoderCommand<lowerBound_V, const Symbol*, CompatEncoderCommand<lowerBound_V>>;
 
  public:
   using stream_type = typename base_type::stream_type;
@@ -115,20 +115,20 @@ class CompatEncoderCommand : public AbstractSingleStreamEncoderCommand<lowerBoun
   template <typename stream_IT>
   [[nodiscard]] inline stream_IT putSymbols(stream_IT outputIter, const symbol_type& symbol)
   {
-    assert(symbol.getFrequency() != 0);
+    assert(symbol->getFrequency() != 0);
 
-    const auto [newState, streamPosition] = this->renorm(this->mState, outputIter, symbol.getFrequency());
+    const auto [newState, streamPosition] = this->renorm(this->mState, outputIter, symbol->getFrequency());
     //coding function
-    this->mState = ((newState / symbol.getFrequency()) << this->mSymbolTablePrecision) + symbol.getCumulative() + (newState % symbol.getFrequency());
+    this->mState = ((newState / symbol->getFrequency()) << this->mSymbolTablePrecision) + symbol->getCumulative() + (newState % symbol->getFrequency());
 
     return streamPosition;
   };
 };
 
 template <size_t lowerBound_V>
-class SingleStreamEncoderCommand : public AbstractSingleStreamEncoderCommand<lowerBound_V, PrecomputedSymbol, SingleStreamEncoderCommand<lowerBound_V>>
+class SingleStreamEncoderCommand : public AbstractSingleStreamEncoderCommand<lowerBound_V, const PrecomputedSymbol*, SingleStreamEncoderCommand<lowerBound_V>>
 {
-  using base_type = AbstractSingleStreamEncoderCommand<lowerBound_V, PrecomputedSymbol, SingleStreamEncoderCommand<lowerBound_V>>;
+  using base_type = AbstractSingleStreamEncoderCommand<lowerBound_V, const PrecomputedSymbol*, SingleStreamEncoderCommand<lowerBound_V>>;
   __extension__ using uint128_t = unsigned __int128;
 
  public:
@@ -147,15 +147,15 @@ class SingleStreamEncoderCommand : public AbstractSingleStreamEncoderCommand<low
   template <typename stream_IT>
   [[nodiscard]] inline stream_IT putSymbols(stream_IT outputIter, const symbol_type& symbol)
   {
-    assert(symbol.getFrequency() != 0);
+    assert(symbol->getFrequency() != 0);
 
     const state_type old = this->mState;
 
-    const auto [newState, streamPosition] = this->renorm(this->mState, outputIter, symbol.getFrequency());
+    const auto [newState, streamPosition] = this->renorm(this->mState, outputIter, symbol->getFrequency());
     //coding function
-    state_type quotient = static_cast<state_type>((static_cast<uint128_t>(newState) * symbol.getReciprocalFrequency()) >> 64);
-    quotient = quotient >> symbol.getReciprocalShift();
-    this->mState = newState + symbol.getCumulative() + quotient * symbol.getFrequencyComplement();
+    state_type quotient = static_cast<state_type>((static_cast<uint128_t>(newState) * symbol->getReciprocalFrequency()) >> 64);
+    quotient = quotient >> symbol->getReciprocalShift();
+    this->mState = newState + symbol->getCumulative() + quotient * symbol->getFrequencyComplement();
 
     return streamPosition;
   };

@@ -26,6 +26,7 @@
 #include "rANS/definitions.h"
 #include "rANS/internal/helper.h"
 #include "rANS/internal/SIMDEncodeCommand.h"
+#include "rANS/internal/SingleStreamEncodeCommand.h"
 
 namespace o2
 {
@@ -126,15 +127,95 @@ class SymbolMapper : public SymbolMapperIterface<symbolTable_T,
   };
 };
 
-template <typename symbolTable_T, typename incompressible_IT>
+template <size_t streamingLowerBound_V, typename symbolTable_T, typename incompressible_IT>
 class SymbolMapper<symbolTable_T,
-                   SSEEncoderCommand<20>,
+                   CompatEncoderCommand<streamingLowerBound_V>,
                    incompressible_IT> : public SymbolMapperIterface<symbolTable_T,
-                                                                    SSEEncoderCommand<20>,
+                                                                    CompatEncoderCommand<streamingLowerBound_V>,
                                                                     incompressible_IT,
                                                                     SymbolMapper<symbolTable_T, incompressible_IT>>
 {
-  using base_type = SymbolMapperIterface<symbolTable_T, SSEEncoderCommand<20>, incompressible_IT, SymbolMapper<symbolTable_T, incompressible_IT>>;
+  using base_type = SymbolMapperIterface<symbolTable_T, CompatEncoderCommand<streamingLowerBound_V>, incompressible_IT, SymbolMapper<symbolTable_T, incompressible_IT>>;
+
+ public:
+  using symbolTable_type = typename base_type::symbolTable_type;
+  using coder_type = typename base_type::coder_type;
+  using size_type = typename base_type::size_type;
+  using difference_type = typename base_type::difference_type;
+  using source_type = typename base_type::source_type;
+  using symbol_type = typename base_type::symbol_type;
+  using coderSymbol_type = typename base_type::coderSymbol_type;
+  using incompressible_iterator = typename base_type::incompressible_iterator;
+
+  static_assert(coder_type::getNstreams() == 1);
+
+  SymbolMapper() = default;
+
+  SymbolMapper(const symbolTable_type& symbolTable, incompressible_IT incompressibleIter = nullptr) : base_type{symbolTable, incompressibleIter} {};
+
+  template <typename source_IT>
+  [[nodiscard]] inline source_IT unpackSymbols(source_IT sourceIter, coderSymbol_type& unpacked)
+  {
+    unpacked = &this->lookupSymbol(sourceIter);
+    return --sourceIter;
+  };
+
+  template <typename source_IT>
+  [[nodiscard]] inline source_IT unpackSymbols(source_IT sourceIter, coderSymbol_type& unpacked, size_type nStreams)
+  {
+    return this->unpackSymbols(sourceIter, unpacked);
+  };
+};
+
+template <size_t streamingLowerBound_V, typename symbolTable_T, typename incompressible_IT>
+class SymbolMapper<symbolTable_T,
+                   SingleStreamEncoderCommand<streamingLowerBound_V>,
+                   incompressible_IT> : public SymbolMapperIterface<symbolTable_T,
+                                                                    SingleStreamEncoderCommand<streamingLowerBound_V>,
+                                                                    incompressible_IT,
+                                                                    SymbolMapper<symbolTable_T, incompressible_IT>>
+{
+  using base_type = SymbolMapperIterface<symbolTable_T, SingleStreamEncoderCommand<streamingLowerBound_V>, incompressible_IT, SymbolMapper<symbolTable_T, incompressible_IT>>;
+
+ public:
+  using symbolTable_type = typename base_type::symbolTable_type;
+  using coder_type = typename base_type::coder_type;
+  using size_type = typename base_type::size_type;
+  using difference_type = typename base_type::difference_type;
+  using source_type = typename base_type::source_type;
+  using symbol_type = typename base_type::symbol_type;
+  using coderSymbol_type = typename base_type::coderSymbol_type;
+  using incompressible_iterator = typename base_type::incompressible_iterator;
+
+  static_assert(coder_type::getNstreams() == 1);
+
+  SymbolMapper() = default;
+
+  SymbolMapper(const symbolTable_type& symbolTable, incompressible_IT incompressibleIter = nullptr) : base_type{symbolTable, incompressibleIter} {};
+
+  template <typename source_IT>
+  [[nodiscard]] inline source_IT unpackSymbols(source_IT sourceIter, coderSymbol_type& unpacked)
+  {
+    unpacked = &this->lookupSymbol(sourceIter);
+    return --sourceIter;
+  };
+
+  template <typename source_IT>
+  [[nodiscard]] inline source_IT unpackSymbols(source_IT sourceIter, coderSymbol_type& unpacked, size_type nStreams)
+  {
+    return this->unpackSymbols(sourceIter, unpacked);
+  };
+};
+
+template <size_t streamingLowerBound_V, typename symbolTable_T, typename incompressible_IT>
+class SymbolMapper<symbolTable_T,
+                   SSEEncoderCommand<streamingLowerBound_V>,
+                   incompressible_IT> : public SymbolMapperIterface<symbolTable_T,
+                                                                    SSEEncoderCommand<streamingLowerBound_V>,
+                                                                    incompressible_IT,
+                                                                    SymbolMapper<symbolTable_T, incompressible_IT>>
+{
+  using base_type = SymbolMapperIterface<symbolTable_T, SSEEncoderCommand<streamingLowerBound_V>, incompressible_IT, SymbolMapper<symbolTable_T, incompressible_IT>>;
 
  public:
   using symbolTable_type = typename base_type::symbolTable_type;
@@ -189,15 +270,15 @@ class SymbolMapper<symbolTable_T,
   };
 }; // namespace internal
 
-template <typename symbolTable_T, typename incompressible_IT>
+template <size_t streamingLowerBound_V, typename symbolTable_T, typename incompressible_IT>
 class SymbolMapper<symbolTable_T,
-                   AVXEncoderCommand<20>,
+                   AVXEncoderCommand<streamingLowerBound_V>,
                    incompressible_IT> : public SymbolMapperIterface<symbolTable_T,
-                                                                    AVXEncoderCommand<20>,
+                                                                    AVXEncoderCommand<streamingLowerBound_V>,
                                                                     incompressible_IT,
                                                                     SymbolMapper<symbolTable_T, incompressible_IT>>
 {
-  using base_type = SymbolMapperIterface<symbolTable_T, AVXEncoderCommand<20>, incompressible_IT, SymbolMapper<symbolTable_T, incompressible_IT>>;
+  using base_type = SymbolMapperIterface<symbolTable_T, AVXEncoderCommand<streamingLowerBound_V>, incompressible_IT, SymbolMapper<symbolTable_T, incompressible_IT>>;
 
  public:
   using symbolTable_type = typename base_type::symbolTable_type;
