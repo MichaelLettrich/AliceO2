@@ -41,11 +41,7 @@ class HashSymbolTable : public internal::SymbolTableContainer<source_T,
                                                               absl::flat_hash_map<source_T, value_T>,
                                                               HashSymbolTable<source_T, value_T>>
 {
-  using base_type = internal::SymbolTableContainer<source_T,
-                                                   std::make_unsigned_t<source_T>,
-                                                   value_T,
-                                                   std::vector<value_T>,
-                                                   HashSymbolTable<source_T, value_T>>;
+  using base_type = internal::SymbolTableContainer<source_T, std::make_unsigned_t<source_T>, value_T, absl::flat_hash_map<source_T, value_T>, HashSymbolTable<source_T, value_T>>;
 
  public:
   using source_type = typename base_type::source_type;
@@ -73,6 +69,10 @@ class HashSymbolTable : public internal::SymbolTableContainer<source_T,
       return iter->second;
     }
   };
+
+  using base_type::isEscapeSymbol;
+
+  [[nodiscard]] inline bool isEscapeSymbol(const_reference symbol) const noexcept { return &symbol == &this->mEscapeSymbol; };
 
   [[nodiscard]] inline size_type size() const noexcept { return this->mContainer.size(); };
 
