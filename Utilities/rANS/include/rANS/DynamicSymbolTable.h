@@ -24,7 +24,7 @@
 
 #include "rANS/definitions.h"
 #include "rANS/RenormedFrequencyTable.h"
-#include "rANS/internal/backend/simd/Symbol.h"
+#include "rANS/internal/Symbol.h"
 
 #include "rANS/internal/SymbolTableContainer.h"
 #include "rANS/RenormedFrequencies.h"
@@ -36,13 +36,13 @@ namespace rans
 
 template <class source_T, class value_T>
 class DynamicSymbolTable : public internal::SymbolTableContainer<source_T,
-                                                                 std::make_unsigned_t<source_T>,
+                                                                 source_T,
                                                                  value_T,
                                                                  std::vector<value_T>,
                                                                  DynamicSymbolTable<source_T, value_T>>
 {
   using base_type = internal::SymbolTableContainer<source_T,
-                                                   std::make_unsigned_t<source_T>,
+                                                   source_T,
                                                    value_T,
                                                    std::vector<value_T>,
                                                    DynamicSymbolTable<source_T, value_T>>;
@@ -77,7 +77,7 @@ class DynamicSymbolTable : public internal::SymbolTableContainer<source_T,
 
   [[nodiscard]] inline const_pointer data() const noexcept { return this->mContainer.data(); };
 
-  [[nodiscard]] inline size_type size() const noexcept { return this->mContainer.size(); };
+  [[nodiscard]] inline size_type size() const noexcept { return mSize; };
 
   [[nodiscard]] inline size_type computeNUsedAlphabetSymbols() const noexcept
   {
@@ -89,9 +89,11 @@ class DynamicSymbolTable : public internal::SymbolTableContainer<source_T,
     using std::swap;
     swap(static_cast<typename DynamicSymbolTable::base_type&>(a),
          static_cast<typename DynamicSymbolTable::base_type&>(b));
+    swap(a.mSize, b.mSize);
   };
 
  protected:
+  size_t mSize = 0;
 }; // namespace rans
 
 template <class source_T, class value_T>
@@ -117,6 +119,7 @@ DynamicSymbolTable<source_T, value_T>::DynamicSymbolTable(const RenormedDynamicF
       this->mContainer.push_back(this->mEscapeSymbol);
     }
   }
+  mSize = this->mContainer.size();
 };
 
 template <typename source_T, class symbol_T>
