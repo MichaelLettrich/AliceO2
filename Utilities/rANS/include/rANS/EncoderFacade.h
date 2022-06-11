@@ -127,85 +127,64 @@ decltype(auto) EncoderFacade<encoder_T, symbolTable_T, nStreams_V>::process(sour
 
   // calculate sizes and numbers of iterations:
   const auto inputBufferSize = std::distance(inputBegin, inputEnd); // size of the input buffer
-  const size_t nAllCoderIterations = inputBufferSize / NStreams;    // number
   const size_t nRemainderSymbols = inputBufferSize % NStreams;
   const size_t nPartialCoderIterations = nRemainderSymbols / NCoderStreams;
   const size_t nFractionalEncodes = nRemainderSymbols % NCoderStreams;
 
-  // LOGP(info, "inputBufferSize: {}", inputBufferSize);
-  // LOGP(info, "nAllCoderIterations: {}", nAllCoderIterations);
-  // LOGP(info, "nRemainderSymbols: {}", nRemainderSymbols);
-  // LOGP(info, "nPartialCoderIterations: {}", nPartialCoderIterations);
-  // LOGP(info, "nFractionalEncodes: {}", nFractionalEncodes);
-
   // from here on, everything runs backwards!
   // We are encoding symbols from the end of the message to the beginning of the message.
-  // For consistency, also coders have to run backwards, i.e. coder n+1 runs before coder n.
-  // This allows decoding to happen the "natural way"
-  // To keep track of iterators we use reverse iterators which makes them appear to run in a forward order again.
+  // Since rANS works like a stack, this allows the decoder to work in forward direction.
+  // To guarante consistency betweenn different coder implementations, all interleaved
+  // streams have to run backwards as well, i.e. stream m of coder n+1 runs before stream p of coder n.
 
   stream_IT outputIter = outputBegin;
-  source_IT inputIter = inputEnd;
-  --inputIter;
-  source_IT inputREnd = inputBegin;
-  --inputREnd;
-  literals_IT literalsIter = literalsBegin;
+  source_IT inputIter = advanceIter(inputEnd, -1);
+  source_IT inputREnd = advanceIter(inputBegin, -1);
 
-  SymbolMapper<symbolTable_type, coder_type, literals_IT> symbolMapper{this->mSymbolTable, literalsIter};
+  SymbolMapper<symbolTable_type, coder_type, literals_IT> symbolMapper{this->mSymbolTable, literalsBegin};
+  typename coder_type::symbol_type encoderSymbols[2]{};
 
-  coder_type* codersRBegin = &(*coders.rbegin());
-  coder_type* codersREnd = &(*coders.rend());
-
+  coder_type* codersREnd = advanceIter(coders.data(), -1);
   coder_type* activeCoder = codersREnd + nPartialCoderIterations;
 
-  // uint32_t counter = 0;
-
+  // we are encoding backwards!
   if (nFractionalEncodes) {
-    // LOG(trace) << "masked encodes";
-    // one more encoding step than nRemainderLoopIterations for masked encoding
-    // will not cause out of range
+    // one more encoding step than nPartialCoderIterations for masked encoding
+    // will not cause out of range for coders
     ++activeCoder;
-    typename coder_type::symbol_type encoderSymbol;
-    inputIter = symbolMapper.unpackSymbols(inputIter, encoderSymbol, nFractionalEncodes);
-    outputIter = activeCoder->putSymbols(outputIter, encoderSymbol, nFractionalEncodes);
-    // ++counter;
-
+    inputIter = symbolMapper.unpackSymbols(inputIter, encoderSymbols[0], nFractionalEncodes);
+    outputIter = activeCoder->putSymbols(outputIter, encoderSymbols[0], nFractionalEncodes);
     --activeCoder;
   }
 
-  // we are encoding backwards!
-
   // align encoders
-  if ((activeCoder - codersREnd) & 1) {
-    typename coder_type::symbol_type encoderSymbol;
-    inputIter = symbolMapper.unpackSymbols(inputIter, encoderSymbol);
-    outputIter = (activeCoder--)->putSymbols(outputIter, encoderSymbol);
-  }
-
-  while (inputIter != inputREnd) {
-    // iterate over coders with wrap around
-    while (activeCoder != codersREnd) {
-      typename coder_type::symbol_type encoderSymbol;
-      inputIter = symbolMapper.unpackSymbols(inputIter, encoderSymbol);
-      outputIter = (activeCoder--)->putSymbols(outputIter, encoderSymbol);
-      inputIter = symbolMapper.unpackSymbols(inputIter, encoderSymbol);
-      outputIter = (activeCoder--)->putSymbols(outputIter, encoderSymbol);
+  while (activeCoder != codersREnd) {
+    if (inputIter != inputREnd) {
+      inputIter = symbolMapper.unpackSymbols(inputIter, encoderSymbols[0]);
+      outputIter = (activeCoder--)->putSymbols(outputIter, encoderSymbols[0]);
     }
-    activeCoder = codersRBegin;
   }
 
-  // LOG(trace) << "flushing";
-  for (activeCoder = codersRBegin; activeCoder != codersREnd; --activeCoder) {
-    outputIter = activeCoder->flush(outputIter);
+  constexpr size_t lastCoderIdx = NCoders - 1;
+  while (inputIter != inputREnd) {
+    // iterate over coders
+    for (size_t i = 0; i < coders.size(); i += 2) {
+      inputIter = symbolMapper.unpackSymbols(inputIter, encoderSymbols[0]);
+      outputIter = coders[lastCoderIdx - i].putSymbols(outputIter, encoderSymbols[0]);
+      inputIter = symbolMapper.unpackSymbols(inputIter, encoderSymbols[1]);
+      outputIter = coders[lastCoderIdx - (i + 1)].putSymbols(outputIter, encoderSymbols[1]);
+    }
   }
 
-  // LOGP(info, "nEncodes: {}", counter);
+  for (size_t i = coders.size(); i-- > 0;) {
+    outputIter = coders[i].flush(outputIter);
+  }
 
   // first iterator past the range so that sizes, distances and iterators work correctly.
   ++outputIter;
 
   return makeReturn(outputIter, symbolMapper.getIncompressibleIterator());
-}
+} // namespace rans
 
 }; // namespace rans
 }; // namespace o2
