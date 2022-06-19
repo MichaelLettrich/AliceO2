@@ -143,7 +143,7 @@ struct Fixture : public benchmark::Fixture {
 template <typename source_T, simd::SIMDWidth width_V>
 struct SIMDFixture : public benchmark::Fixture {
   using source_t = source_T;
-  using symbol_t = simd::Symbol;
+  using symbol_t = Symbol;
 
   void SetUp(const ::benchmark::State& state) final
   {
@@ -197,7 +197,7 @@ ransState_t simpleEncode(ransState_t state, size_t symbolTablePrecision, const c
 template <simd::SIMDWidth width_V>
 auto SIMDEncode(simd::epi64cV_t<width_V> states,
                 simd::pdcV_t<width_V> nSamples,
-                simd::ArrayView<const simd::Symbol*, simd::getElementCount<ransState_t>(width_V)> symbols)
+                simd::ArrayView<const Symbol*, simd::getElementCount<ransState_t>(width_V)> symbols)
 {
   auto [frequencies, cumulativeFrequencies] = simd::aosToSoa(symbols);
   return ransEncode(states,

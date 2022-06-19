@@ -17,7 +17,7 @@
 #ifndef RANS_INTERNAL_SIMD_SYMBOLMAPPER_H
 #define RANS_INTERNAL_SIMD_SYMBOLMAPPER_H
 
-#include "rANS/internal/backend/simd/Symbol.h"
+#include "rANS/internal/Symbol.h"
 #include "rANS/internal/backend/simd/SymbolTable.h"
 #include "rANS/internal/backend/simd/types.h"
 #include "rANS/internal/backend/simd/kernel.h"

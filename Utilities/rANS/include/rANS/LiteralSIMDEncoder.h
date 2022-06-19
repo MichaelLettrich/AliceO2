@@ -25,7 +25,6 @@
 
 #include "rANS/internal/backend/simd/types.h"
 #include "rANS/internal/backend/simd/Encoder.h"
-#include "rANS/internal/backend/simd/Symbol.h"
 #include "rANS/internal/backend/simd/SymbolMapper.h"
 #include "rANS/internal/helper.h"
 #include "rANS/RenormedFrequencyTable.h"
@@ -40,7 +39,7 @@ namespace rans
 namespace internal
 {
 template <typename source_IT>
-inline const internal::simd::Symbol* lookupSymbol(source_IT iter, const simd::SymbolTable& symbolTable, std::vector<typename std::iterator_traits<source_IT>::value_type>& literals) noexcept
+inline const internal::Symbol* lookupSymbol(source_IT iter, const simd::SymbolTable& symbolTable, std::vector<typename std::iterator_traits<source_IT>::value_type>& literals) noexcept
 {
   const auto symbol = *iter;
   const auto* encoderSymbol = &(symbolTable[symbol]);
@@ -51,9 +50,9 @@ inline const internal::simd::Symbol* lookupSymbol(source_IT iter, const simd::Sy
 };
 
 template <typename source_IT, uint8_t nHardwareStreams_V>
-inline std::tuple<source_IT, simd::AlignedArray<const internal::simd::Symbol*, simd::SIMDWidth::AVX, nHardwareStreams_V>> getSymbols(source_IT symbolIter, const simd::SymbolTable& symbolTable, std::vector<typename std::iterator_traits<source_IT>::value_type>& literals) noexcept
+inline std::tuple<source_IT, simd::AlignedArray<const internal::Symbol*, simd::SIMDWidth::AVX, nHardwareStreams_V>> getSymbols(source_IT symbolIter, const simd::SymbolTable& symbolTable, std::vector<typename std::iterator_traits<source_IT>::value_type>& literals) noexcept
 {
-  using return_t = simd::AlignedArray<const internal::simd::Symbol*, simd::SIMDWidth::AVX, nHardwareStreams_V>;
+  using return_t = simd::AlignedArray<const internal::Symbol*, simd::SIMDWidth::AVX, nHardwareStreams_V>;
 
   if constexpr (nHardwareStreams_V == 2) {
     return_t ret;
@@ -173,7 +172,7 @@ stream_IT LiteralSIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareS
   auto literalIter = literals.data();
 
   auto maskedEncode = [this, &literals](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder, size_t nActiveStreams = nParallelStreams_V) {
-    std::array<const internal::simd::Symbol*, nParallelStreams_V> encoderSymbols{};
+    std::array<const internal::Symbol*, nParallelStreams_V> encoderSymbols{};
     for (auto encSymbolIter = encoderSymbols.rend() - nActiveStreams; encSymbolIter != encoderSymbols.rend(); ++encSymbolIter) {
       *encSymbolIter = o2::rans::internal::lookupSymbol(--symbolIter, this->mSymbolTable, literals);
     }

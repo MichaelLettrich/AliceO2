@@ -26,6 +26,7 @@
 #include "rANS/internal/backend/simd/types.h"
 #include "rANS/internal/backend/simd/utils.h"
 #include "rANS/internal/helper.h"
+#include "rANS/internal/Symbol.h"
 
 namespace o2
 {
@@ -1271,7 +1272,7 @@ inline auto ransRenorm(epi64cV_t<SIMDWidth::AVX, 2> states, epi32cV_t<SIMDWidth:
 #endif /* __AVX2__ */
 
 template <typename source_IT>
-inline const internal::simd::Symbol* lookupSymbol(source_IT iter, const simd::SymbolTable& symbolTable, std::vector<typename std::iterator_traits<source_IT>::value_type>& literals) noexcept
+inline const Symbol* lookupSymbol(source_IT iter, const simd::SymbolTable& symbolTable, std::vector<typename std::iterator_traits<source_IT>::value_type>& literals) noexcept
 {
   const auto symbol = *iter;
   const auto* encoderSymbol = &(symbolTable[symbol]);
