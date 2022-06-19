@@ -27,6 +27,11 @@
 #include "rANS/internal/helper.h"
 #include "rANS/internal/SIMDEncodeCommand.h"
 #include "rANS/internal/SingleStreamEncodeCommand.h"
+#include "rANS/StaticSymbolTable.h"
+#include "rANS/DynamicSymbolTable.h"
+#include "rANS/HashSymbolTable.h"
+#include "rANS/internal/backend/simd/kernel.h"
+#include "rANS/internal/backend/simd/types.h"
 
 namespace o2
 {
@@ -69,15 +74,15 @@ class SymbolMapperIterface
   [[nodiscard]] inline const symbol_type& lookupSymbol(source_IT sourceIter)
   {
     // LOGP(info, "unpacking {}", fmt::ptr(sourceIter));
-
-    const symbol_type& symbol = (*mSymbolTable)[*sourceIter];
-
     if constexpr (!std::is_null_pointer_v<incompressible_iterator>) {
+      const symbol_type& symbol = (*mSymbolTable)[*sourceIter];
       if (mSymbolTable->isEscapeSymbol(symbol)) {
         *mIncompressibleIter++ = *sourceIter;
       }
+      return symbol;
+    } else {
+      return *mSymbolTable->lookupUnsafe(*sourceIter);
     }
-    return symbol;
   };
 
   SymbolMapperIterface() = default;
@@ -236,19 +241,19 @@ class SymbolMapper<symbolTable_T,
   template <typename source_IT>
   [[nodiscard]] inline source_IT unpackSymbols(source_IT sourceIter, coderSymbol_type& unpacked)
   {
-
-    auto unpacker = [&, this](auto srcIter, size_t dstIdx) {
-      auto& symbol = this->lookupSymbol(srcIter);
-      unpacked.frequencies[dstIdx] = symbol.getFrequency();
-      unpacked.cumulativeFrequencies[dstIdx] = symbol.getCumulative();
-    };
-
     using namespace simd;
+    AlignedArray<const symbol_type*, simd::SIMDWidth::SSE, 4> ret;
+    ret[3] = &this->lookupSymbol(sourceIter - 0);
+    ret[2] = &this->lookupSymbol(sourceIter - 1);
+    ret[1] = &this->lookupSymbol(sourceIter - 2);
+    ret[0] = &this->lookupSymbol(sourceIter - 3);
 
-    unpacker(sourceIter - 0, 5);
-    unpacker(sourceIter - 1, 4);
-    unpacker(sourceIter - 2, 1);
-    unpacker(sourceIter - 3, 0);
+    aosToSoa(ArrayView{ret}.template subView<0, 2>(),
+             toSIMDView(unpacked.frequencies).template subView<0, 1>(),
+             toSIMDView(unpacked.cumulativeFrequencies).template subView<0, 1>());
+    aosToSoa(ArrayView{ret}.template subView<2, 2>(),
+             toSIMDView(unpacked.frequencies).template subView<1, 1>(),
+             toSIMDView(unpacked.cumulativeFrequencies).template subView<1, 1>());
 
     return internal::advanceIter(sourceIter, -coder_type::getNstreams());
   };
@@ -268,7 +273,7 @@ class SymbolMapper<symbolTable_T,
 
     return sourceIter;
   };
-}; // namespace internal
+};
 
 template <size_t streamingLowerBound_V, typename symbolTable_T, typename incompressible_IT>
 class SymbolMapper<symbolTable_T,
@@ -299,23 +304,23 @@ class SymbolMapper<symbolTable_T,
   template <typename source_IT>
   [[nodiscard]] inline source_IT unpackSymbols(source_IT sourceIter, coderSymbol_type& unpacked)
   {
-
-    auto unpacker = [&, this](auto srcIter, size_t dstIdx) {
-      auto& symbol = this->lookupSymbol(srcIter);
-      unpacked.frequencies[dstIdx] = symbol.getFrequency();
-      unpacked.cumulativeFrequencies[dstIdx] = symbol.getCumulative();
-    };
-
     using namespace simd;
+    AlignedArray<const Symbol*, simd::SIMDWidth::SSE, 8> ret;
+    ret[7] = &this->lookupSymbol(sourceIter - 0);
+    ret[6] = &this->lookupSymbol(sourceIter - 1);
+    ret[5] = &this->lookupSymbol(sourceIter - 2);
+    ret[4] = &this->lookupSymbol(sourceIter - 3);
+    ret[3] = &this->lookupSymbol(sourceIter - 4);
+    ret[2] = &this->lookupSymbol(sourceIter - 5);
+    ret[1] = &this->lookupSymbol(sourceIter - 6);
+    ret[0] = &this->lookupSymbol(sourceIter - 7);
 
-    unpacker(sourceIter - 0, 7);
-    unpacker(sourceIter - 1, 6);
-    unpacker(sourceIter - 2, 5);
-    unpacker(sourceIter - 3, 4);
-    unpacker(sourceIter - 4, 3);
-    unpacker(sourceIter - 5, 2);
-    unpacker(sourceIter - 6, 1);
-    unpacker(sourceIter - 7, 0);
+    aosToSoa(ArrayView{ret}.template subView<0, 4>(),
+             toSIMDView(unpacked.frequencies).template subView<0, 1>(),
+             toSIMDView(unpacked.cumulativeFrequencies).template subView<0, 1>());
+    aosToSoa(ArrayView{ret}.template subView<4, 4>(),
+             toSIMDView(unpacked.frequencies).template subView<1, 1>(),
+             toSIMDView(unpacked.cumulativeFrequencies).template subView<1, 1>());
 
     return internal::advanceIter(sourceIter, -coder_type::getNstreams());
   };

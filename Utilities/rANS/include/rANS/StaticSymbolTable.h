@@ -24,7 +24,6 @@
 
 #include "rANS/definitions.h"
 #include "rANS/RenormedFrequencyTable.h"
-#include "rANS/internal/backend/simd/Symbol.h"
 
 #include "rANS/internal/SymbolTableContainer.h"
 #include "rANS/RenormedFrequencies.h"
@@ -66,7 +65,11 @@ class StaticSymbolTable : public internal::SymbolTableContainer<source_T,
 
   static_assert(sizeof(index_type) <= 2, "This datatype requires a <=16Bit datatype for source_T");
 
-  [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const { return this->mContainer[static_cast<index_type>(sourceSymbol)]; };
+  [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const { return *this->lookupSafe(sourceSymbol); };
+
+  [[nodiscard]] inline const_pointer lookupSafe(source_type sourceSymbol) const { return this->mContainer.data() + static_cast<index_type>(sourceSymbol); };
+
+  [[nodiscard]] inline const_pointer lookupUnsafe(source_type sourceSymbol) const { return this->lookupSafe(sourceSymbol); };
 
   [[nodiscard]] inline const_pointer data() const noexcept { return this->mContainer.data(); };
 

@@ -28,9 +28,10 @@
 #include "rANS/rans.h"
 #include "rANS/internal/backend/simd/types.h"
 #include "rANS/internal/backend/simd/kernel.h"
-#include "rANS/internal/backend/simd/Symbol.h"
+#include "rANS/internal/Symbol.h"
 
 using namespace o2::rans::internal::simd;
+using namespace o2::rans::internal;
 
 // clang-format off
 using pd_types = boost::mpl::list<pd_t<SIMDWidth::SSE>
@@ -225,7 +226,7 @@ struct AosToSoaFixture {
     uint32_t counter = 0;
 
     for (size_t i = 0; i < nElems; ++i) {
-      Symbol symbol{counter++, counter++};
+      Symbol symbol{counter++, counter++, 0};
       mFrequencies[i] = symbol.getFrequency();
       mCumulative[i] = symbol.getCumulative();
 
@@ -240,7 +241,7 @@ BOOST_FIXTURE_TEST_SUITE(testAostoSoa, AosToSoaFixture)
 BOOST_AUTO_TEST_CASE_TEMPLATE(simd_AosToSOA, sizes_T, aosToSoa_T)
 {
   constexpr sizes_T nElements;
-  std::array<const o2::rans::internal::simd::Symbol*, nElements()> aosPtrs{};
+  std::array<const o2::rans::internal::Symbol*, nElements()> aosPtrs{};
   for (size_t i = 0; i < nElements(); ++i) {
     aosPtrs[i] = &mSource[i];
   }
