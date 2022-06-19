@@ -24,7 +24,7 @@
 #include "rANS/internal/SymbolTable.h"
 #include "rANS/internal/backend/cpp/DecoderSymbol.h"
 #include "rANS/internal/backend/simd/SymbolTable.h"
-#include "rANS/internal/backend/simd/Symbol.h"
+#include "rANS/internal/Symbol.h"
 
 template <typename T>
 size_t getNUniqueSymbols(const T& container)

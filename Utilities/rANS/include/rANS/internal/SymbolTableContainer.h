@@ -24,7 +24,6 @@
 
 #include "rANS/definitions.h"
 #include "rANS/RenormedFrequencyTable.h"
-#include "rANS/internal/backend/simd/Symbol.h"
 
 #include "rANS/internal/ContainerInterface.h"
 
@@ -55,7 +54,15 @@ class SymbolTableContainer : public ContainerInterface<source_T, index_T, value_
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
 
-  [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const { return static_cast<const derived_T*>(this)->operator[](sourceSymbol); };
+  [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const
+  {
+    const_pointer ptr = lookupSafe(sourceSymbol);
+    return ptr ? *ptr : this->getEscapeSymbol();
+  };
+
+  [[nodiscard]] inline const_pointer lookupSafe(source_type sourceSymbol) const { return static_cast<const derived_T*>(this)->lookupSafe(sourceSymbol); };
+
+  [[nodiscard]] inline const_pointer lookupUnsafe(source_type sourceSymbol) const { return static_cast<const derived_T*>(this)->lookupUnsafe(sourceSymbol); };
 
   [[nodiscard]] inline size_type size() const noexcept { return static_cast<derived_T*>(this)->size(); };
 

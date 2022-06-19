@@ -28,7 +28,7 @@
 #include <ittnotify.h>
 #endif
 
-#include "rANS/internal/backend/simd/Symbol.h"
+#include "rANS/internal/Symbol.h"
 #include "rANS/internal/backend/simd/types.h"
 #include "rANS/internal/backend/simd/kernel.h"
 #include "rANS/internal/backend/simd/utils.h"
@@ -115,9 +115,9 @@ Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, simd::UnrolledS
 
   // can't encode symbol with freq=0
 #if !defined(NDEBUG)
-  for (const auto& symbol : symbols) {
-    assert(symbol->getFrequency() != 0);
-  }
+  // for (const auto& symbol : symbols) {
+  //   assert(symbol->getFrequency() != 0);
+  // }
 #endif
 
   auto [streamPosition, renormedStates] = ransRenorm<Stream_IT, LowerBound, StreamBits>(toConstSIMDView(mStates),
@@ -280,9 +280,9 @@ template <typename Stream_IT>
 inline Stream_IT Encoder<SIMDWidth::AVX>::putSymbols(Stream_IT outputIter, const simd::UnrolledSymbols& symbols)
 {
 #if !defined(NDEBUG)
-  for (const auto& symbol : symbols) {
-    assert(symbol->getFrequency() != 0);
-  }
+  // for (const auto& symbol : symbols) {
+//   //   assert(symbol->getFrequency() != 0);
+// }
 #endif
   __m128i frequencies[2];
   __m128i cumulativeFrequencies[2];
