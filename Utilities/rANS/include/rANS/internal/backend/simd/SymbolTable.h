@@ -24,7 +24,7 @@
 
 #include "rANS/definitions.h"
 #include "rANS/RenormedFrequencyTable.h"
-#include "rANS/internal/backend/simd/Symbol.h"
+#include "rANS/internal/Symbol.h"
 
 namespace o2
 {
@@ -91,7 +91,7 @@ inline SymbolTable::SymbolTable(const RenormedFrequencyTable& frequencyTable) : 
 
   const Symbol incompressibleSymbol{
     frequencyTable.getIncompressibleSymbolFrequency(),
-    static_cast<count_t>(frequencyTable.getNumSamples()) - frequencyTable.getIncompressibleSymbolFrequency()};
+    static_cast<count_t>(frequencyTable.getNumSamples()) - frequencyTable.getIncompressibleSymbolFrequency(), mPrecision};
 
   count_t cumulatedFrequency = 0;
   for (const auto symbolFrequency : frequencyTable) {

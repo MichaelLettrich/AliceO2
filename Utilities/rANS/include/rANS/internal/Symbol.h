@@ -32,7 +32,6 @@ namespace rans
 {
 namespace internal
 {
-// Decoder symbols are straightforward.
 class Symbol
 {
  public:
@@ -42,17 +41,17 @@ class Symbol
 
   //TODO(milettri): fix once ROOT cling respects the standard http://wg21.link/p1286r2
   constexpr Symbol() noexcept {}; //NOLINT
-  constexpr Symbol(value_type frequency, value_type cumulative, size_type symbolTablePrecision)
-    : mFrequency(frequency), mCumulative(cumulative)
+  constexpr Symbol(value_type frequency, value_type cumulative, size_t symbolTablePrecision = 0)
+    : mSymbol{frequency, cumulative}
   {
-    (void)symbolTablePrecision; // silence compiler warnings if assert not compiled.
-    assert(mCumulative <= pow2(symbolTablePrecision));
-    assert(mFrequency <= pow2(symbolTablePrecision) - mCumulative);
+    (void)symbolTablePrecision; // silence compiler warnings
   };
-  [[nodiscard]] inline constexpr value_type getFrequency() const noexcept { return mFrequency; };
-  [[nodiscard]] inline constexpr value_type getCumulative() const noexcept { return mCumulative; };
+  [[nodiscard]] inline constexpr value_type getFrequency() const noexcept { return mSymbol[0]; };
+  [[nodiscard]] inline constexpr value_type getCumulative() const noexcept { return mSymbol[1]; };
+  [[nodiscard]] inline constexpr const value_type* data() const noexcept { return mSymbol.data(); };
 
-  [[nodiscard]] inline bool operator==(const Symbol& other) const { return this->mCumulative == other.mCumulative; };
+  [[nodiscard]] inline bool operator==(const Symbol& other) const { return this->getCumulative() == other.getCumulative(); };
+  [[nodiscard]] inline bool operator!=(const Symbol& other) const { return !operator==(other); };
 
   friend std::ostream& operator<<(std::ostream& os, const Symbol& symbol)
   {
@@ -61,24 +60,21 @@ class Symbol
   }
 
  protected:
-  value_type mFrequency{};
-  value_type mCumulative{};
+  std::array<value_type, 2> mSymbol{0, 0};
 };
 
-class PrecomputedSymbol : public Symbol
+class PrecomputedSymbol
 {
-  using base_type = Symbol;
-
  public:
-  using value_type = typename base_type::value_type;
+  using value_type = count_t;
   using state_type = uint64_t;
-  using size_type = typename base_type::size_type;
-  using difference_type = typename base_type::difference_type;
+  using size_type = size_t;
+  using difference_type = std::ptrdiff_t;
 
   //TODO(milettri): fix once ROOT cling respects the standard http://wg21.link/p1286r2
   constexpr PrecomputedSymbol() noexcept {}; //NOLINT
 
-  constexpr PrecomputedSymbol(value_type frequency, value_type cumulative, size_t symbolTablePrecision) : base_type{}
+  constexpr PrecomputedSymbol(value_type frequency, value_type cumulative, size_t symbolTablePrecision)
   {
     assert(cumulative <= pow2(symbolTablePrecision));
     assert(frequency <= pow2(symbolTablePrecision) - cumulative);
@@ -156,9 +152,13 @@ class PrecomputedSymbol : public Symbol
     }
   };
 
-  inline constexpr state_type getReciprocalFrequency() const noexcept { return mReciprocalFrequency; };
-  inline constexpr value_type getFrequencyComplement() const noexcept { return mFrequencyComplement; };
-  inline constexpr value_type getReciprocalShift() const noexcept { return mReciprocalShift; };
+  [[nodiscard]] inline constexpr value_type getFrequency() const noexcept { return mFrequency; };
+  [[nodiscard]] inline constexpr value_type getCumulative() const noexcept { return mCumulative; };
+  [[nodiscard]] inline constexpr state_type getReciprocalFrequency() const noexcept { return mReciprocalFrequency; };
+  [[nodiscard]] inline constexpr value_type getFrequencyComplement() const noexcept { return mFrequencyComplement; };
+  [[nodiscard]] inline constexpr value_type getReciprocalShift() const noexcept { return mReciprocalShift; };
+  [[nodiscard]] inline bool operator==(const PrecomputedSymbol& other) const { return this->getCumulative() == other.getCumulative(); };
+  [[nodiscard]] inline bool operator!=(const PrecomputedSymbol& other) const { return !operator==(other); };
 
   friend std::ostream& operator<<(std::ostream& os, const PrecomputedSymbol& symbol)
   {
@@ -172,10 +172,12 @@ class PrecomputedSymbol : public Symbol
   };
 
  private:
+  value_type mFrequency{};
+  value_type mCumulative{};
   state_type mReciprocalFrequency{}; // Fixed-point reciprocal frequency
   value_type mFrequencyComplement{}; // Complement of frequency: (1 << symbolTablePrecision) - frequency
   value_type mReciprocalShift{};     // Reciprocal shift
-};
+};                                   // namespace internal
 
 } // namespace internal
 } // namespace rans

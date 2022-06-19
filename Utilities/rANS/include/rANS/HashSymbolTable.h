@@ -24,7 +24,6 @@
 
 #include "rANS/definitions.h"
 #include "rANS/RenormedFrequencyTable.h"
-#include "rANS/internal/backend/simd/Symbol.h"
 
 #include "rANS/internal/SymbolTableContainer.h"
 #include "rANS/RenormedFrequencies.h"
@@ -69,6 +68,18 @@ class HashSymbolTable : public internal::SymbolTableContainer<source_T,
       return iter->second;
     }
   };
+
+  [[nodiscard]] inline const_pointer lookupSafe(source_type sourceSymbol) const
+  {
+    auto iter = this->mContainer.find(sourceSymbol);
+    if (iter == this->mContainer.end()) {
+      return nullptr;
+    } else {
+      return &(iter->second);
+    }
+  };
+
+  [[nodiscard]] inline const_pointer lookupUnsafe(source_type sourceSymbol) const { return &(this->mContainer.find(sourceSymbol)->second); };
 
   using base_type::isEscapeSymbol;
 
