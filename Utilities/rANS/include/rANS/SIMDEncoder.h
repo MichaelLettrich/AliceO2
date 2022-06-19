@@ -25,7 +25,6 @@
 
 #include "rANS/internal/backend/simd/types.h"
 #include "rANS/internal/backend/simd/Encoder.h"
-#include "rANS/internal/backend/simd/Symbol.h"
 #include "rANS/internal/helper.h"
 #include "rANS/RenormedFrequencyTable.h"
 #include "rANS/internal/backend/simd/SymbolTable.h"
@@ -278,7 +277,7 @@ stream_IT SIMDEncoder<coder_T, stream_T, source_T, nStreams_V, nHardwareStreams_
   source_IT inputIT = inputEnd;
 
   auto maskedEncode = [this](source_IT symbolIter, stream_IT outputIter, ransCoder_t& coder, size_t nActiveStreams = nParallelStreams_V) {
-    std::array<const internal::simd::Symbol*, nParallelStreams_V> encoderSymbols{};
+    std::array<const internal::Symbol*, nParallelStreams_V> encoderSymbols{};
     for (auto encSymbolIter = encoderSymbols.rend() - nActiveStreams; encSymbolIter != encoderSymbols.rend(); ++encSymbolIter) {
       const source_T symbol = *(--symbolIter);
       *encSymbolIter = &(this->mSymbolTable)[symbol];

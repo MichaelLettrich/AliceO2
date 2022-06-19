@@ -75,6 +75,22 @@ class DynamicSymbolTable : public internal::SymbolTableContainer<source_T,
     }
   };
 
+  [[nodiscard]] inline const_pointer lookupSafe(source_type sourceSymbol) const
+  {
+    const size_type index = static_cast<size_type>(sourceSymbol - this->getOffset());
+    // static cast to unsigned: idx < 0 => (uint)idx > MAX_INT => idx > mIndex.size()
+    if (index < this->size()) {
+      return &(this->mContainer[index]);
+    } else {
+      return nullptr;
+    }
+  };
+
+  [[nodiscard]] inline const_pointer lookupUnsafe(source_type sourceSymbol) const
+  {
+    return mStartAddress + sourceSymbol;
+  };
+
   [[nodiscard]] inline const_pointer data() const noexcept { return this->mContainer.data(); };
 
   [[nodiscard]] inline size_type size() const noexcept { return mSize; };
@@ -90,10 +106,12 @@ class DynamicSymbolTable : public internal::SymbolTableContainer<source_T,
     swap(static_cast<typename DynamicSymbolTable::base_type&>(a),
          static_cast<typename DynamicSymbolTable::base_type&>(b));
     swap(a.mSize, b.mSize);
+    swap(a.mStartAddress, b.mStartAddress);
   };
 
  protected:
   size_t mSize = 0;
+  const_pointer mStartAddress = {};
 }; // namespace rans
 
 template <class source_T, class value_T>
@@ -120,6 +138,7 @@ DynamicSymbolTable<source_T, value_T>::DynamicSymbolTable(const RenormedDynamicF
     }
   }
   mSize = this->mContainer.size();
+  mStartAddress = this->mContainer.data() + this->getOffset();
 };
 
 template <typename source_T, class symbol_T>
