@@ -251,11 +251,11 @@ inline auto SymbolMapper<SIMDWidth::SSE>::readSymbols(source_IT symbolIter, lite
 
   UnrolledSymbols unrolledSymbols2;
 
-  store(frequencies, toSIMDView(unrolledSymbols2.frequencies).template subView<0, 1>());
-  store(_mm_bsrli_si128(frequencies, 8), toSIMDView(unrolledSymbols2.frequencies).template subView<1, 1>());
+  unrolledSymbols2.frequencies[0] = frequencies;
+  unrolledSymbols2.frequencies[1] = _mm_bsrli_si128(frequencies, 8);
 
-  store(cumulativeFrequencies, toSIMDView(unrolledSymbols2.cumulativeFrequencies).template subView<0, 1>());
-  store(_mm_bsrli_si128(cumulativeFrequencies, 8), toSIMDView(unrolledSymbols2.cumulativeFrequencies).template subView<1, 1>());
+  unrolledSymbols2.cumulativeFrequencies[0] = cumulativeFrequencies;
+  unrolledSymbols2.cumulativeFrequencies[1] = _mm_bsrli_si128(cumulativeFrequencies, 8);
 
   //auto incompressibleSymbols = store<uint32_t>(symbolsVec);
 
@@ -469,13 +469,13 @@ inline auto SymbolMapper<SIMDWidth::AVX>::readSymbols(source_IT symbolIter, lite
 
   UnrolledSymbols unrolledSymbols2;
 
-  store(frequencies[0], toSIMDView(unrolledSymbols2.frequencies).template subView<0, 1>());
-  store(frequencies[1], toSIMDView(unrolledSymbols2.frequencies).template subView<1, 1>());
+  unrolledSymbols2.frequencies[0] = frequencies[0];
+  unrolledSymbols2.frequencies[1] = frequencies[1];
 
-  store(cumulativeFrequencies[0], toSIMDView(unrolledSymbols2.cumulativeFrequencies).template subView<0, 1>());
-  store(cumulativeFrequencies[1], toSIMDView(unrolledSymbols2.cumulativeFrequencies).template subView<1, 1>());
+  unrolledSymbols2.cumulativeFrequencies[0] = cumulativeFrequencies[0];
+  unrolledSymbols2.cumulativeFrequencies[1] = cumulativeFrequencies[1];
 
-  //auto incompressibleSymbols = store<uint32_t>(symbolsVec);
+  // auto incompressibleSymbols = store<uint32_t>(symbolsVec);
 
   // std::vector<typename std::iterator_traits<source_IT>::value_type> fakeLiterals;
   // fakeLiterals.reserve(8);
@@ -495,11 +495,11 @@ inline auto SymbolMapper<SIMDWidth::AVX>::readSymbols(source_IT symbolIter, lite
   // ret[0] = lookupSymbol(symbolIter - 8, *mSymbolTable, fakeLiterals);
 
   // aosToSoa(ArrayView{ret}.template subView<0, 4>(),
-  //          toSIMDView(unrolledSymbols.frequencies).template subView<0, 1>(),
-  //          toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<0, 1>());
+  //          &unrolledSymbols.frequencies[0],
+  //          &unrolledSymbols.cumulativeFrequencies[0]);
   // aosToSoa(ArrayView{ret}.template subView<4, 4>(),
-  //          toSIMDView(unrolledSymbols.frequencies).template subView<1, 1>(),
-  //          toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<1, 1>());
+  //          &unrolledSymbols.frequencies[1],
+  //          &unrolledSymbols.cumulativeFrequencies[1]);
 
   // auto checkEqual = [](auto a, auto b) {
   //   if (a != b) {
@@ -512,24 +512,25 @@ inline auto SymbolMapper<SIMDWidth::AVX>::readSymbols(source_IT symbolIter, lite
 
   // // checks
   // LOG(info) << "frequency check";
-  // checkEqual(unrolledSymbols2.frequencies[0], unrolledSymbols.frequencies[0]);
-  // checkEqual(unrolledSymbols2.frequencies[1], unrolledSymbols.frequencies[1]);
-  // checkEqual(unrolledSymbols2.frequencies[2], unrolledSymbols.frequencies[2]);
-  // checkEqual(unrolledSymbols2.frequencies[3], unrolledSymbols.frequencies[3]);
-  // checkEqual(unrolledSymbols2.frequencies[4], unrolledSymbols.frequencies[4]);
-  // checkEqual(unrolledSymbols2.frequencies[5], unrolledSymbols.frequencies[5]);
-  // checkEqual(unrolledSymbols2.frequencies[6], unrolledSymbols.frequencies[6]);
-  // checkEqual(unrolledSymbols2.frequencies[7], unrolledSymbols.frequencies[7]);
+
+  // checkEqual(unrolledSymbols2.frequencies[0][0], unrolledSymbols.frequencies[0][0]);
+  // checkEqual(unrolledSymbols2.frequencies[0][1], unrolledSymbols.frequencies[0][1]);
+  // checkEqual(unrolledSymbols2.frequencies[0][2], unrolledSymbols.frequencies[0][2]);
+  // checkEqual(unrolledSymbols2.frequencies[0][3], unrolledSymbols.frequencies[0][3]);
+  // checkEqual(unrolledSymbols2.frequencies[1][0], unrolledSymbols.frequencies[1][0]);
+  // checkEqual(unrolledSymbols2.frequencies[1][1], unrolledSymbols.frequencies[1][1]);
+  // checkEqual(unrolledSymbols2.frequencies[1][2], unrolledSymbols.frequencies[1][2]);
+  // checkEqual(unrolledSymbols2.frequencies[1][3], unrolledSymbols.frequencies[1][3]);
 
   // LOG(info) << "cumulativeFrequencies check";
-  // checkEqual(unrolledSymbols2.cumulativeFrequencies[0], unrolledSymbols.cumulativeFrequencies[0]);
-  // checkEqual(unrolledSymbols2.cumulativeFrequencies[1], unrolledSymbols.cumulativeFrequencies[1]);
-  // checkEqual(unrolledSymbols2.cumulativeFrequencies[2], unrolledSymbols.cumulativeFrequencies[2]);
-  // checkEqual(unrolledSymbols2.cumulativeFrequencies[3], unrolledSymbols.cumulativeFrequencies[3]);
-  // checkEqual(unrolledSymbols2.cumulativeFrequencies[4], unrolledSymbols.cumulativeFrequencies[4]);
-  // checkEqual(unrolledSymbols2.cumulativeFrequencies[5], unrolledSymbols.cumulativeFrequencies[5]);
-  // checkEqual(unrolledSymbols2.cumulativeFrequencies[6], unrolledSymbols.cumulativeFrequencies[6]);
-  // checkEqual(unrolledSymbols2.cumulativeFrequencies[7], unrolledSymbols.cumulativeFrequencies[7]);
+  // checkEqual(unrolledSymbols2.cumulativeFrequencies[0][0], unrolledSymbols.cumulativeFrequencies[0][0]);
+  // checkEqual(unrolledSymbols2.cumulativeFrequencies[0][1], unrolledSymbols.cumulativeFrequencies[0][1]);
+  // checkEqual(unrolledSymbols2.cumulativeFrequencies[0][2], unrolledSymbols.cumulativeFrequencies[0][2]);
+  // checkEqual(unrolledSymbols2.cumulativeFrequencies[0][3], unrolledSymbols.cumulativeFrequencies[0][3]);
+  // checkEqual(unrolledSymbols2.cumulativeFrequencies[1][0], unrolledSymbols.cumulativeFrequencies[1][0]);
+  // checkEqual(unrolledSymbols2.cumulativeFrequencies[1][1], unrolledSymbols.cumulativeFrequencies[1][1]);
+  // checkEqual(unrolledSymbols2.cumulativeFrequencies[1][2], unrolledSymbols.cumulativeFrequencies[1][2]);
+  // checkEqual(unrolledSymbols2.cumulativeFrequencies[1][3], unrolledSymbols.cumulativeFrequencies[1][3]);
 
   // LOG_IF(info, fakeLiterals.size() > 0) << "checking incompressible sizes";
   // size_t nIncompressible = std::distance(oldIter, literalIter);

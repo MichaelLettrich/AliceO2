@@ -68,8 +68,8 @@ inline std::tuple<source_IT, simd::UnrolledSymbols> getSymbols(source_IT symbolI
                                                        tableBegin + *(symbolIter - 2) - minSymbol,
                                                        tableBegin + *(symbolIter - 1) - minSymbol};
 
-    aosToSoa(ArrayView{ret}.template subView<0, 2>(), toSIMDView(unrolledSymbols.frequencies).template subView<0, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<0, 1>());
-    aosToSoa(ArrayView{ret}.template subView<2, 2>(), toSIMDView(unrolledSymbols.frequencies).template subView<1, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<1, 1>());
+    aosToSoa(ArrayView{ret}.template subView<0, 2>(), &unrolledSymbols.frequencies[0], &unrolledSymbols.cumulativeFrequencies[0]);
+    aosToSoa(ArrayView{ret}.template subView<2, 2>(), &unrolledSymbols.frequencies[1], &unrolledSymbols.cumulativeFrequencies[1]);
 
     return {symbolIter - nHardwareStreams_V, unrolledSymbols};
   } else {
@@ -82,8 +82,8 @@ inline std::tuple<source_IT, simd::UnrolledSymbols> getSymbols(source_IT symbolI
                                                        tableBegin + *(symbolIter - 3) - minSymbol,
                                                        tableBegin + *(symbolIter - 2) - minSymbol,
                                                        tableBegin + *(symbolIter - 1) - minSymbol};
-    aosToSoa(ArrayView{ret}.template subView<0, 4>(), toSIMDView(unrolledSymbols.frequencies).template subView<0, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<0, 1>());
-    aosToSoa(ArrayView{ret}.template subView<4, 4>(), toSIMDView(unrolledSymbols.frequencies).template subView<1, 1>(), toSIMDView(unrolledSymbols.cumulativeFrequencies).template subView<1, 1>());
+    aosToSoa(ArrayView{ret}.template subView<0, 4>(), &unrolledSymbols.frequencies[0], &unrolledSymbols.cumulativeFrequencies[0]);
+    aosToSoa(ArrayView{ret}.template subView<4, 4>(), &unrolledSymbols.frequencies[1], &unrolledSymbols.cumulativeFrequencies[1]);
     return {symbolIter - nHardwareStreams_V, unrolledSymbols};
   }
 };
