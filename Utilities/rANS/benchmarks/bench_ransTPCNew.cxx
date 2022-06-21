@@ -111,7 +111,7 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
 
   EncodeBuffer<source_type> encodeBuffer{inputData.size()};
   encodeBuffer.literals.resize(inputData.size(), 0);
-  encodeBuffer.literalsIter = encodeBuffer.literals.data();
+  encodeBuffer.literalsEnd = encodeBuffer.literals.data();
   DecodeBuffer<source_type> decodeBuffer{inputData.size()};
 
   writer.Key("Timing");
@@ -143,7 +143,7 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
 #ifdef ENABLE_VTUNE_PROFILER
   __itt_resume();
 #endif
-  std::tie(encodeBuffer.encodeIter, encodeBuffer.literalsIter) = encoder.process(inputData.data(), inputData.data() + inputData.size(), encodeBuffer.encodeIter, encodeBuffer.literalsIter);
+  std::tie(encodeBuffer.encodeBufferEnd, encodeBuffer.literalsEnd) = encoder.process(inputData.data(), inputData.data() + inputData.size(), encodeBuffer.buffer.data(), encodeBuffer.literalsEnd);
 #ifdef ENABLE_VTUNE_PROFILER
   __itt_pause();
 #endif
@@ -155,8 +155,8 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
   auto decoderFrequencyTable = makeFrequencyTableFromSamples(inputData.begin(), inputData.end());
   auto decoderRenormed = renormCutoffIncompressible<>(decoderFrequencyTable, renormedFrequencyTable.getRenormingBits());
   decoder_type<source_type> decoder{decoderRenormed};
-  encodeBuffer.literals.resize(std::distance(encodeBuffer.literals.data(), encodeBuffer.literalsIter));
-  decoder.process(encodeBuffer.encodeIter, decodeBuffer.buffer.data(), inputData.size(), encodeBuffer.literals);
+  encodeBuffer.literals.resize(std::distance(encodeBuffer.literals.data(), encodeBuffer.literalsEnd));
+  decoder.process(encodeBuffer.encodeBufferEnd, decodeBuffer.buffer.data(), inputData.size(), encodeBuffer.literals);
   if (!(decodeBuffer == inputData)) {
     LOGP(warning, "Missmatch between original and decoded Message");
   }
@@ -221,7 +221,7 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
   writer.Key("Compression");
   writer.StartObject();
   writer.Key("EncodeBufferSize");
-  writer.Uint64(std::distance(encodeBuffer.buffer.data(), encodeBuffer.encodeIter) * sizeof(uint32_t));
+  writer.Uint64(std::distance(encodeBuffer.buffer.data(), encodeBuffer.encodeBufferEnd) * sizeof(uint32_t));
   writer.Key("LiteralSize");
   writer.Uint64(encodeBuffer.literals.size() * sizeof(source_type));
   writer.EndObject(); // Compression
