@@ -147,6 +147,9 @@ struct SIMDFixture : public benchmark::Fixture {
 
   void SetUp(const ::benchmark::State& state) final
   {
+    mState = simd::setAll<width_V>(getData<source_T>().getState());
+    mNSamples = simd::setAll<width_V>(static_cast<double>(pow2(getData<source_T>().getRenormedFrequencies().getRenormingBits())));
+
     const auto& sourceMessage = getData<source_T>().getSourceMessage();
     simd::SymbolTable symbolTable{getData<source_T>().getRenormedFrequencies()};
     for (size_t i = 0; i < sourceMessage.size(); i += nElems) {
@@ -174,9 +177,8 @@ struct SIMDFixture : public benchmark::Fixture {
 
   static constexpr size_t nElems = simd::getElementCount<ransState_t>(width_V);
   std::vector<std::array<const symbol_t*, nElems>> mSymbols{};
-  simd::epi64_t<width_V> mState{getData<source_T>().getState()};
-  simd::pd_t<width_V> mNSamples{static_cast<double>(pow2(
-    getData<source_T>().getRenormedFrequencies().getRenormingBits()))};
+  simd::simdI_t<width_V> mState;
+  simd::simdD_t<width_V> mNSamples;
 };
 
 ransState_t encode(ransState_t state, const cpp::EncoderSymbol<ransState_t>& symbol)
@@ -195,15 +197,12 @@ ransState_t simpleEncode(ransState_t state, size_t symbolTablePrecision, const c
 };
 
 template <simd::SIMDWidth width_V>
-auto SIMDEncode(simd::epi64cV_t<width_V> states,
-                simd::pdcV_t<width_V> nSamples,
-                simd::ArrayView<const Symbol*, simd::getElementCount<ransState_t>(width_V)> symbols)
+inline auto SIMDEncode(simd::simdI_t<width_V> states, simd::simdD_t<width_V> nSamples, simd::ArrayView<const Symbol*, simd::getElementCount<ransState_t>(width_V)> symbols)
 {
-  auto [frequencies, cumulativeFrequencies] = simd::aosToSoa(symbols);
-  return ransEncode(states,
-                    simd::int32ToDouble<width_V>(simd::toConstSIMDView(frequencies)),
-                    simd::int32ToDouble<width_V>(simd::toConstSIMDView(cumulativeFrequencies)),
-                    nSamples);
+  simd::simdIsse_t frequencies;
+  simd::simdIsse_t cumulativeFrequencies;
+  simd::aosToSoa(symbols, &frequencies, &cumulativeFrequencies);
+  return simd::ransEncode(states, simd::int32ToDouble<width_V>(frequencies), simd::int32ToDouble<width_V>(cumulativeFrequencies), nSamples);
 };
 
 template <typename source_T>
@@ -242,7 +241,7 @@ static void ransSIMDEncodeBenchmark(benchmark::State& st, SIMDFixture<source_T, 
 #endif
   for (auto _ : st) {
     for (size_t i = 0; i < fixture.mSymbols.size(); ++i) {
-      auto newStates = SIMDEncode(simd::toConstSIMDView(fixture.mState), simd::toConstSIMDView(fixture.mNSamples), fixture.mSymbols[i]);
+      auto newStates = SIMDEncode<width_V>(fixture.mState, fixture.mNSamples, fixture.mSymbols[i]);
       benchmark::DoNotOptimize(newStates);
       benchmark::ClobberMemory();
     }
