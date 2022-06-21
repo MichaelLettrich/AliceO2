@@ -24,9 +24,9 @@
 
 #include "rANS/utils.h"
 #include "rANS/rans.h"
-#include "rANS/internal/backend/simd/kernel.h"
-#include "rANS/internal/backend/simd/SymbolTable.h"
-#include "rANS/SIMDEncoder.h"
+// #include "rANS/internal/backend/simd/kernel.h"
+// #include "rANS/internal/backend/simd/SymbolTable.h"
+// #include "rANS/SIMDEncoder.h"
 
 #ifdef ENABLE_VTUNE_PROFILER
 #include <ittnotify.h>

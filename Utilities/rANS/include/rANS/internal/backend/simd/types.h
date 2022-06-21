@@ -532,36 +532,42 @@ inline constexpr std::uint16_t operator"" _u16(unsigned long long int value) { r
 inline constexpr std::int16_t operator"" _i16(unsigned long long int value) { return static_cast<int16_t>(value); };
 
 template <SIMDWidth>
-struct toSIMDintType;
+struct SimdInt;
 
 template <>
-struct toSIMDintType<SIMDWidth::SSE> {
+struct SimdInt<SIMDWidth::SSE> {
   using value_type = __m128i;
 };
 
 template <>
-struct toSIMDintType<SIMDWidth::AVX> {
+struct SimdInt<SIMDWidth::AVX> {
   using value_type = __m256i;
 };
 
 template <SIMDWidth width_V>
-using toSIMDintType_t = typename toSIMDintType<width_V>::value_type;
+using simdI_t = typename SimdInt<width_V>::value_type;
+
+using simdIsse_t = simdI_t<SIMDWidth::SSE>;
+using simdIavx_t = simdI_t<SIMDWidth::AVX>;
 
 template <SIMDWidth>
-struct toSIMDdoubleType;
+struct SimdDouble;
 
 template <>
-struct toSIMDdoubleType<SIMDWidth::SSE> {
+struct SimdDouble<SIMDWidth::SSE> {
   using value_type = __m128d;
 };
 
 template <>
-struct toSIMDdoubleType<SIMDWidth::AVX> {
+struct SimdDouble<SIMDWidth::AVX> {
   using value_type = __m256d;
 };
 
 template <SIMDWidth width_V>
-using toSIMDdoubleType_t = typename toSIMDdoubleType<width_V>::value_type;
+using simdD_t = typename SimdDouble<width_V>::value_type;
+
+using simdDsse_t = simdD_t<SIMDWidth::SSE>;
+using simdDavx_t = simdD_t<SIMDWidth::AVX>;
 
 // alignment atributes cause gcc warnings, but we don't need them, so disable for this specific case.
 #pragma GCC diagnostic push

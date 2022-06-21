@@ -110,7 +110,7 @@ Stream_IT Encoder<simdWidth_V>::flush(Stream_IT iter)
 
 template <SIMDWidth simdWidth_V>
 template <typename Stream_IT>
-Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, simd::UnrolledSymbols& symbols)
+inline Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, simd::UnrolledSymbols& symbols)
 {
 
   // can't encode symbol with freq=0
@@ -120,20 +120,25 @@ Stream_IT Encoder<simdWidth_V>::putSymbols(Stream_IT outputIter, simd::UnrolledS
   // }
 #endif
 
-  auto [streamPosition, renormedStates] = ransRenorm<Stream_IT, LowerBound, StreamBits>(toConstSIMDView(mStates),
-                                                                                        toConstSIMDView(symbols.frequencies),
-                                                                                        static_cast<uint8_t>(mSymbolTablePrecision),
-                                                                                        outputIter);
-  ransEncode(toConstSIMDView(renormedStates).template subView<0, 1>(),
-             int32ToDouble<simdWidth_V>(toConstSIMDView(symbols.frequencies).template subView<0, 1>()),
-             int32ToDouble<simdWidth_V>(toConstSIMDView(symbols.cumulativeFrequencies).template subView<0, 1>()),
-             toConstSIMDView(mNSamples),
-             toSIMDView(mStates).template subView<0, 1>());
-  ransEncode(toConstSIMDView(renormedStates).template subView<1, 1>(),
-             int32ToDouble<simdWidth_V>(toConstSIMDView(symbols.frequencies).template subView<1, 1>()),
-             int32ToDouble<simdWidth_V>(toConstSIMDView(symbols.cumulativeFrequencies).template subView<1, 1>()),
-             toConstSIMDView(mNSamples),
-             toSIMDView(mStates).template subView<1, 1>());
+  simdI_t<simdWidth_V> states[2];
+  states[0] = load(toConstSIMDView(mStates).template subView<0, 1>());
+  states[1] = load(toConstSIMDView(mStates).template subView<1, 1>());
+
+  Stream_IT streamPosition = ransRenorm<Stream_IT, LowerBound, StreamBits>(states,
+                                                                           symbols.frequencies,
+                                                                           static_cast<uint8_t>(mSymbolTablePrecision),
+                                                                           outputIter, states);
+  states[0] = ransEncode(states[0],
+                         int32ToDouble<simdWidth_V>(symbols.frequencies[0]),
+                         int32ToDouble<simdWidth_V>(symbols.cumulativeFrequencies[0]),
+                         load(mNSamples));
+  states[1] = ransEncode(states[1],
+                         int32ToDouble<simdWidth_V>(symbols.frequencies[1]),
+                         int32ToDouble<simdWidth_V>(symbols.cumulativeFrequencies[1]),
+                         load(mNSamples));
+
+  store(states[0], toSIMDView(mStates).template subView<0, 1>());
+  store(states[1], toSIMDView(mStates).template subView<1, 1>());
 
   return streamPosition;
 }
@@ -286,21 +291,14 @@ inline Stream_IT Encoder<SIMDWidth::AVX>::putSymbols(Stream_IT outputIter, const
 #endif
   __m128i frequencies[2];
   __m128i cumulativeFrequencies[2];
-
-  frequencies[0] = load(toConstSIMDView(symbols.frequencies).template subView<0, 1>());
-  frequencies[1] = load(toConstSIMDView(symbols.frequencies).template subView<1, 1>());
-
-  cumulativeFrequencies[0] = load(toConstSIMDView(symbols.cumulativeFrequencies).template subView<0, 1>());
-  cumulativeFrequencies[1] = load(toConstSIMDView(symbols.cumulativeFrequencies).template subView<1, 1>());
-
   __m256i renormedStates[2];
-  auto streamPosition = ransRenormImpl<Stream_IT, LowerBound, StreamBits>(mStates,
-                                                                          frequencies,
-                                                                          static_cast<uint8_t>(mSymbolTablePrecision),
-                                                                          outputIter,
-                                                                          renormedStates);
-  mStates[0] = ransEncode(renormedStates[0], int32ToDouble<SIMDWidth::AVX>(frequencies[0]), int32ToDouble<SIMDWidth::AVX>(cumulativeFrequencies[0]), mNSamples);
-  mStates[1] = ransEncode(renormedStates[1], int32ToDouble<SIMDWidth::AVX>(frequencies[1]), int32ToDouble<SIMDWidth::AVX>(cumulativeFrequencies[1]), mNSamples);
+  auto streamPosition = ransRenorm<Stream_IT, LowerBound, StreamBits>(mStates,
+                                                                      symbols.frequencies,
+                                                                      static_cast<uint8_t>(mSymbolTablePrecision),
+                                                                      outputIter,
+                                                                      renormedStates);
+  mStates[0] = ransEncode(renormedStates[0], int32ToDouble<SIMDWidth::AVX>(symbols.frequencies[0]), int32ToDouble<SIMDWidth::AVX>(symbols.cumulativeFrequencies[0]), mNSamples);
+  mStates[1] = ransEncode(renormedStates[1], int32ToDouble<SIMDWidth::AVX>(symbols.frequencies[1]), int32ToDouble<SIMDWidth::AVX>(symbols.cumulativeFrequencies[1]), mNSamples);
 
   return streamPosition;
 } // namespace simd
