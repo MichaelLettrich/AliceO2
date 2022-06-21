@@ -248,12 +248,8 @@ class SymbolMapper<symbolTable_T,
     ret[1] = &this->lookupSymbol(sourceIter - 2);
     ret[0] = &this->lookupSymbol(sourceIter - 3);
 
-    aosToSoa(ArrayView{ret}.template subView<0, 2>(),
-             toSIMDView(unpacked.frequencies).template subView<0, 1>(),
-             toSIMDView(unpacked.cumulativeFrequencies).template subView<0, 1>());
-    aosToSoa(ArrayView{ret}.template subView<2, 2>(),
-             toSIMDView(unpacked.frequencies).template subView<1, 1>(),
-             toSIMDView(unpacked.cumulativeFrequencies).template subView<1, 1>());
+    aosToSoa(ArrayView{ret}.template subView<0, 2>(), &unpacked.frequencies[0], &unpacked.cumulativeFrequencies[0]);
+    aosToSoa(ArrayView{ret}.template subView<2, 2>(), &unpacked.frequencies[1], &unpacked.cumulativeFrequencies[1]);
 
     return internal::advanceIter(sourceIter, -coder_type::getNstreams());
   };
@@ -261,15 +257,26 @@ class SymbolMapper<symbolTable_T,
   template <typename source_IT>
   [[nodiscard]] inline source_IT unpackSymbols(source_IT sourceIter, coderSymbol_type& unpacked, size_type nActiveStreams)
   {
+    using namespace internal::simd;
+
     const size_type nStreams = coder_type::getNstreams();
 
     difference_type currentStream = nActiveStreams;
 
+    epi32_t<SIMDWidth::SSE, 2> frequencies;
+    epi32_t<SIMDWidth::SSE, 2> cumulativeFrequencies;
+
     while (currentStream-- > 0) {
       const auto& symbol = this->lookupSymbol(sourceIter--);
-      unpacked.frequencies[currentStream] = symbol.getFrequency();
-      unpacked.cumulativeFrequencies[currentStream] = symbol.getCumulative();
+      frequencies[currentStream] = symbol.getFrequency();
+      cumulativeFrequencies[currentStream] = symbol.getCumulative();
     }
+
+    unpacked.frequencies[0] = load(toConstSIMDView(frequencies).template subView<0, 1>());
+    unpacked.frequencies[1] = load(toConstSIMDView(frequencies).template subView<1, 1>());
+
+    unpacked.cumulativeFrequencies[0] = load(toConstSIMDView(cumulativeFrequencies).template subView<0, 1>());
+    unpacked.cumulativeFrequencies[1] = load(toConstSIMDView(cumulativeFrequencies).template subView<1, 1>());
 
     return sourceIter;
   };
@@ -315,12 +322,8 @@ class SymbolMapper<symbolTable_T,
     ret[1] = &this->lookupSymbol(sourceIter - 6);
     ret[0] = &this->lookupSymbol(sourceIter - 7);
 
-    aosToSoa(ArrayView{ret}.template subView<0, 4>(),
-             toSIMDView(unpacked.frequencies).template subView<0, 1>(),
-             toSIMDView(unpacked.cumulativeFrequencies).template subView<0, 1>());
-    aosToSoa(ArrayView{ret}.template subView<4, 4>(),
-             toSIMDView(unpacked.frequencies).template subView<1, 1>(),
-             toSIMDView(unpacked.cumulativeFrequencies).template subView<1, 1>());
+    aosToSoa(ArrayView{ret}.template subView<0, 4>(), &unpacked.frequencies[0], &unpacked.cumulativeFrequencies[0]);
+    aosToSoa(ArrayView{ret}.template subView<4, 4>(), &unpacked.frequencies[1], &unpacked.cumulativeFrequencies[1]);
 
     return internal::advanceIter(sourceIter, -coder_type::getNstreams());
   };
@@ -328,15 +331,26 @@ class SymbolMapper<symbolTable_T,
   template <typename source_IT>
   [[nodiscard]] inline source_IT unpackSymbols(source_IT sourceIter, coderSymbol_type& unpacked, size_type nActiveStreams)
   {
+    using namespace internal::simd;
+
     const size_type nStreams = coder_type::getNstreams();
 
     difference_type currentStream = nActiveStreams;
 
+    epi32_t<SIMDWidth::SSE, 2> frequencies;
+    epi32_t<SIMDWidth::SSE, 2> cumulativeFrequencies;
+
     while (currentStream-- > 0) {
       const auto& symbol = this->lookupSymbol(sourceIter--);
-      unpacked.frequencies[currentStream] = symbol.getFrequency();
-      unpacked.cumulativeFrequencies[currentStream] = symbol.getCumulative();
+      frequencies[currentStream] = symbol.getFrequency();
+      cumulativeFrequencies[currentStream] = symbol.getCumulative();
     }
+
+    unpacked.frequencies[0] = load(toConstSIMDView(frequencies).template subView<0, 1>());
+    unpacked.frequencies[1] = load(toConstSIMDView(frequencies).template subView<1, 1>());
+
+    unpacked.cumulativeFrequencies[0] = load(toConstSIMDView(cumulativeFrequencies).template subView<0, 1>());
+    unpacked.cumulativeFrequencies[1] = load(toConstSIMDView(cumulativeFrequencies).template subView<1, 1>());
 
     return sourceIter;
   };
