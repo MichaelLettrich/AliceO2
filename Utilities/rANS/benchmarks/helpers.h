@@ -309,12 +309,14 @@ struct EncodeBuffer {
   EncodeBuffer(size_t sourceSize) : buffer(2 * sourceSize), literals()
   {
     literals.reserve(sourceSize + 32);
+    literalsEnd = literals.data();
+    encodeBufferEnd = buffer.data();
   };
 
   std::vector<stream_T> buffer{};
   std::vector<source_T> literals{};
-  stream_T* encodeIter{buffer.data()};
-  source_T* literalsIter{literals.data()};
+  stream_T* encodeBufferEnd{buffer.data()};
+  source_T* literalsEnd{literals.data()};
 };
 
 template <typename source_T>
