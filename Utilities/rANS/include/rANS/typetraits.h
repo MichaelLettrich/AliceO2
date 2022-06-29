@@ -89,7 +89,7 @@ struct getContainerTag<EncoderFacade<encoderCommand_T, symbolTable_T, nStreams_V
 };
 
 template <typename T>
-static constexpr ContainerTag getContainerTag_v = getContainerTag<T>::value;
+inline constexpr ContainerTag getContainerTag_v = getContainerTag<T>::value;
 
 template <typename T>
 struct getCoderTag;
@@ -115,7 +115,7 @@ struct getCoderTag<EncoderFacade<encoderCommand_T, symbolTable_T, nStreams_V>> :
 };
 
 template <typename T>
-static constexpr CoderTag getCoderTag_v = getCoderTag<T>::value;
+inline constexpr CoderTag getCoderTag_v = getCoderTag<T>::value;
 
 template <ContainerTag tag_V>
 struct ContainerTraits {
@@ -153,6 +153,66 @@ struct ContainerTraits<ContainerTag::Hash> {
   template <typename source_T, class symbol_T>
   using symbolTable_type = HashSymbolTable<source_T, symbol_T>;
 };
+
+template <typename T>
+struct isSymbolTableContainer : public std::is_base_of<internal::SymbolTableContainer<typename T::source_type,
+                                                                                      typename T::index_type,
+                                                                                      typename T::value_type,
+                                                                                      typename T::container_type, T>,
+                                                       T> {
+};
+
+template <typename T>
+inline constexpr bool isSymbolTableContainer_v = isSymbolTableContainer<T>::value;
+
+template <typename T>
+struct isFrequencyTable : std::false_type {
+};
+
+template <typename source_T>
+struct isFrequencyTable<DynamicFrequencyTable<source_T>> : std::true_type {
+};
+
+template <typename source_T>
+struct isFrequencyTable<StaticFrequencyTable<source_T>> : std::true_type {
+};
+
+template <typename source_T>
+struct isFrequencyTable<HashFrequencyTable<source_T>> : std::true_type {
+};
+
+template <typename T>
+inline constexpr bool isFrequencyTable_v = isFrequencyTable<T>::value;
+
+template <typename T>
+struct isFrequencyContainer : public std::is_base_of<internal::FrequencyContainer<typename T::source_type,
+                                                                                  typename T::index_type,
+                                                                                  typename T::value_type,
+                                                                                  typename T::container_type, T>,
+                                                     T> {
+};
+
+template <typename T>
+inline constexpr bool isFrequencyContainer_v = isFrequencyContainer<T>::value;
+
+template <typename T>
+struct isRenormedFrequencyTable : std::false_type {
+};
+
+template <typename source_T>
+struct isRenormedFrequencyTable<RenormedStaticFrequencyTable<source_T>> : std::true_type {
+};
+
+template <typename source_T>
+struct isRenormedFrequencyTable<RenormedDynamicFrequencyTable<source_T>> : std::true_type {
+};
+
+template <typename source_T>
+struct isRenormedFrequencyTable<RenormedHashFrequencyTable<source_T>> : std::true_type {
+};
+
+template <typename T>
+inline constexpr bool isRenormedFrequencyTable_v = isRenormedFrequencyTable<T>::value;
 
 template <CoderTag tag_V>
 struct SymbolTraits {
