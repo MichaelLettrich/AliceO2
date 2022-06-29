@@ -15,8 +15,10 @@
 #include "rANS/rans.h"
 #include "rANS/LiteralSIMDEncoder.h"
 #include "rANS/LiteralSIMDDecoder.h"
+#include "rANS/LiteralDecoder.h"
 #include "rANS/typetraits.h"
 #include "rANS/renorm.h"
+#include "rANS/utils/serialize.h"
 
 #include "helpers.h"
 
@@ -32,19 +34,20 @@ using ransStream_type = uint32_t;
 
 template <typename source_T>
 using decoder_type = LiteralSIMDDecoder<ransCoder_type, ransStream_type, source_T, NStreams, 1>;
+// using decoder_type = LiteralDecoder<ransCoder_type, ransStream_type, source_T>;
 
 // using container_types = boost::mp11::mp_list<std::integral_constant<ContainerTag, ContainerTag::Dynamic>,
 //                                              std::integral_constant<ContainerTag, ContainerTag::Static>,
 //                                              std::integral_constant<ContainerTag, ContainerTag::Hash>>;
 
-using container_types = boost::mp11::mp_list<std::integral_constant<ContainerTag, ContainerTag::Dynamic>>;
+using container_types = boost::mp11::mp_list<std::integral_constant<ContainerTag, ContainerTag::Static>>;
 
-// using coder_types = boost::mp11::mp_list<std::integral_constant<CoderTag, CoderTag::Compat>,
-//                                          std::integral_constant<CoderTag, CoderTag::SingleStream>,
-//                                          std::integral_constant<CoderTag, CoderTag::SSE>,
-//                                          std::integral_constant<CoderTag, CoderTag::AVX2>>;
+using coder_types = boost::mp11::mp_list<std::integral_constant<CoderTag, CoderTag::Compat>,
+                                         std::integral_constant<CoderTag, CoderTag::SingleStream>,
+                                         std::integral_constant<CoderTag, CoderTag::SSE>,
+                                         std::integral_constant<CoderTag, CoderTag::AVX2>>;
 
-using coder_types = boost::mp11::mp_list<std::integral_constant<CoderTag, CoderTag::SingleStream>>;
+// using coder_types = boost::mp11::mp_list<std::integral_constant<CoderTag, CoderTag::SingleStream>>;
 
 std::string toString(CoderTag tag)
 {
@@ -90,6 +93,14 @@ std::string makeEncoderTitle(ContainerTag containerTag, CoderTag coderTag)
   return toString(containerTag) + toString(coderTag) + "Encoder";
 };
 
+// std::ofstream ofFrequencies{"frequencies.json"};
+// rapidjson::OStreamWrapper streamFrequencies{ofFrequencies};
+// rapidjson::Writer<rapidjson::OStreamWrapper> writerFrequencies{streamFrequencies};
+
+// std::ofstream ofRenormed{"renormed.json"};
+// rapidjson::OStreamWrapper streamRenormed{ofRenormed};
+// rapidjson::Writer<rapidjson::OStreamWrapper> writerRenormed{streamRenormed};
+
 template <typename source_T, ContainerTag containerTag_V, CoderTag coderTag_V>
 void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inputData, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
 {
@@ -120,16 +131,20 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
   LOGP(info, "processing: {} (nItems: {}, size: {} MiB)", name, inputData.size(), inputData.size() * sizeof(source_type) / 1024.0 / 1024.0);
   timer.start();
   auto frequencyTable = makeFrequencyTable<containerTag>::fromSamples(gsl::span<const source_type>(inputData));
-
   timer.stop();
+  // writerFrequencies.Key(name.c_str());
+  // utils::toJSON(frequencyTable, writerFrequencies);
+
   writer.Key("FrequencyTable");
   writer.Double(timer.getDurationMS());
   LOGP(info, "Built Frequency Table in {} ms", timer.getDurationMS());
 
+  auto tmpFreqTable = frequencyTable;
   timer.start();
-  auto renormedFrequencyTable = renormCutoffIncompressible<>(frequencyTable);
-
+  auto renormedFrequencyTable = renormCutoffIncompressible<>(std::move(tmpFreqTable));
   timer.stop();
+  // writerRenormed.Key(name.c_str());
+  // utils::toJSON(renormedFrequencyTable, writerRenormed);
   writer.Key("Renorming");
   writer.Double(timer.getDurationMS());
   LOGP(info, "Renormed Frequency Table in {} ms", timer.getDurationMS());
@@ -151,11 +166,19 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
   writer.Key("Encoding");
   writer.Double(timer.getDurationMS());
   LOGP(info, "Encoded {} Bytes in {} ms", inputData.size() * sizeof(source_type), timer.getDurationMS());
+  std::vector<uint8_t> dict(frequencyTable.size() * sizeof(uint32_t), 0);
+  timer.start();
+  auto dictEnd = utils::toCompressedBinary(renormedFrequencyTable, dict.data());
+  timer.stop();
+  writer.Key("Dict");
+  writer.Double(timer.getDurationMS());
+  LOGP(info, "Serialized Dict of {} Bytes in {} ms", std::distance(dict.data(), dictEnd), timer.getDurationMS());
 
   auto decoderFrequencyTable = makeFrequencyTableFromSamples(inputData.begin(), inputData.end());
   auto decoderRenormed = renormCutoffIncompressible<>(decoderFrequencyTable, renormedFrequencyTable.getRenormingBits());
   decoder_type<source_type> decoder{decoderRenormed};
   encodeBuffer.literals.resize(std::distance(encodeBuffer.literals.data(), encodeBuffer.literalsEnd));
+  const auto literalsSize = encodeBuffer.literals.size();
   decoder.process(encodeBuffer.encodeBufferEnd, decodeBuffer.buffer.data(), inputData.size(), encodeBuffer.literals);
   if (!(decodeBuffer == inputData)) {
     LOGP(warning, "Missmatch between original and decoded Message");
@@ -216,14 +239,16 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
   writer.Double(computeExpectedCodewordLength<source_type>(decoderFrequencyTable, decoderRenormed));
   writer.EndObject(); // Message
 
-  // Message Properties
+  // Compression Properties
   //##########################
   writer.Key("Compression");
   writer.StartObject();
   writer.Key("EncodeBufferSize");
   writer.Uint64(std::distance(encodeBuffer.buffer.data(), encodeBuffer.encodeBufferEnd) * sizeof(uint32_t));
   writer.Key("LiteralSize");
-  writer.Uint64(encodeBuffer.literals.size() * sizeof(source_type));
+  writer.Uint64(literalsSize * sizeof(source_type));
+  writer.Key("DictSize");
+  writer.Uint64(std::distance(dict.data(), dictEnd));
   writer.EndObject(); // Compression
 
   writer.EndObject(); // Encode/Decode Run
@@ -246,7 +271,7 @@ void encodeTPC(const std::string& name, const TPCCompressedClusters& compressedC
   ransEncodeDecode<uint8_t, containerTag_V, coderTag_V>("qPtA", compressedClusters.qPtA, writer);
   ransEncodeDecode<uint8_t, containerTag_V, coderTag_V>("rowA", compressedClusters.rowA, writer);
   ransEncodeDecode<uint8_t, containerTag_V, coderTag_V>("sliceA", compressedClusters.sliceA, writer);
-  // ransEncodeDecode<uint32_t, containerTag_V,coderTag_V,>("timeA", compressedClusters.timeA, writer);
+  // ransEncodeDecode<uint32_t, containerTag_V, coderTag_V>("timeA", compressedClusters.timeA, writer);
   ransEncodeDecode<uint16_t, containerTag_V, coderTag_V>("padA", compressedClusters.padA, writer);
   ransEncodeDecode<uint16_t, containerTag_V, coderTag_V>("qTotU", compressedClusters.qTotU, writer);
   ransEncodeDecode<uint16_t, containerTag_V, coderTag_V>("qMaxU", compressedClusters.qMaxU, writer);
@@ -265,7 +290,6 @@ using encoder_types = boost::mp11::mp_product<boost::mp11::mp_list, container_ty
 
 int main(int argc, char* argv[])
 {
-
   bpo::options_description options("Allowed options");
   // clang-format off
   options.add_options()
@@ -309,6 +333,10 @@ int main(int argc, char* argv[])
   if (!of) {
     std::runtime_error(fmt::format("could not open output file at path {}", inFile));
   }
+
+  // writerFrequencies.StartObject();
+  // writerRenormed.StartObject();
+
   rapidjson::OStreamWrapper stream{of};
   rapidjson::Writer<rapidjson::OStreamWrapper> writer{stream};
   writer.StartObject();
@@ -330,4 +358,11 @@ int main(int argc, char* argv[])
   writer.EndObject();
   writer.Flush();
   of.close();
+
+  // writerFrequencies.EndObject();
+  // writerFrequencies.Flush();
+  // ofFrequencies.close();
+  // writerRenormed.EndObject();
+  // writerRenormed.Flush();
+  // ofRenormed.close();
 };
