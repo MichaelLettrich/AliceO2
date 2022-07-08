@@ -42,6 +42,13 @@ o2_add_test(Iterators
             COMPONENT_NAME rANS
             LABELS utils)
 
+o2_add_test(Packer
+            NAME Packer
+            SOURCES test/test_ransPacker.cxx
+            PUBLIC_LINK_LIBRARIES O2::rANS
+            COMPONENT_NAME rANS
+            LABELS utils)
+  
 o2_add_test(HistogramView
             NAME HistogramView
             SOURCES test/test_ransHistogramView.cxx
