@@ -27,11 +27,72 @@
 #include "rANS/HashFrequencyTable.h"
 #include "rANS/FrequencyTable.h"
 #include "rANS/RenormedFrequencyTable.h"
+#include "rANS/internal/helper.h"
 
 namespace o2
 {
 namespace rans
 {
+
+template <typename source_T>
+struct DatasetMetrics {
+  source_T min{};
+  source_T max{};
+  uint32_t nUsedAlphabetSymbols{};
+  float_t entropy{};
+  std::array<uint32_t, 32> symbolLengthDistribution;
+  std::array<float_t, 32> weightedSymbolLengthDistribution;
+};
+
+template <typename frequencyTable_T>
+DatasetMetrics<typename frequencyTable_T::source_T> computeDatasetMetrics(const frequencyTable_T& container)
+{
+  using source_type = typename frequencyTable_T::source_T;
+  DatasetMetrics<source_type> metrics{};
+
+  for (auto iter = container.begin(); iter != container.end(); ++iter) {
+    auto frequency = *iter;
+    if (frequency) {
+      ++metrics.nUsedAlphabetSymbols;
+
+      const float_t probability = static_cast<float_t>(frequency) / static_cast<float_t>(container.getNumSamples());
+      const float_t length = std::log2(probability);
+
+      metrics.entropy -= probability * length;
+      ++metrics.symbolLengthDistribution[static_cast<uint32_t>(length)];
+      metrics.weightedSymbolLengthDistribution[static_cast<uint32_t>(length)] += static_cast<float_t>(frequency) * probability;
+    }
+  }
+
+  // normalize weightedSymbolLengthDistribution
+  for (float& elem : metrics.weightedSymbolLengthDistribution) {
+    elem /= static_cast<float_t>(container.getNumSamples());
+  }
+
+  return metrics;
+}
+
+template <typename source_T>
+inline constexpr bool shouldBePacked(const DatasetMetrics<source_T>& metrics, float_t threshold = 0.1) noexcept
+{
+  constexpr float_t alphabetRangeBits = internal::numBitsForNSymbols(metrics.max - metrics.min);
+
+  return alphabetRangeBits / metrics.entropy > (1.0f + threshold);
+};
+
+template <typename source_T>
+inline constexpr size_t computeRenormingPrecision(const DatasetMetrics<source_T>& metrics, float_t precision = 0.999) noexcept
+{
+  if constexpr (sizeof(source_T) == 1) {
+    return MinRenormThreshold;
+  } else {
+    size_t computedRenormingBits = [&]() {
+      size_t computedRenormingBits = 0;
+      for (size_t i = 0; i < metrics.symbolLengthDistribution.size(); ++i) {
+      }
+    }();
+  }
+};
 
 template <typename source_T>
 inline constexpr size_t computeRenormingPrecision(size_t nUsedAlphabetSymbols)
@@ -42,9 +103,6 @@ inline constexpr size_t computeRenormingPrecision(size_t nUsedAlphabetSymbols)
 
   if constexpr (sizeof(source_T) == 1) {
     return 14;
-  }
-  if constexpr (sizeof(source_T) == 2) {
-    return 18;
   } else {
     const uint8_t minBits = internal::log2UInt(nUsedAlphabetSymbols);
     const uint8_t estimate = minBits * 3u / 2u;
@@ -125,6 +183,8 @@ decltype(auto) renormCutoffIncompressible(frequencyTable_T unrenomredTable, uint
   if (newPrecision == 0) {
     newPrecision = computeRenormingPrecision<source_type>(nUsedAlphabetSymbols);
   }
+
+  LOGP(info, "Rescaling: precision = {}", newPrecision);
 
   const count_type nSamplesRescaled = 1 << newPrecision;
   const double_t probabilityCutOffThreshold = 1 / static_cast<double_t>(1ul << (newPrecision + lowProbabilityCutoffBits));
@@ -220,6 +280,8 @@ decltype(auto) renormCutoffIncompressible(frequencyTable_T unrenomredTable, uint
 
   difference_type nCorrections = static_cast<difference_type>(nSamplesRescaled) - static_cast<difference_type>(nSamplesRescaledUncorrected);
   const double_t rescalingFactor = static_cast<double_t>(nSamplesRescaled) / static_cast<double_t>(nSamplesRescaledUncorrected);
+
+  LOGP(info, "Rescaling: nCorrections = {}", nCorrections);
 
   for (auto iter : correctableIndices) {
     if (std::abs(nCorrections) > 0) {
