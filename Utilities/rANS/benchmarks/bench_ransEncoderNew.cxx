@@ -184,106 +184,106 @@ void ransLiteralCompressionBenchmark(benchmark::State& st)
   st.counters["CompressionWRTEntropy"] = st.counters["CompressedSize"] / st.counters["LowerBound"];
 };
 
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::Compat>);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::Compat>);
-BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::Compat>);
+BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::Compat>)->Iterations(1000);
+BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::Compat>)->Iterations(1000);
+BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::Compat>)->Iterations(1000);
 
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::Compat>);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::Compat>);
+// BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::Compat>);
+// BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::Compat>);
 
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Hash, CoderTag::Compat>);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Hash, CoderTag::Compat>);
-BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Hash, CoderTag::Compat>);
-
-//########################################################################################
-
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::SingleStream>);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::SingleStream>);
-BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::SingleStream>);
-
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::SingleStream>);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::SingleStream>);
-
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Hash, CoderTag::SingleStream>);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Hash, CoderTag::SingleStream>);
-BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Hash, CoderTag::SingleStream>);
+// BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Hash, CoderTag::Compat>);
+// BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Hash, CoderTag::Compat>);
+// BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Hash, CoderTag::Compat>);
 
 //########################################################################################
 
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::SSE>);  //->Iterations(1000);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::SSE>); //->Iterations(1000);
-BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::SSE>); //->Iterations(1000);
+// BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::SingleStream>);
+// BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::SingleStream>);
+// BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::SingleStream>);
 
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::SSE>);  //->Iterations(1000);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::SSE>); //->Iterations(1000);
+// BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::SingleStream>);
+// BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::SingleStream>);
 
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Hash, CoderTag::SSE>);  //->Iterations(1000);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Hash, CoderTag::SSE>); //->Iterations(1000);
-BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Hash, CoderTag::SSE>); //->Iterations(1000);
+// BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Hash, CoderTag::SingleStream>);
+// BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Hash, CoderTag::SingleStream>);
+// BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Hash, CoderTag::SingleStream>);
+
+//########################################################################################
+
+BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::SSE>)->Iterations(1000);
+BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::SSE>)->Iterations(1000);
+BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::SSE>)->Iterations(1000);
+
+// BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::SSE>);  //->Iterations(1000);
+// BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::SSE>); //->Iterations(1000);
+
+// BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Hash, CoderTag::SSE>);  //->Iterations(1000);
+// BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Hash, CoderTag::SSE>); //->Iterations(1000);
+// BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Hash, CoderTag::SSE>); //->Iterations(1000);
 
 // //########################################################################################
 
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::AVX2>);  //->Iterations(1000);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::AVX2>); //->Iterations(1000);
-BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::AVX2>); //->Iterations(1000);
+BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::AVX2>);  //->Iterations(1000)->Iterations(1000);
+BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::AVX2>); //->Iterations(1000)->Iterations(1000);
+BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::AVX2>); //->Iterations(1000)->Iterations(1000);
 
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::AVX2>);  //->Iterations(1000);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::AVX2>); //->Iterations(1000);
+// BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::AVX2>);  //->Iterations(1000);
+// BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::AVX2>); //->Iterations(1000);
 
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Hash, CoderTag::AVX2>);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Hash, CoderTag::AVX2>);
-BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Hash, CoderTag::AVX2>);
-
-//########################################################################################
-
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::Compat>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::Compat>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::Compat>);
-
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::Compat>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::Compat>);
-
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Hash, CoderTag::Compat>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Hash, CoderTag::Compat>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Hash, CoderTag::Compat>);
+// BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Hash, CoderTag::AVX2>);
+// BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Hash, CoderTag::AVX2>);
+// BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Hash, CoderTag::AVX2>);
 
 //########################################################################################
 
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::SingleStream>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::SingleStream>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::SingleStream>);
+BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::Compat>)->Iterations(1000);
+BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::Compat>)->Iterations(1000);
+BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::Compat>)->Iterations(1000);
 
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::SingleStream>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::SingleStream>);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::Compat>);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::Compat>);
 
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Hash, CoderTag::SingleStream>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Hash, CoderTag::SingleStream>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Hash, CoderTag::SingleStream>);
-
-//########################################################################################
-
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::SSE>);  //->Iterations(1000);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::SSE>); //->Iterations(1000);
-BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::SSE>); //->Iterations(1000);
-
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::SSE>);  //->Iterations(1000);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::SSE>); //->Iterations(1000);
-
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Hash, CoderTag::SSE>);  //->Iterations(1000);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Hash, CoderTag::SSE>); //->Iterations(1000);
-BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Hash, CoderTag::SSE>); //->Iterations(1000);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Hash, CoderTag::Compat>);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Hash, CoderTag::Compat>);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Hash, CoderTag::Compat>);
 
 //########################################################################################
 
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::AVX2>);  //->Iterations(1000);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::AVX2>); //->Iterations(1000);
-BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::AVX2>); //->Iterations(1000);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::SingleStream>);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::SingleStream>);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::SingleStream>);
 
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::AVX2>);  //->Iterations(1000);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::AVX2>); //->Iterations(1000);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::SingleStream>);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::SingleStream>);
 
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Hash, CoderTag::AVX2>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Hash, CoderTag::AVX2>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Hash, CoderTag::AVX2>);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Hash, CoderTag::SingleStream>);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Hash, CoderTag::SingleStream>);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Hash, CoderTag::SingleStream>);
+
+//########################################################################################
+
+BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::SSE>)->Iterations(1000);
+BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::SSE>)->Iterations(1000);
+BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::SSE>)->Iterations(1000);
+
+// BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::SSE>);  //->Iterations(1000);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::SSE>); //->Iterations(1000);
+
+// BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Hash, CoderTag::SSE>);  //->Iterations(1000);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Hash, CoderTag::SSE>); //->Iterations(1000);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Hash, CoderTag::SSE>); //->Iterations(1000);
+
+//########################################################################################
+
+BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::AVX2>)->Iterations(1000);
+BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::AVX2>)->Iterations(1000);
+BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::AVX2>)->Iterations(1000);
+
+// BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::AVX2>);  //->Iterations(1000);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::AVX2>); //->Iterations(1000);
+
+// BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Hash, CoderTag::AVX2>);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Hash, CoderTag::AVX2>);
+// BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Hash, CoderTag::AVX2>);
 
 BENCHMARK_MAIN();
