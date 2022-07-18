@@ -25,6 +25,8 @@
 #include "DetectorsBase/CTFCoderBase.h"
 #include "TOFBase/Digit.h"
 
+#include "DetectorsBase/CTFJSONSerializer.h"
+
 class TTree;
 
 namespace o2
@@ -109,6 +111,23 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const gsl::span<const ReadoutWind
   iosize += ENCODETOF(cc.tot,          CTF::BLCtot,          0);
   iosize += ENCODETOF(cc.pattMap,      CTF::BLCpattMap,      0);
   // clang-format on
+
+  ctf::CTFJSONSerializer serializer("tof-ctf");
+  serializer.startDetector("TOF");
+  serializer.writeDataset("bcIncROF", cc.bcIncROF.begin(), cc.bcIncROF.end());
+  serializer.writeDataset("orbitIncROF", cc.orbitIncROF.begin(), cc.orbitIncROF.end());
+  serializer.writeDataset("ndigROF", cc.ndigROF.begin(), cc.ndigROF.end());
+  serializer.writeDataset("ndiaROF", cc.ndiaROF.begin(), cc.ndiaROF.end());
+  serializer.writeDataset("ndiaCrate", cc.ndiaCrate.begin(), cc.ndiaCrate.end());
+  serializer.writeDataset("timeFrameInc", cc.timeFrameInc.begin(), cc.timeFrameInc.end());
+  serializer.writeDataset("timeTDCInc", cc.timeTDCInc.begin(), cc.timeTDCInc.end());
+  serializer.writeDataset("stripID", cc.stripID.begin(), cc.stripID.end());
+  serializer.writeDataset("chanInStrip", cc.chanInStrip.begin(), cc.chanInStrip.end());
+  serializer.writeDataset("tot", cc.tot.begin(), cc.tot.end());
+  serializer.writeDataset("pattMap", cc.pattMap.begin(), cc.pattMap.end());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized TOF to json.";
+
   CTF::get(buff.data())->print(getPrefix(), mVerbosity);
   finaliseCTFOutput<CTF>(buff);
   iosize.rawIn = sizeof(ReadoutWindowData) * rofRecVec.size() + sizeof(Digit) * cdigVec.size() + sizeof(uint8_t) * pattVec.size();
@@ -141,6 +160,22 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VROF& rofRecVec, VDIG& 
   iosize += DECODETOF(cc.pattMap,      CTF::BLCpattMap);
   // clang-format on
   //
+  ctf::CTFJSONSerializer serializer("tof-ctf");
+  serializer.startDetector("TOF");
+  serializer.writeDataset("bcIncROF", cc.bcIncROF.begin(), cc.bcIncROF.end());
+  serializer.writeDataset("orbitIncROF", cc.orbitIncROF.begin(), cc.orbitIncROF.end());
+  serializer.writeDataset("ndigROF", cc.ndigROF.begin(), cc.ndigROF.end());
+  serializer.writeDataset("ndiaROF", cc.ndiaROF.begin(), cc.ndiaROF.end());
+  serializer.writeDataset("ndiaCrate", cc.ndiaCrate.begin(), cc.ndiaCrate.end());
+  serializer.writeDataset("timeFrameInc", cc.timeFrameInc.begin(), cc.timeFrameInc.end());
+  serializer.writeDataset("timeTDCInc", cc.timeTDCInc.begin(), cc.timeTDCInc.end());
+  serializer.writeDataset("stripID", cc.stripID.begin(), cc.stripID.end());
+  serializer.writeDataset("chanInStrip", cc.chanInStrip.begin(), cc.chanInStrip.end());
+  serializer.writeDataset("tot", cc.tot.begin(), cc.tot.end());
+  serializer.writeDataset("pattMap", cc.pattMap.begin(), cc.pattMap.end());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized TOF to json.";
+
   decompress(cc, rofRecVec, cdigVec, pattVec);
   iosize.rawIn = sizeof(ReadoutWindowData) * rofRecVec.size() + sizeof(Digit) * cdigVec.size() + sizeof(uint8_t) * pattVec.size();
   return iosize;

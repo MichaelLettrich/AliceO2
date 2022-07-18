@@ -26,6 +26,8 @@
 #include "rANS/rans.h"
 #include "CPVReconstruction/CTFHelper.h"
 
+#include "DetectorsBase/CTFJSONSerializer.h"
+
 class TTree;
 
 namespace o2
@@ -96,6 +98,19 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const gsl::span<const TriggerReco
   iosize += ENCODECPV(helper.begin_energy(),      helper.end_energy(),         CTF::BLC_energy,       0);
   iosize += ENCODECPV(helper.begin_status(),      helper.end_status(),         CTF::BLC_status,       0);
   // clang-format on
+
+  ctf::CTFJSONSerializer serializer("cpv-ctf");
+  serializer.startDetector("CPV");
+  serializer.writeDataset("bcIncTrig", helper.begin_bcIncTrig(), helper.end_bcIncTrig());
+  serializer.writeDataset("orbitIncTrig", helper.begin_orbitIncTrig(), helper.end_orbitIncTrig());
+  serializer.writeDataset("entriesTrig", helper.begin_entriesTrig(), helper.end_entriesTrig());
+  serializer.writeDataset("posX", helper.begin_posX(), helper.end_posX());
+  serializer.writeDataset("posZ", helper.begin_posZ(), helper.end_posZ());
+  serializer.writeDataset("energy", helper.begin_energy(), helper.end_energy());
+  serializer.writeDataset("status", helper.begin_status(), helper.end_status());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized CPV to json.";
+
   CTF::get(buff.data())->print(getPrefix(), mVerbosity);
   finaliseCTFOutput<CTF>(buff);
   iosize.rawIn = trigData.size() * sizeof(TriggerRecord) + cluData.size() * sizeof(Cluster);
@@ -125,6 +140,19 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VTRG& trigVec, VCLUSTER
   iosize += DECODECPV(status,      CTF::BLC_status);
   // clang-format on
   //
+
+  ctf::CTFJSONSerializer serializer("cpv-ctf");
+  serializer.startDetector("CPV");
+  serializer.writeDataset("bcIncTrig", bcInc.begin(), bcInc.end());
+  serializer.writeDataset("orbitIncTrig", orbitInc.begin(), orbitInc.end());
+  serializer.writeDataset("entriesTrig", entries.begin(), entries.end());
+  serializer.writeDataset("posX", posX.begin(), posX.end());
+  serializer.writeDataset("posZ", posZ.begin(), posZ.end());
+  serializer.writeDataset("energy", energy.begin(), energy.end());
+  serializer.writeDataset("status", status.begin(), status.end());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized CPV to json.";
+
   trigVec.clear();
   cluVec.clear();
   trigVec.reserve(header.nTriggers);

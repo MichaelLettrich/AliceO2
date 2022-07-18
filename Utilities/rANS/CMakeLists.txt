@@ -13,7 +13,8 @@ o2_add_library(rANS
                TARGETVARNAME targetName
                SOURCES src/FrequencyTable.cxx
                        src/RenormedFrequencyTable.cxx
-               PUBLIC_LINK_LIBRARIES FairLogger::FairLogger)
+               PUBLIC_LINK_LIBRARIES FairLogger::FairLogger 
+                                     RapidJSON::RapidJSON)
 #target_compile_definitions(${targetName} PUBLIC O2_RANS_PRINT_PROCESSED_DATA)
 
 o2_add_test(Iterators

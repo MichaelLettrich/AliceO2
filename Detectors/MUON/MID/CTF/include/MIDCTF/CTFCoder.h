@@ -28,6 +28,8 @@
 #include "rANS/rans.h"
 #include "MIDCTF/CTFHelper.h"
 
+#include "DetectorsBase/CTFJSONSerializer.h"
+
 class TTree;
 
 namespace o2
@@ -97,6 +99,19 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const CTFHelper::TFData& tfData)
   iosize += ENCODEMID(helper.begin_deId(),        helper.end_deId(),         CTF::BLC_deId,        0);
   iosize += ENCODEMID(helper.begin_colId(),       helper.end_colId(),        CTF::BLC_colId,       0);
   // clang-format on
+
+  ctf::CTFJSONSerializer serializer("mid-ctf");
+  serializer.startDetector("MID");
+  serializer.writeDataset("bcIncROF", helper.begin_bcIncROF(), helper.end_bcIncROF());
+  serializer.writeDataset("orbitIncROF", helper.begin_orbitIncROF(), helper.end_orbitIncROF());
+  serializer.writeDataset("entriesROF", helper.begin_entriesROF(), helper.end_entriesROF());
+  serializer.writeDataset("evtypeROF", helper.begin_evtypeROF(), helper.end_evtypeROF());
+  serializer.writeDataset("pattern", helper.begin_pattern(), helper.end_pattern());
+  serializer.writeDataset("deId", helper.begin_deId(), helper.end_deId());
+  serializer.writeDataset("colId", helper.begin_colId(), helper.end_colId());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized MID to json.";
+
   CTF::get(buff.data())->print(getPrefix(), mVerbosity);
   finaliseCTFOutput<CTF>(buff);
   iosize.rawIn = iosize.ctfIn;
@@ -127,6 +142,19 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, std::array<VROF, NEvTyp
   iosize += DECODEMID(colId,       CTF::BLC_colId);
   // clang-format on
   //
+
+  ctf::CTFJSONSerializer serializer("mid-ctf");
+  serializer.startDetector("MID");
+  serializer.writeDataset("bcIncROF", bcInc.begin(), bcInc.end());
+  serializer.writeDataset("orbitIncROF", orbitInc.begin(), orbitInc.end());
+  serializer.writeDataset("entriesROF", entries.begin(), entries.end());
+  serializer.writeDataset("evtypeROF", evType.begin(), evType.end());
+  serializer.writeDataset("pattern", pattern.begin(), pattern.end());
+  serializer.writeDataset("deId", deId.begin(), deId.end());
+  serializer.writeDataset("colId", colId.begin(), colId.end());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized MID to json.";
+
   for (uint32_t i = 0; i < NEvTypes; i++) {
     rofVec[i].clear();
     colVec[i].clear();

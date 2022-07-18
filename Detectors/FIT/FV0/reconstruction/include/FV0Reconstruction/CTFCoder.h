@@ -23,6 +23,8 @@
 #include "FV0Simulation/FV0DigParam.h"
 #include "DetectorsBase/CTFCoderBase.h"
 
+#include "DetectorsBase/CTFJSONSerializer.h"
+
 class TTree;
 
 namespace o2
@@ -113,6 +115,20 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const gsl::span<const Digit>& dig
   iosize += ENCODEFV0(cd.trigger,   CTF::BLC_trigger,  0);
   iosize += ENCODEFV0(cd.qtcChain,  CTF::BLC_qtcChain, 0);
   // clang-format on
+
+  ctf::CTFJSONSerializer serializer("fv0-ctf");
+  serializer.startDetector("FV0");
+  serializer.writeDataset("bcInc", cd.bcInc.begin(), cd.bcInc.end());
+  serializer.writeDataset("orbitInc", cd.orbitInc.begin(), cd.orbitInc.end());
+  serializer.writeDataset("nChan", cd.nChan.begin(), cd.nChan.end());
+  serializer.writeDataset("idChan", cd.idChan.begin(), cd.idChan.end());
+  serializer.writeDataset("cfdTime", cd.cfdTime.begin(), cd.cfdTime.end());
+  serializer.writeDataset("qtcAmpl", cd.qtcAmpl.begin(), cd.qtcAmpl.end());
+  serializer.writeDataset("trigger", cd.trigger.begin(), cd.trigger.end());
+  serializer.writeDataset("qtcChain", cd.qtcChain.begin(), cd.qtcChain.end());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized FV0 to json.";
+
   CTF::get(buff.data())->print(getPrefix(), mVerbosity);
   finaliseCTFOutput<CTF>(buff);
   iosize.rawIn = sizeof(Digit) * digitVec.size() + sizeof(ChannelData) * channelVec.size();
@@ -149,6 +165,20 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VDIG& digitVec, VCHAN& 
   }
   // clang-format on
   //
+
+  ctf::CTFJSONSerializer serializer("fv0-ctf");
+  serializer.startDetector("FV0");
+  serializer.writeDataset("bcInc", cd.bcInc.begin(), cd.bcInc.end());
+  serializer.writeDataset("orbitInc", cd.orbitInc.begin(), cd.orbitInc.end());
+  serializer.writeDataset("nChan", cd.nChan.begin(), cd.nChan.end());
+  serializer.writeDataset("idChan", cd.idChan.begin(), cd.idChan.end());
+  serializer.writeDataset("cfdTime", cd.cfdTime.begin(), cd.cfdTime.end());
+  serializer.writeDataset("qtcAmpl", cd.qtcAmpl.begin(), cd.qtcAmpl.end());
+  serializer.writeDataset("trigger", cd.trigger.begin(), cd.trigger.end());
+  serializer.writeDataset("qtcChain", cd.qtcChain.begin(), cd.qtcChain.end());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized FV0 to json.";
+
   if (hd.minorVersion == 0 && hd.majorVersion == 1) {
     decompress<1, 0>(cd, digitVec, channelVec);
   } else {

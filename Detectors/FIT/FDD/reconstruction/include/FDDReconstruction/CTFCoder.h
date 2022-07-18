@@ -27,6 +27,8 @@
 #include "DetectorsBase/CTFCoderBase.h"
 #include "rANS/rans.h"
 
+#include "DetectorsBase/CTFJSONSerializer.h"
+
 class TTree;
 
 namespace o2
@@ -116,6 +118,20 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const gsl::span<const Digit>& dig
   iosize += ENCODEFDD(cd.time,      CTF::BLC_time,     0);
   iosize += ENCODEFDD(cd.charge,    CTF::BLC_charge,   0);
   iosize += ENCODEFDD(cd.feeBits,   CTF::BLC_feeBits,  0);
+
+  ctf::CTFJSONSerializer serializer("fdd-ctf");
+  serializer.startDetector("FDD");
+  serializer.writeDataset("trigger", cd.trigger.begin(), cd.trigger.end());
+  serializer.writeDataset("bcInc", cd.bcInc.begin(), cd.bcInc.end());
+  serializer.writeDataset("orbitInc", cd.orbitInc.begin(), cd.orbitInc.end());
+  serializer.writeDataset("nChan", cd.nChan.begin(), cd.nChan.end());
+  serializer.writeDataset("idChan", cd.idChan.begin(), cd.idChan.end());
+  serializer.writeDataset("time", cd.time.begin(), cd.time.end());
+  serializer.writeDataset("charge", cd.charge.begin(), cd.charge.end());
+  serializer.writeDataset("feeBits", cd.feeBits.begin(), cd.feeBits.end());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized FDD to json.";
+
   // clang-format on
   CTF::get(buff.data())->print(getPrefix(), mVerbosity);
   finaliseCTFOutput<CTF>(buff);
@@ -146,6 +162,19 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VDIG& digitVec, VCHAN& 
   iosize += DECODEFDD(cd.feeBits,   CTF::BLC_feeBits);
   // clang-format on
   //
+  ctf::CTFJSONSerializer serializer("fdd-ctf");
+  serializer.startDetector("FDD");
+  serializer.writeDataset("trigger", cd.trigger.begin(), cd.trigger.end());
+  serializer.writeDataset("bcInc", cd.bcInc.begin(), cd.bcInc.end());
+  serializer.writeDataset("orbitInc", cd.orbitInc.begin(), cd.orbitInc.end());
+  serializer.writeDataset("nChan", cd.nChan.begin(), cd.nChan.end());
+  serializer.writeDataset("idChan", cd.idChan.begin(), cd.idChan.end());
+  serializer.writeDataset("time", cd.time.begin(), cd.time.end());
+  serializer.writeDataset("charge", cd.charge.begin(), cd.charge.end());
+  serializer.writeDataset("feeBits", cd.feeBits.begin(), cd.feeBits.end());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized FDD to json.";
+
   if (hd.minorVersion == 0 && hd.majorVersion == 1) {
     decompress<1, 0>(cd, digitVec, channelVec);
   } else {

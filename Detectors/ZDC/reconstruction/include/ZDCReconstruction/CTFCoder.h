@@ -26,6 +26,8 @@
 #include "rANS/rans.h"
 #include "ZDCReconstruction/CTFHelper.h"
 
+#include "DetectorsBase/CTFJSONSerializer.h"
+
 class TTree;
 
 namespace o2
@@ -110,6 +112,24 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const gsl::span<const BCData>& tr
   iosize += ENCODEZDC(helper.begin_sclInc(),       helper.end_sclInc(),        CTF::BLC_sclInc,       0);
 
   // clang-format on
+
+  ctf::CTFJSONSerializer serializer("zdc-ctf");
+  serializer.startDetector("ZDC");
+  serializer.writeDataset("bcIncTrig", helper.begin_bcIncTrig(), helper.end_bcIncTrig());
+  serializer.writeDataset("orbitIncTrig", helper.begin_orbitIncTrig(), helper.end_orbitIncTrig());
+  serializer.writeDataset("moduleTrig", helper.begin_moduleTrig(), helper.end_moduleTrig());
+  serializer.writeDataset("channelsHL", helper.begin_channelsHL(), helper.end_channelsHL());
+  serializer.writeDataset("triggersHL", helper.begin_triggersHL(), helper.end_triggersHL());
+  serializer.writeDataset("extTriggers", helper.begin_extTriggers(), helper.end_extTriggers());
+  serializer.writeDataset("nchanTrig", helper.begin_nchanTrig(), helper.end_nchanTrig());
+  serializer.writeDataset("chanID", helper.begin_chanID(), helper.end_chanID());
+  serializer.writeDataset("chanData", helper.begin_chanData(), helper.end_chanData());
+  serializer.writeDataset("orbitIncEOD", helper.begin_orbitIncEOD(), helper.end_orbitIncEOD());
+  serializer.writeDataset("pedData", helper.begin_pedData(), helper.end_pedData());
+  serializer.writeDataset("sclInc", helper.begin_sclInc(), helper.end_sclInc());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized ZDC to json.";
+
   CTF::get(buff.data())->print(getPrefix(), mVerbosity);
   finaliseCTFOutput<CTF>(buff);
   iosize.rawIn = sizeof(BCData) * trigData.size() + sizeof(ChannelData) * chanData.size() + sizeof(OrbitData) * pedData.size();
@@ -146,6 +166,24 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VTRG& trigVec, VCHAN& c
   iosize += DECODEZDC(scalerInc,      CTF::BLC_sclInc);
   // clang-format on
   //
+
+  ctf::CTFJSONSerializer serializer("zdc-ctf");
+  serializer.startDetector("ZDC");
+  serializer.writeDataset("bcIncTrig", bcIncTrig.begin(), bcIncTrig.end());
+  serializer.writeDataset("orbitIncTrig", orbitIncTrig.begin(), orbitIncTrig.end());
+  serializer.writeDataset("moduleTrig", moduleTrig.begin(), moduleTrig.end());
+  serializer.writeDataset("channelsHL", channelsHL.begin(), channelsHL.end());
+  serializer.writeDataset("triggersHL", triggersHL.begin(), triggersHL.end());
+  serializer.writeDataset("extTriggers", extTriggers.begin(), extTriggers.end());
+  serializer.writeDataset("nchanTrig", nchanTrig.begin(), nchanTrig.end());
+  serializer.writeDataset("chanID", chanID.begin(), chanID.end());
+  serializer.writeDataset("chanData", chanData.begin(), chanData.end());
+  serializer.writeDataset("orbitIncEOD", orbitIncEOD.begin(), orbitIncEOD.end());
+  serializer.writeDataset("pedData", pedData.begin(), pedData.end());
+  serializer.writeDataset("sclInc", scalerInc.begin(), scalerInc.end());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized ZDC to json.";
+
   trigVec.clear();
   chanVec.clear();
   pedVec.clear();

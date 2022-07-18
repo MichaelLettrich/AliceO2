@@ -26,6 +26,8 @@
 #include "rANS/rans.h"
 #include "PHOSReconstruction/CTFHelper.h"
 
+#include "DetectorsBase/CTFJSONSerializer.h"
+
 class TTree;
 
 namespace o2
@@ -96,6 +98,19 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const gsl::span<const TriggerReco
   iosize += ENCODEPHS(helper.begin_energy(),      helper.end_energy(),       CTF::BLC_energy,      0);
   iosize += ENCODEPHS(helper.begin_status(),      helper.end_status(),       CTF::BLC_status,      0);
   // clang-format on
+
+  ctf::CTFJSONSerializer serializer("phos-ctf");
+  serializer.startDetector("PHOS");
+  serializer.writeDataset("bcIncTrig", helper.begin_bcIncTrig(), helper.end_bcIncTrig());
+  serializer.writeDataset("orbitIncTrig", helper.begin_orbitIncTrig(), helper.end_orbitIncTrig());
+  serializer.writeDataset("entriesTrig", helper.begin_entriesTrig(), helper.end_entriesTrig());
+  serializer.writeDataset("packedID", helper.begin_packedID(), helper.end_packedID());
+  serializer.writeDataset("time", helper.begin_time(), helper.end_time());
+  serializer.writeDataset("energy", helper.begin_energy(), helper.end_energy());
+  serializer.writeDataset("status", helper.begin_status(), helper.end_status());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized PHOS to json.";
+
   CTF::get(buff.data())->print(getPrefix(), mVerbosity);
   finaliseCTFOutput<CTF>(buff);
   iosize.rawIn = trigData.size() * sizeof(TriggerRecord) + cellData.size() * sizeof(Cell);
@@ -126,6 +141,19 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VTRG& trigVec, VCELL& c
   iosize += DECODEPHOS(status,      CTF::BLC_status);
   // clang-format on
   //
+
+  ctf::CTFJSONSerializer serializer("phos-ctf");
+  serializer.startDetector("PHOS");
+  serializer.writeDataset("bcIncTrig", bcInc.begin(), bcInc.end());
+  serializer.writeDataset("orbitIncTrig", orbitInc.begin(), orbitInc.end());
+  serializer.writeDataset("entriesTrig", entries.begin(), entries.end());
+  serializer.writeDataset("packedID", packedID.begin(), packedID.end());
+  serializer.writeDataset("time", cellTime.begin(), cellTime.end());
+  serializer.writeDataset("energy", energy.begin(), energy.end());
+  serializer.writeDataset("status", status.begin(), status.end());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized PHOS to json.";
+
   trigVec.clear();
   cellVec.clear();
   trigVec.reserve(header.nTriggers);

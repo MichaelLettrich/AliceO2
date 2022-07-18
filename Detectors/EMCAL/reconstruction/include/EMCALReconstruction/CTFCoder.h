@@ -26,6 +26,8 @@
 #include "rANS/rans.h"
 #include "EMCALReconstruction/CTFHelper.h"
 
+#include "DetectorsBase/CTFJSONSerializer.h"
+
 class TTree;
 
 namespace o2
@@ -100,6 +102,19 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const gsl::span<const TriggerReco
   // extra slot was added in the end
   iosize += ENCODEEMC(helper.begin_trigger(),  helper.end_trigger(),         CTF::BLC_trigger,     0);
   // clang-format on
+  ctf::CTFJSONSerializer serializer("emcal-ctf");
+  serializer.startDetector("EMCAL");
+  serializer.writeDataset("bcIncTrig", helper.begin_bcIncTrig(), helper.end_bcIncTrig());
+  serializer.writeDataset("orbitIncTrig", helper.begin_orbitIncTrig(), helper.end_orbitIncTrig());
+  serializer.writeDataset("entriesTrig", helper.begin_entriesTrig(), helper.end_entriesTrig());
+  serializer.writeDataset("towerID", helper.begin_towerID(), helper.end_towerID());
+  serializer.writeDataset("time", helper.begin_time(), helper.end_time());
+  serializer.writeDataset("energy", helper.begin_energy(), helper.end_energy());
+  serializer.writeDataset("status", helper.begin_status(), helper.end_status());
+  serializer.writeDataset("trigger", helper.begin_trigger(), helper.end_trigger());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized EMCAL to json.";
+
   CTF::get(buff.data())->print(getPrefix(), mVerbosity);
   finaliseCTFOutput<CTF>(buff);
   iosize.rawIn = sizeof(TriggerRecord) * trigData.size() + sizeof(Cell) * cellData.size();
@@ -137,6 +152,20 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VTRG& trigVec, VCELL& c
   //
   // clang-format on
   //
+
+  ctf::CTFJSONSerializer serializer("emcal-ctf");
+  serializer.startDetector("EMCAL");
+  serializer.writeDataset("bcIncTrig", bcInc.begin(), bcInc.end());
+  serializer.writeDataset("orbitIncTrig", orbitInc.begin(), orbitInc.end());
+  serializer.writeDataset("entriesTrig", entries.begin(), entries.end());
+  serializer.writeDataset("towerID", tower.begin(), tower.end());
+  serializer.writeDataset("time", cellTime.begin(), cellTime.end());
+  serializer.writeDataset("energy", energy.begin(), energy.end());
+  serializer.writeDataset("status", status.begin(), status.end());
+  serializer.writeDataset("trigger", trigger.begin(), trigger.end());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized EMCAL to json.";
+
   trigVec.clear();
   cellVec.clear();
   trigVec.reserve(header.nTriggers);

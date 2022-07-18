@@ -27,6 +27,8 @@
 #include "TRDReconstruction/CTFHelper.h"
 #include "CommonConstants/LHCConstants.h"
 
+#include "DetectorsBase/CTFJSONSerializer.h"
+
 class TTree;
 
 namespace o2
@@ -142,6 +144,27 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const gsl::span<const TriggerReco
   iosize += ENCODETRD(helper.begin_ADCDig(),       helper.end_ADCDig(),        CTF::BLC_ADCDig,       0);
 
   // clang-format on
+
+  ctf::CTFJSONSerializer serializer("trd-ctf");
+  serializer.startDetector("TRD");
+  serializer.writeDataset("bcIncTrig", helper.begin_bcIncTrig(), helper.end_bcIncTrig());
+  serializer.writeDataset("orbitIncTrig", helper.begin_orbitIncTrig(), helper.end_orbitIncTrig());
+  serializer.writeDataset("entriesTrk", helper.begin_entriesTrk(), helper.end_entriesTrk());
+  serializer.writeDataset("entriesDig", helper.begin_entriesDig(), helper.end_entriesDig());
+  serializer.writeDataset("HCIDTrk", helper.begin_HCIDTrk(), helper.end_HCIDTrk());
+  serializer.writeDataset("padrowTrk", helper.begin_padrowTrk(), helper.end_padrowTrk());
+  serializer.writeDataset("colTrk", helper.begin_colTrk(), helper.end_colTrk());
+  serializer.writeDataset("posTrk", helper.begin_posTrk(), helper.end_posTrk());
+  serializer.writeDataset("slopeTrk", helper.begin_slopeTrk(), helper.end_slopeTrk());
+  serializer.writeDataset("pidTrk", helper.begin_pidTrk(), helper.end_pidTrk());
+  serializer.writeDataset("CIDDig", helper.begin_CIDDig(), helper.end_CIDDig());
+  serializer.writeDataset("ROBDig", helper.begin_ROBDig(), helper.end_ROBDig());
+  serializer.writeDataset("MCMDig", helper.begin_MCMDig(), helper.end_MCMDig());
+  serializer.writeDataset("chanDig", helper.begin_chanDig(), helper.end_chanDig());
+  serializer.writeDataset("ADCDig", helper.begin_ADCDig(), helper.end_ADCDig());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized TRD to json.";
+
   CTF::get(buff.data())->print(getPrefix(), mVerbosity);
   finaliseCTFOutput<CTF>(buff);
   iosize.rawIn = trigData.size() * sizeof(TriggerRecord) + sizeof(Tracklet64) * trkData.size() + sizeof(Digit) * digData.size();
@@ -183,6 +206,27 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VTRG& trigVec, VTRK& tr
   iosize += DECODETRD(ADCDig,      CTF::BLC_ADCDig);
   // clang-format on
   //
+
+  ctf::CTFJSONSerializer serializer("trd-ctf");
+  serializer.startDetector("TRD");
+  serializer.writeDataset("bcIncTrig", bcInc.begin(), bcInc.end());
+  serializer.writeDataset("orbitIncTrig", orbitInc.begin(), orbitInc.end());
+  serializer.writeDataset("entriesTrk", entriesTrk.begin(), entriesTrk.end());
+  serializer.writeDataset("entriesDig", entriesDig.begin(), entriesDig.end());
+  serializer.writeDataset("HCIDTrk", HCIDTrk.begin(), HCIDTrk.end());
+  serializer.writeDataset("padrowTrk", padrowTrk.begin(), padrowTrk.end());
+  serializer.writeDataset("colTrk", colTrk.begin(), colTrk.end());
+  serializer.writeDataset("posTrk", posTrk.begin(), posTrk.end());
+  serializer.writeDataset("slopeTrk", slopeTrk.begin(), slopeTrk.end());
+  serializer.writeDataset("pidTrk", pidTrk.begin(), pidTrk.end());
+  serializer.writeDataset("CIDDig", CIDDig.begin(), CIDDig.end());
+  serializer.writeDataset("ROBDig", ROBDig.begin(), ROBDig.end());
+  serializer.writeDataset("MCMDig", MCMDig.begin(), MCMDig.end());
+  serializer.writeDataset("chanDig", chanDig.begin(), chanDig.end());
+  serializer.writeDataset("ADCDig", ADCDig.begin(), ADCDig.end());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized TRD to json.";
+
   trigVec.clear();
   trkVec.clear();
   digVec.clear();
@@ -197,8 +241,8 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VTRG& trigVec, VTRK& tr
 
   for (uint32_t itrig = 0; itrig < header.nTriggers; itrig++) {
     // restore TrigRecord
-    if (orbitInc[itrig]) {  // non-0 increment => new orbit
-      bc = bcInc[itrig];    // bcInc has absolute meaning
+    if (orbitInc[itrig]) { // non-0 increment => new orbit
+      bc = bcInc[itrig];   // bcInc has absolute meaning
       orbit += orbitInc[itrig];
     } else {
       bc += bcInc[itrig];
@@ -221,7 +265,7 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VTRG& trigVec, VTRK& tr
     orbitPrev = orbit;
     o2::InteractionRecord ir{bc, orbit};
     if (triggerOK && (checkIROK || ir.differenceInBC({0, mFirstTFOrbit}) >= mBCShift)) { // correction will be ok
-      checkIROK = true;                                                   // don't check anymore since the following checks will yield same
+      checkIROK = true;                                                                  // don't check anymore since the following checks will yield same
       orbitPrevGood = orbit;
       uint32_t firstEntryTrk = trkVec.size();
       uint16_t hcid = 0;

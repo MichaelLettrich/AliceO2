@@ -28,6 +28,8 @@
 #include "DetectorsBase/CTFCoderBase.h"
 #include "rANS/rans.h"
 
+#include "DetectorsBase/CTFJSONSerializer.h"
+
 class TTree;
 
 namespace o2
@@ -118,6 +120,21 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const gsl::span<const Digit>& dig
   iosize += ENCODEFT0(cd.cfdTime,     CTF::BLC_cfdTime,  0);
   iosize += ENCODEFT0(cd.qtcAmpl,     CTF::BLC_qtcAmpl,  0);
   // clang-format on
+
+  ctf::CTFJSONSerializer serializer("ft0-ctf");
+  serializer.startDetector("FT0");
+  serializer.writeDataset("trigger", cd.trigger.begin(), cd.trigger.end());
+  serializer.writeDataset("bcInc", cd.bcInc.begin(), cd.bcInc.end());
+  serializer.writeDataset("orbitInc", cd.orbitInc.begin(), cd.orbitInc.end());
+  serializer.writeDataset("nChan", cd.nChan.begin(), cd.nChan.end());
+  serializer.writeDataset("status", cd.eventStatus.begin(), cd.eventStatus.end());
+  serializer.writeDataset("idChan", cd.idChan.begin(), cd.idChan.end());
+  serializer.writeDataset("qtcChain", cd.qtcChain.begin(), cd.qtcChain.end());
+  serializer.writeDataset("cfdTime", cd.cfdTime.begin(), cd.cfdTime.end());
+  serializer.writeDataset("qtcAmpl", cd.qtcAmpl.begin(), cd.qtcAmpl.end());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized FT0 to json.";
+
   CTF::get(buff.data())->print(getPrefix(), mVerbosity);
   finaliseCTFOutput<CTF>(buff);
   iosize.rawIn = sizeof(Digit) * digitVec.size() + sizeof(ChannelData) * channelVec.size();
@@ -147,6 +164,20 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VDIG& digitVec, VCHAN& 
   iosize += DECODEFT0(cd.qtcAmpl,     CTF::BLC_qtcAmpl);
   // clang-format on
   //
+  ctf::CTFJSONSerializer serializer("ft0-ctf");
+  serializer.startDetector("FT0");
+  serializer.writeDataset("trigger", cd.trigger.begin(), cd.trigger.end());
+  serializer.writeDataset("bcInc", cd.bcInc.begin(), cd.bcInc.end());
+  serializer.writeDataset("orbitInc", cd.orbitInc.begin(), cd.orbitInc.end());
+  serializer.writeDataset("nChan", cd.nChan.begin(), cd.nChan.end());
+  serializer.writeDataset("status", cd.eventStatus.begin(), cd.eventStatus.end());
+  serializer.writeDataset("idChan", cd.idChan.begin(), cd.idChan.end());
+  serializer.writeDataset("qtcChain", cd.qtcChain.begin(), cd.qtcChain.end());
+  serializer.writeDataset("cfdTime", cd.cfdTime.begin(), cd.cfdTime.end());
+  serializer.writeDataset("qtcAmpl", cd.qtcAmpl.begin(), cd.qtcAmpl.end());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized FT0 to json.";
+
   if (hd.minorVersion == 0 && hd.majorVersion == 1) {
     decompress<1, 0>(cd, digitVec, channelVec);
   } else {

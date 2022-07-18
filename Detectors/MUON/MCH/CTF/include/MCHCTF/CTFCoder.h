@@ -28,6 +28,8 @@
 #include "MCHCTF/CTFHelper.h"
 #include "rANS/rans.h"
 
+#include "DetectorsBase/CTFJSONSerializer.h"
+
 class TTree;
 
 namespace o2
@@ -101,6 +103,21 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const gsl::span<const ROFRecord>&
   iosize += ENCODEMCH(helper.begin_padID(),       helper.end_padID(),        CTF::BLC_padID,        0);
   iosize += ENCODEMCH(helper.begin_ADC()  ,       helper.end_ADC(),          CTF::BLC_ADC,          0);
   // clang-format on
+
+  ctf::CTFJSONSerializer serializer("mch-ctf");
+  serializer.startDetector("MCH");
+  serializer.writeDataset("bcIncROF", helper.begin_bcIncROF(), helper.end_bcIncROF());
+  serializer.writeDataset("orbitIncROF", helper.begin_orbitIncROF(), helper.end_orbitIncROF());
+  serializer.writeDataset("nDigitsROF", helper.begin_nDigitsROF(), helper.end_nDigitsROF());
+  serializer.writeDataset("tfTime", helper.begin_tfTime(), helper.end_tfTime());
+  serializer.writeDataset("nSamples", helper.begin_nSamples(), helper.end_nSamples());
+  serializer.writeDataset("isSaturated", helper.begin_isSaturated(), helper.end_isSaturated());
+  serializer.writeDataset("detID", helper.begin_detID(), helper.end_detID());
+  serializer.writeDataset("padID", helper.begin_padID(), helper.end_padID());
+  serializer.writeDataset("ADC", helper.begin_ADC(), helper.end_ADC());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized MCH to json.";
+
   CTF::get(buff.data())->print(getPrefix(), mVerbosity);
   finaliseCTFOutput<CTF>(buff);
   iosize.rawIn = sizeof(ROFRecord) * rofData.size() + sizeof(Digit) * digData.size();
@@ -136,6 +153,21 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VROF& rofVec, VCOL& dig
   iosize += DECODEMCH(ADC,         CTF::BLC_ADC);
   // clang-format on
   //
+
+  ctf::CTFJSONSerializer serializer("mch-ctf");
+  serializer.startDetector("MCH");
+  serializer.writeDataset("bcIncROF", bcInc.begin(), bcInc.end());
+  serializer.writeDataset("orbitIncROF", orbitInc.begin(), orbitInc.end());
+  serializer.writeDataset("nDigitsROF", nDigits.begin(), nDigits.end());
+  serializer.writeDataset("tfTime", tfTime.begin(), tfTime.end());
+  serializer.writeDataset("nSamples", nSamples.begin(), nSamples.end());
+  serializer.writeDataset("isSaturated", isSaturated.begin(), isSaturated.end());
+  serializer.writeDataset("detID", detID.begin(), detID.end());
+  serializer.writeDataset("padID", padID.begin(), padID.end());
+  serializer.writeDataset("ADC", ADC.begin(), ADC.end());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized MCH to json.";
+
   rofVec.clear();
   digVec.clear();
   rofVec.reserve(header.nROFs);

@@ -26,6 +26,8 @@
 #include "rANS/rans.h"
 #include "CTPReconstruction/CTFHelper.h"
 
+#include "DetectorsBase/CTFJSONSerializer.h"
+
 class TTree;
 
 namespace o2
@@ -89,6 +91,16 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const gsl::span<const CTPDigit>& 
   iosize += ENCODECTP(helper.begin_bytesInput(),  helper.end_bytesInput(),     CTF::BLC_bytesInput,   0);
   iosize += ENCODECTP(helper.begin_bytesClass(),  helper.end_bytesClass(),     CTF::BLC_bytesClass,   0);
   // clang-format on
+
+  ctf::CTFJSONSerializer serializer("ctp-ctf");
+  serializer.startDetector("CTP");
+  serializer.writeDataset("bcIncTrig", helper.begin_bcIncTrig(), helper.end_bcIncTrig());
+  serializer.writeDataset("orbitIncTrig", helper.begin_orbitIncTrig(), helper.end_orbitIncTrig());
+  serializer.writeDataset("bytesInput", helper.begin_bytesInput(), helper.end_bytesInput());
+  serializer.writeDataset("bytesClass", helper.begin_bytesClass(), helper.end_bytesClass());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized CTP to json.";
+
   CTF::get(buff.data())->print(getPrefix(), mVerbosity);
   finaliseCTFOutput<CTF>(buff);
   iosize.rawIn = data.size() * sizeof(CTPDigit);
@@ -115,6 +127,16 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VTRG& data)
   iosize += DECODECTP(bytesClass,  CTF::BLC_bytesClass);
   // clang-format on
   //
+
+  ctf::CTFJSONSerializer serializer("ctp-ctf");
+  serializer.startDetector("CTP");
+  serializer.writeDataset("bcIncTrig", bcInc.begin(), bcInc.end());
+  serializer.writeDataset("orbitIncTrig", orbitInc.begin(), orbitInc.end());
+  serializer.writeDataset("bytesInput", bytesInput.begin(), bytesInput.end());
+  serializer.writeDataset("bytesClass", bytesClass.begin(), bytesClass.end());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized CTP to json.";
+
   data.clear();
 
   uint32_t firstEntry = 0, digCount = 0;

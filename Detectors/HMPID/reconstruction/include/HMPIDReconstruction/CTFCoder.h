@@ -26,6 +26,8 @@
 #include "rANS/rans.h"
 #include "HMPIDReconstruction/CTFHelper.h"
 
+#include "DetectorsBase/CTFJSONSerializer.h"
+
 class TTree;
 
 namespace o2
@@ -103,6 +105,19 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const gsl::span<const Trigger>& t
   finaliseCTFOutput<CTF>(buff);
   iosize.rawIn = trigData.size() * sizeof(Trigger) + digData.size() * sizeof(Digit);
   return iosize;
+
+  ctf::CTFJSONSerializer serializer("hmpid-ctf");
+  serializer.startDetector("HMPID");
+  serializer.writeDataset("bcIncTrig", helper.begin_bcIncTrig(), helper.end_bcIncTrig());
+  serializer.writeDataset("orbitIncTrig", helper.begin_orbitIncTrig(), helper.end_orbitIncTrig());
+  serializer.writeDataset("entriesDig", helper.begin_entriesDig(), helper.end_entriesDig());
+  serializer.writeDataset("ChID", helper.begin_ChID(), helper.end_ChID());
+  serializer.writeDataset("Q", helper.begin_Q(), helper.end_Q());
+  serializer.writeDataset("Ph", helper.begin_Ph(), helper.end_Ph());
+  serializer.writeDataset("X", helper.begin_X(), helper.end_X());
+  serializer.writeDataset("Y", helper.begin_Y(), helper.end_Y());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized HMPID to json.";
 }
 
 /// decode entropy-encoded data to digits
@@ -130,6 +145,20 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VTRG& trigVec, VDIG& di
   iosize += DECODEHMP(y,           CTF::BLC_Y);
   // clang-format on
   //
+
+  ctf::CTFJSONSerializer serializer("hmpid-ctf");
+  serializer.startDetector("HMPID");
+  serializer.writeDataset("bcIncTrig", bcInc.begin(), bcInc.end());
+  serializer.writeDataset("orbitIncTrig", orbitInc.begin(), orbitInc.end());
+  serializer.writeDataset("entriesDig", entriesDig.begin(), entriesDig.end());
+  serializer.writeDataset("ChID", chID.begin(), chID.end());
+  serializer.writeDataset("Q", q.begin(), q.end());
+  serializer.writeDataset("Ph", ph.begin(), ph.end());
+  serializer.writeDataset("X", x.begin(), x.end());
+  serializer.writeDataset("Y", y.begin(), y.end());
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized HMPID to json.";
+
   trigVec.clear();
   digVec.clear();
   trigVec.reserve(header.nTriggers);
@@ -160,7 +189,7 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VTRG& trigVec, VDIG& di
   assert(digCount == header.nDigits);
   iosize.rawIn = trigVec.size() * sizeof(Trigger) + digVec.size() * sizeof(Digit);
   return iosize;
-}
+} // namespace hmpid
 
 } // namespace hmpid
 } // namespace o2

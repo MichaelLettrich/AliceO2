@@ -31,6 +31,8 @@
 #include "rANS/rans.h"
 #include "rANS/utils.h"
 
+#include "DetectorsBase/CTFJSONSerializer.h"
+
 class TTree;
 
 namespace o2
@@ -163,6 +165,34 @@ void CTFCoder::buildCoder(ctf::CTFCoderBase::OpType coderType, const CTF::contai
 template <typename VEC>
 o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const CompressedClusters& ccl)
 {
+  ctf::CTFJSONSerializer serializer("tpc-ctf");
+  serializer.startDetector("TPC");
+  serializer.writeDataset("qTotA", ccl.qTotA, ccl.qTotA + ccl.nAttachedClusters);
+  serializer.writeDataset("qMaxA", ccl.qMaxA, ccl.qMaxA + ccl.nAttachedClusters);
+  serializer.writeDataset("flagsA", ccl.flagsA, ccl.flagsA + ccl.nAttachedClusters);
+  serializer.writeDataset("rowDiffA", ccl.rowDiffA, ccl.rowDiffA + ccl.nAttachedClustersReduced);
+  serializer.writeDataset("sliceLegDiffA", ccl.sliceLegDiffA, ccl.sliceLegDiffA + ccl.nAttachedClustersReduced);
+  serializer.writeDataset("padResA", ccl.padResA, ccl.padResA + ccl.nAttachedClustersReduced);
+  serializer.writeDataset("timeResA", ccl.timeResA, ccl.timeResA + ccl.nAttachedClustersReduced);
+  serializer.writeDataset("sigmaPadA", ccl.sigmaPadA, ccl.sigmaPadA + ccl.nAttachedClusters);
+  serializer.writeDataset("sigmaTimeA", ccl.sigmaTimeA, ccl.sigmaTimeA + ccl.nAttachedClusters);
+  serializer.writeDataset("qPtA", ccl.qPtA, ccl.qPtA + ccl.nTracks);
+  serializer.writeDataset("rowA", ccl.rowA, ccl.rowA + ccl.nTracks);
+  serializer.writeDataset("sliceA", ccl.sliceA, ccl.sliceA + ccl.nTracks);
+  serializer.writeDataset("timeA", ccl.timeA, ccl.timeA + ccl.nTracks);
+  serializer.writeDataset("padA", ccl.padA, ccl.padA + ccl.nTracks);
+  serializer.writeDataset("qTotU", ccl.qTotU, ccl.qTotU + ccl.nUnattachedClusters);
+  serializer.writeDataset("qMaxU", ccl.qMaxU, ccl.qMaxU + ccl.nUnattachedClusters);
+  serializer.writeDataset("flagsU", ccl.flagsU, ccl.flagsU + ccl.nUnattachedClusters);
+  serializer.writeDataset("padDiffU", ccl.padDiffU, ccl.padDiffU + ccl.nUnattachedClusters);
+  serializer.writeDataset("timeDiffU", ccl.timeDiffU, ccl.timeDiffU + ccl.nUnattachedClusters);
+  serializer.writeDataset("sigmaPadU", ccl.sigmaPadU, ccl.sigmaPadU + ccl.nUnattachedClusters);
+  serializer.writeDataset("sigmaTimeU", ccl.sigmaTimeU, ccl.sigmaTimeU + ccl.nUnattachedClusters);
+  serializer.writeDataset("nTrackClusters", ccl.nTrackClusters, ccl.nTrackClusters + ccl.nTracks);
+  serializer.writeDataset("nSliceRowClusters", ccl.nSliceRowClusters, ccl.nSliceRowClusters + ccl.nSliceRows);
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized CompressedClusters to json.";
+
   using MD = o2::ctf::Metadata::OptStore;
   using namespace detail;
   // what to do which each field: see o2::ctf::Metadata explanation
@@ -365,6 +395,35 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VEC& buffVec)
   decodeTPC(cc.nTrackClusters, CTF::BLCnTrackClusters);
   decodeTPC(cc.nSliceRowClusters, CTF::BLCnSliceRowClusters);
   iosize.rawIn = iosize.ctfIn;
+
+  ctf::CTFJSONSerializer serializer("tpc-ctf");
+  serializer.startDetector("TPC");
+  serializer.writeDataset("qTotA", cc.qTotA, cc.qTotA + cc.nAttachedClusters);
+  serializer.writeDataset("qMaxA", cc.qMaxA, cc.qMaxA + cc.nAttachedClusters);
+  serializer.writeDataset("flagsA", cc.flagsA, cc.flagsA + cc.nAttachedClusters);
+  serializer.writeDataset("rowDiffA", cc.rowDiffA, cc.rowDiffA + cc.nAttachedClustersReduced);
+  serializer.writeDataset("sliceLegDiffA", cc.sliceLegDiffA, cc.sliceLegDiffA + cc.nAttachedClustersReduced);
+  serializer.writeDataset("padResA", cc.padResA, cc.padResA + cc.nAttachedClustersReduced);
+  serializer.writeDataset("timeResA", cc.timeResA, cc.timeResA + cc.nAttachedClustersReduced);
+  serializer.writeDataset("sigmaPadA", cc.sigmaPadA, cc.sigmaPadA + cc.nAttachedClusters);
+  serializer.writeDataset("sigmaTimeA", cc.sigmaTimeA, cc.sigmaTimeA + cc.nAttachedClusters);
+  serializer.writeDataset("qPtA", cc.qPtA, cc.qPtA + cc.nTracks);
+  serializer.writeDataset("rowA", cc.rowA, cc.rowA + cc.nTracks);
+  serializer.writeDataset("sliceA", cc.sliceA, cc.sliceA + cc.nTracks);
+  serializer.writeDataset("timeA", cc.timeA, cc.timeA + cc.nTracks);
+  serializer.writeDataset("padA", cc.padA, cc.padA + cc.nTracks);
+  serializer.writeDataset("qTotU", cc.qTotU, cc.qTotU + cc.nUnattachedClusters);
+  serializer.writeDataset("qMaxU", cc.qMaxU, cc.qMaxU + cc.nUnattachedClusters);
+  serializer.writeDataset("flagsU", cc.flagsU, cc.flagsU + cc.nUnattachedClusters);
+  serializer.writeDataset("padDiffU", cc.padDiffU, cc.padDiffU + cc.nUnattachedClusters);
+  serializer.writeDataset("timeDiffU", cc.timeDiffU, cc.timeDiffU + cc.nUnattachedClusters);
+  serializer.writeDataset("sigmaPadU", cc.sigmaPadU, cc.sigmaPadU + cc.nUnattachedClusters);
+  serializer.writeDataset("sigmaTimeU", cc.sigmaTimeU, cc.sigmaTimeU + cc.nUnattachedClusters);
+  serializer.writeDataset("nTrackClusters", cc.nTrackClusters, cc.nTrackClusters + cc.nTracks);
+  serializer.writeDataset("nSliceRowClusters", cc.nSliceRowClusters, cc.nSliceRowClusters + cc.nSliceRows);
+  serializer.endDetector();
+  LOG(info) << "sucessfully serialized TPC to json.";
+
   return iosize;
 }
 
