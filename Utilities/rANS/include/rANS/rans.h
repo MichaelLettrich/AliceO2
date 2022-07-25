@@ -21,8 +21,6 @@
 #include "rANS/RenormedFrequencyTable.h"
 #include "rANS/Encoder.h"
 #include "rANS/Decoder.h"
-#include "rANS/DedupEncoder.h"
-#include "rANS/DedupDecoder.h"
 #include "rANS/LiteralEncoder.h"
 #include "rANS/LiteralDecoder.h"
 #include "rANS/internal/helper.h"
@@ -50,16 +48,6 @@ template <typename source_T>
 using LiteralDecoder32 = LiteralDecoder<uint32_t, uint8_t, source_T>;
 template <typename source_T>
 using LiteralDecoder64 = LiteralDecoder<uint64_t, uint32_t, source_T>;
-
-template <typename source_T>
-using DedupEncoder32 = DedupEncoder<uint32_t, uint8_t, source_T>;
-template <typename source_T>
-using DedupEncoder64 = DedupEncoder<uint64_t, uint32_t, source_T>;
-
-template <typename source_T>
-using DedupDecoder32 = DedupDecoder<uint32_t, uint8_t, source_T>;
-template <typename source_T>
-using DedupDecoder64 = DedupDecoder<uint64_t, uint32_t, source_T>;
 
 inline size_t calculateMaxBufferSize(size_t num, size_t /*rangeBits*/, size_t sizeofStreamT)
 {
