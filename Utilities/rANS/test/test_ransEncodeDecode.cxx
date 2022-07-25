@@ -229,23 +229,6 @@ struct EncodeDecodeLiteralAVX : public EncodeDecodeBase<literalSimdEncoderAVX_t,
   std::vector<typename Params<coder_T>::source_t> literals;
 };
 
-template <typename coder_T, class dictString_T, class testString_T>
-struct EncodeDecodeDedup : public EncodeDecodeBase<o2::rans::DedupEncoder, o2::rans::DedupDecoder, coder_T, dictString_T, testString_T> {
-  void encode() override
-  {
-    BOOST_CHECK_NO_THROW(this->encoder.process(std::begin(this->source.data), std::end(this->source.data), std::back_inserter(this->encodeBuffer), duplicates));
-  };
-  void decode() override
-  {
-    BOOST_CHECK_NO_THROW(this->decoder.process(this->encodeBuffer.end(), std::back_inserter(this->decodeBuffer), this->source.data.size(), duplicates));
-  };
-
-  using params_t = Params<coder_T>;
-  typename o2::rans::DedupEncoder<typename params_t::coder_t,
-                                  typename params_t::stream_t,
-                                  typename params_t::source_t>::duplicatesMap_t duplicates;
-};
-
 using testCase_t = boost::mpl::vector<EncodeDecode<uint32_t, EmptyTestString, EmptyTestString>,
                                       EncodeDecode<uint64_t, EmptyTestString, EmptyTestString>,
                                       EncodeDecode<uint32_t, FullTestString, FullTestString>,
@@ -266,10 +249,6 @@ using testCase_t = boost::mpl::vector<EncodeDecode<uint32_t, EmptyTestString, Em
                                       EncodeDecodeLiteralAVX<uint64_t, EmptyTestString, EmptyTestString>,
                                       EncodeDecodeLiteralAVX<uint64_t, FullTestString, FullTestString>,
                                       EncodeDecodeLiteralAVX<uint64_t, EmptyTestString, FullTestString>>;
-// EncodeDecodeDedup<uint32_t, EmptyTestString, EmptyTestString>,
-// EncodeDecodeDedup<uint64_t, EmptyTestString, EmptyTestString>,
-// EncodeDecodeDedup<uint32_t, FullTestString, FullTestString>,
-// EncodeDecodeDedup<uint64_t, FullTestString, FullTestString>>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_encodeDecode, testCase_T, testCase_t)
 {
