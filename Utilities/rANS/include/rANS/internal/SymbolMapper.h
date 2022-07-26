@@ -92,7 +92,7 @@ class SymbolMapperIterface
 
   const symbolTable_type* mSymbolTable{};
   incompressible_iterator mIncompressibleIter{};
-}; // namespace SymbolMapperIterface
+};
 
 template <typename symbolTable_T, typename coder_T, typename incompressible_IT = std::nullptr_t>
 class SymbolMapper : public SymbolMapperIterface<symbolTable_T,
