@@ -184,8 +184,6 @@ decltype(auto) renormCutoffIncompressible(frequencyTable_T unrenomredTable, uint
     newPrecision = computeRenormingPrecision<source_type>(nUsedAlphabetSymbols);
   }
 
-  LOGP(info, "Rescaling: precision = {}", newPrecision);
-
   const count_type nSamplesRescaled = 1 << newPrecision;
   const double_t probabilityCutOffThreshold = 1 / static_cast<double_t>(1ul << (newPrecision + lowProbabilityCutoffBits));
 
@@ -280,8 +278,6 @@ decltype(auto) renormCutoffIncompressible(frequencyTable_T unrenomredTable, uint
 
   difference_type nCorrections = static_cast<difference_type>(nSamplesRescaled) - static_cast<difference_type>(nSamplesRescaledUncorrected);
   const double_t rescalingFactor = static_cast<double_t>(nSamplesRescaled) / static_cast<double_t>(nSamplesRescaledUncorrected);
-
-  LOGP(info, "Rescaling: nCorrections = {}", nCorrections);
 
   for (auto iter : correctableIndices) {
     if (std::abs(nCorrections) > 0) {
