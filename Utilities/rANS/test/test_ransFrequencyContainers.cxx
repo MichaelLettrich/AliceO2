@@ -159,6 +159,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamplesStatic, frequencyTable_T, staticFre
   BOOST_CHECK_EQUAL(frequencyTable.empty(), false);
 
   BOOST_CHECK_EQUAL(frequencyTable.size(), tableSize);
+  BOOST_CHECK_EQUAL(frequencyTable.getOffset(), std::numeric_limits<source_type>::min());
 
   BOOST_CHECK(frequencyTable.begin() != frequencyTable.end());
   BOOST_CHECK(frequencyTable.cbegin() != frequencyTable.cend());
@@ -468,6 +469,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesStatic, frequencyTable_T, stati
 
   BOOST_CHECK_EQUAL(frequencyTable.empty(), false);
   BOOST_CHECK_EQUAL(frequencyTable.size(), tableSize);
+  BOOST_CHECK_EQUAL(frequencyTable.getOffset(), std::numeric_limits<source_type>::min());
   BOOST_CHECK(frequencyTable.begin() != frequencyTable.end());
   BOOST_CHECK(frequencyTable.cbegin() != frequencyTable.cend());
   BOOST_CHECK_EQUAL(frequencyTable.computeNUsedAlphabetSymbols(), 5);
