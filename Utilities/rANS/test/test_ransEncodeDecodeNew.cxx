@@ -28,9 +28,6 @@
 
 #include "rANS/typetraits.h"
 #include "rANS/renorm.h"
-#include "rANS/SIMDDecoder.h"
-#include "rANS/FrequencyTable.h"
-#include "rANS/LiteralSIMDDecoder.h"
 #include "rANS/rans.h"
 
 using namespace o2::rans;
@@ -81,8 +78,6 @@ using ransStream_type = uint32_t;
 inline constexpr size_t NRansStreams = o2::rans::NStreams;
 inline constexpr size_t RansRenormingPrecision = 16;
 
-using decoder_type = LiteralSIMDDecoder<ransCoder_type, ransStream_type, ransSource_type, NRansStreams, 1>;
-
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_encodeDecode, test_types, testCase_types)
 {
   using container_type = boost::mp11::mp_at_c<test_types, 0>;
@@ -100,8 +95,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_encodeDecode, test_types, testCase_types)
 
   auto encoder = makeEncoder<coderTag>::template fromSamples<typename dictString_type::iterator_type, containerTag>(dictString.begin(), dictString.end(), precision);
 
-  auto decoderfrequencyTable = renormCutoffIncompressible<>(makeFrequencyTableFromSamples(dictString.begin(), dictString.end()), precision);
-  decoder_type decoder{decoderfrequencyTable};
+  auto decoder = makeDecoder<>::fromSamples<typename dictString_type::iterator_type, containerTag>(dictString.begin(), dictString.end(), precision);
 
   if (dictString == encodeString) {
     std::vector<ransStream_type> encodeBuffer(encodeString.size());
@@ -111,9 +105,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_encodeDecode, test_types, testCase_types)
 
     BOOST_CHECK_EQUAL_COLLECTIONS(encodeBuffer.begin(), encodeBufferEnd, encodeBuffer2.data(), encodeBuffer2End);
 
-    std::vector<ransSource_type> literals;
     std::vector<ransSource_type> decodeBuffer(encodeString.size());
-    decoder.process(encodeBufferEnd, decodeBuffer.begin(), encodeString.size(), literals);
+    decoder.process(encodeBufferEnd, decodeBuffer.begin(), encodeString.size(), encoder.getNStreams());
 
     BOOST_CHECK_EQUAL_COLLECTIONS(decodeBuffer.begin(), decodeBuffer.end(), encodeString.begin(), encodeString.end());
   }
@@ -128,10 +121,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_encodeDecode, test_types, testCase_types)
   BOOST_CHECK_EQUAL_COLLECTIONS(encodeBuffer.begin(), encodeBufferEnd, encodeBuffer2.data(), encodeBuffer2End);
   BOOST_CHECK_EQUAL_COLLECTIONS(literals.begin(), literalBufferEnd, literals2.begin(), literalBuffer2End);
 
-  literals.resize(std::distance(literals.begin(), literalBufferEnd));
   std::vector<ransSource_type> decodeBuffer(encodeString.size());
-  decoder.process(encodeBufferEnd, decodeBuffer.begin(), encodeString.size(), literals);
+  decoder.process(encodeBufferEnd, decodeBuffer.begin(), encodeString.size(), encoder.getNStreams(), literalBufferEnd);
 
   BOOST_CHECK_EQUAL_COLLECTIONS(decodeBuffer.begin(), decodeBuffer.end(), encodeString.begin(), encodeString.end());
-  BOOST_CHECK_EQUAL(literals.size(), 0);
 };

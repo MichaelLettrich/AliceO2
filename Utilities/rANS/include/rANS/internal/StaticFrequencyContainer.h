@@ -79,6 +79,7 @@ class StaticFrequencyContainer : public FrequencyContainer<
   StaticFrequencyContainer()
   {
     this->mContainer.resize(this->size(), 0);
+    this->mOffset = std::numeric_limits<source_type>::min();
   };
 };
 

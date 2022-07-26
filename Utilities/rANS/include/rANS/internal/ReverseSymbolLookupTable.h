@@ -24,6 +24,7 @@
 #include "rANS/definitions.h"
 #include "rANS/internal/helper.h"
 #include "rANS/RenormedFrequencyTable.h"
+#include "rANS/RenormedFrequencies.h"
 
 namespace o2
 {
@@ -89,6 +90,95 @@ class ReverseSymbolLookupTable
 
  private:
   std::vector<symbol_t> mLut{};
+};
+
+template <typename source_T>
+class RLUT
+{
+ public:
+  using source_type = source_T;
+  using index_type = source_type;
+  using count_type = uint32_t;
+  using size_type = std::size_t;
+  using difference_type = std::ptrdiff_t;
+  using container_type = std::vector<source_type>;
+  using iterator_type = source_type*;
+
+  // TODO(milettri): fix once ROOT cling respects the standard http://wg21.link/p1286r2
+  inline RLUT() noexcept {}; // NOLINT
+
+  template <typename renormedFrequencyTable_T>
+  explicit RLUT(const renormedFrequencyTable_T& frequencyTable)
+  {
+    if (frequencyTable.empty()) {
+      LOG(warning) << "SymbolStatistics of empty message passed to " << __func__;
+    }
+
+    mLut.reserve(frequencyTable.getNumSamples());
+    buildRLUTImpl(frequencyTable);
+  };
+
+  inline size_type size() const noexcept { return mLut.size(); };
+
+  inline bool isIncompressible(count_type cumul) const noexcept
+  {
+    return cumul >= this->size();
+  };
+
+  inline source_type operator[](count_type cumul) const noexcept
+  {
+    assert(cumul < this->size());
+    return mLut[cumul];
+  };
+
+  inline const iterator_type begin() const noexcept { return mLut.data(); };
+  inline const iterator_type end() const noexcept { return mLut.data() + size(); };
+
+ private:
+  template <typename renormedFrequencyTable_T>
+  void buildRLUTImpl(const renormedFrequencyTable_T& frequencyTable)
+  {
+    index_type symbol = frequencyTable.getOffset();
+    for (count_type symbolFrequency : frequencyTable) {
+      mLut.insert(mLut.end(), symbolFrequency, symbol++);
+    }
+  };
+
+  void buildRLUTImpl(const RenormedStaticFrequencyTable<source_T>& frequencyTable)
+  {
+    using frequencyTableIndex_type = typename RenormedStaticFrequencyTable<source_T>::index_type;
+
+    frequencyTableIndex_type symbol = 0;
+    for (count_type symbolFrequency : frequencyTable) {
+      mLut.insert(mLut.end(), symbolFrequency, static_cast<source_type>(symbol));
+      ++symbol;
+    }
+  };
+
+  void buildRLUTImpl(const RenormedHashFrequencyTable<source_T>& frequencyTable)
+  {
+    using hashIterator_type = typename RenormedHashFrequencyTable<source_T>::const_iterator;
+
+    std::vector<hashIterator_type>
+      orderedIndices = [&, this]() {
+        std::vector<hashIterator_type> orderedIndices;
+        orderedIndices.reserve(frequencyTable.size());
+        for (auto iter = frequencyTable.begin(); iter != frequencyTable.end(); ++iter) {
+          orderedIndices.push_back(iter);
+        }
+
+        std::stable_sort(orderedIndices.begin(), orderedIndices.end(), [](const auto& a, const auto& b) -> bool { return a->first < b->first; });
+        return orderedIndices;
+      }();
+
+    for (const auto iter : orderedIndices) {
+      auto [symbol, symbolFrequency] = *iter;
+      mLut.insert(mLut.end(), symbolFrequency, symbol);
+    }
+  };
+
+  container_type mLut{};
+  count_type mIncompressibleFrequency{};
 };
 
 } // namespace internal
