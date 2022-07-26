@@ -199,11 +199,7 @@ auto StaticFrequencyTable<source_T>::addFrequencies(freq_IT begin, freq_IT end, 
   // bounds check
   utils::HistogramView addedHistogram{begin, end, offset};
   utils::HistogramView<typename container_type::iterator> thisHistogram{};
-  if (std::is_signed_v<source_type>) {
-    thisHistogram = utils::HistogramView{this->mContainer.begin(), this->mContainer.end(), std::numeric_limits<source_type>::min()};
-  } else {
-    thisHistogram = utils::HistogramView{this->mContainer.begin(), this->mContainer.end(), 0};
-  }
+  thisHistogram = utils::HistogramView{this->mContainer.begin(), this->mContainer.end(), this->getOffset()};
   const bool invalidBounds = (utils::leftOffset(thisHistogram, addedHistogram) < 0) || (utils::rightOffset(thisHistogram, addedHistogram) > 0);
 
   if (invalidBounds) {

@@ -32,6 +32,8 @@
 
 #include "rANS/EncoderFacade.h"
 #include "rANS/internal/Symbol.h"
+#include "rANS/DecoderFacade.h"
+#include "rANS/internal/Decoder.h"
 
 namespace o2
 {
@@ -338,6 +340,48 @@ class makeEncoder
  private:
   static constexpr size_t NStreams = nStreams_V;
   static constexpr size_t RenormingLowerBound = renormingLowerBound_V;
+};
+
+template <size_t nStreams_V = NStreams, size_t renormingLowerBound_V = RenormingLowerBound>
+class makeDecoder
+{
+
+  using this_type = makeDecoder;
+
+ public:
+  template <typename renormedFrequencyTable_T>
+  [[nodiscard]] inline static constexpr decltype(auto) fromRenormed(const renormedFrequencyTable_T& renormed)
+  {
+    constexpr ContainerTag containerTag = getContainerTag_v<renormedFrequencyTable_T>;
+    using source_type = typename renormedFrequencyTable_T::source_type;
+    using coder_type = internal::Decoder<RenormingLowerBound>;
+    using symbol_type = typename coder_type::symbol_type;
+    using symbolTable_type = typename ContainerTraits<containerTag>::template symbolTable_type<source_type, symbol_type>;
+    using decoder_type = DecoderFacade<coder_type, symbolTable_type>;
+
+    return decoder_type{renormed};
+  };
+
+  template <typename frequencyTable_T>
+  [[nodiscard]] inline static decltype(auto) fromFrequencyTable(frequencyTable_T&& frequencyTable, size_t renormingPrecision = 0)
+  {
+    const auto renormedFrequencies = renormCutoffIncompressible(std::forward<frequencyTable_T>(frequencyTable), renormingPrecision);
+    return this_type::fromRenormed(renormedFrequencies);
+  };
+
+  template <typename source_IT, ContainerTag containerTag_V = getPreferedContainerTag<typename std::iterator_traits<source_IT>::value_type>()>
+  [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end, size_t renormingPrecision = 0)
+  {
+    auto frequencyTable = makeFrequencyTable<containerTag_V>::template fromSamples(begin, end);
+    return this_type::fromFrequencyTable(std::move(frequencyTable), renormingPrecision);
+  };
+
+  template <typename source_T, ContainerTag containerTag_V = getPreferedContainerTag<source_T>()>
+  [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range, size_t renormingPrecision = 0)
+  {
+    auto frequencyTable = makeFrequencyTable<containerTag_V>::template fromSamples(range);
+    return this_type::fromFrequencyTable(std::move(frequencyTable), renormingPrecision);
+  };
 };
 
 } // namespace rans

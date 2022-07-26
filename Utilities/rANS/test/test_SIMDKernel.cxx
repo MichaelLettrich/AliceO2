@@ -291,7 +291,7 @@ BOOST_AUTO_TEST_SUITE_END()
 
 struct SSERenormFixture {
 
-  using count_t = typename o2::rans::count_t;
+  using count_t = o2::rans::count_t;
   using ransState_t = uint64_t;
   using stream_t = uint32_t;
 
