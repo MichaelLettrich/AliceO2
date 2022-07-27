@@ -174,7 +174,7 @@ decltype(auto) EncoderFacade<encoder_T, symbolTable_T, nStreams_V>::process(sour
   ++outputIter;
 
   return makeReturn(outputIter, symbolMapper.getIncompressibleIterator());
-} // namespace rans
+}
 
 }; // namespace rans
 }; // namespace o2

@@ -24,6 +24,7 @@
 #include "rANS/definitions.h"
 #include "rANS/internal/helper.h"
 #include "rANS/internal/FrequencyContainer.h"
+#include "rANS/internal/StaticContainerIterator.h"
 
 namespace o2
 {
@@ -37,9 +38,11 @@ class StaticFrequencyContainer : public FrequencyContainer<
                                    source_T,
                                    std::make_unsigned_t<source_T>,
                                    count_t,
-                                   std::vector<count_t>, StaticFrequencyContainer<source_T>>
+                                   std::vector<count_t>,
+                                   StaticContainerIterator<const StaticFrequencyContainer<source_T>>, StaticFrequencyContainer<source_T>>
 {
-  using base_type = FrequencyContainer<source_T, std::make_unsigned_t<source_T>, count_t, std::vector<count_t>, StaticFrequencyContainer<source_T>>;
+
+  using base_type = FrequencyContainer<source_T, std::make_unsigned_t<source_T>, count_t, std::vector<count_t>, StaticContainerIterator<const StaticFrequencyContainer<source_T>>, StaticFrequencyContainer<source_T>>;
 
  public:
   using source_type = source_T;
@@ -57,6 +60,10 @@ class StaticFrequencyContainer : public FrequencyContainer<
   static_assert(sizeof(index_type) <= 2, "This datatype requires a <=16Bit datatype for source_T");
 
   // accessors
+  [[nodiscard]] inline const_iterator cbegin() const noexcept { return StaticContainerIterator{this, this->getOffset()}; };
+
+  [[nodiscard]] inline const_iterator cend() const noexcept { return StaticContainerIterator{this, this->getOffset() + static_cast<int64_t>(this->size())}; };
+
   [[nodiscard]] inline value_type operator[](source_type sourceSymbol) const { return this->mContainer[static_cast<index_type>(sourceSymbol)]; };
 
   [[nodiscard]] inline const_pointer data() const noexcept { return this->mContainer.data(); };
@@ -81,7 +88,7 @@ class StaticFrequencyContainer : public FrequencyContainer<
     this->mContainer.resize(this->size(), 0);
     this->mOffset = std::numeric_limits<source_type>::min();
   };
-};
+}; // namespace internal
 
 } // namespace internal
 } // namespace rans
