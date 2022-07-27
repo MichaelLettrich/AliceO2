@@ -38,9 +38,10 @@ class HashSymbolTable : public internal::SymbolTableContainer<source_T,
                                                               source_T,
                                                               value_T,
                                                               absl::flat_hash_map<source_T, value_T>,
+                                                              typename absl::flat_hash_map<source_T, value_T>::const_iterator,
                                                               HashSymbolTable<source_T, value_T>>
 {
-  using base_type = internal::SymbolTableContainer<source_T, source_T, value_T, absl::flat_hash_map<source_T, value_T>, HashSymbolTable<source_T, value_T>>;
+  using base_type = internal::SymbolTableContainer<source_T, source_T, value_T, absl::flat_hash_map<source_T, value_T>, typename absl::flat_hash_map<source_T, value_T>::const_iterator, HashSymbolTable<source_T, value_T>>;
 
  public:
   using source_type = typename base_type::source_type;
@@ -58,6 +59,10 @@ class HashSymbolTable : public internal::SymbolTableContainer<source_T,
   HashSymbolTable() = default;
 
   HashSymbolTable(const RenormedHashFrequencyTable<source_type>& renormedFrequencies);
+
+  [[nodiscard]] inline const_iterator cbegin() const noexcept { return this->mContainer.begin(); };
+
+  [[nodiscard]] inline const_iterator cend() const noexcept { return this->mContainer.end(); };
 
   [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const
   {

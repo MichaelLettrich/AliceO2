@@ -26,6 +26,7 @@
 #include "rANS/RenormedFrequencyTable.h"
 
 #include "rANS/internal/SymbolTableContainer.h"
+#include "rANS/internal/StaticContainerIterator.h"
 #include "rANS/RenormedFrequencies.h"
 
 namespace o2
@@ -38,12 +39,14 @@ class StaticSymbolTable : public internal::SymbolTableContainer<source_T,
                                                                 std::make_unsigned_t<source_T>,
                                                                 value_T,
                                                                 std::vector<value_T>,
+                                                                internal::StaticContainerIterator<const StaticSymbolTable<source_T, value_T>>,
                                                                 StaticSymbolTable<source_T, value_T>>
 {
   using base_type = internal::SymbolTableContainer<source_T,
                                                    std::make_unsigned_t<source_T>,
                                                    value_T,
                                                    std::vector<value_T>,
+                                                   internal::StaticContainerIterator<const StaticSymbolTable<source_T, value_T>>,
                                                    StaticSymbolTable<source_T, value_T>>;
 
  public:
@@ -64,6 +67,10 @@ class StaticSymbolTable : public internal::SymbolTableContainer<source_T,
   StaticSymbolTable(const RenormedStaticFrequencyTable<source_type>& renormedFrequencies);
 
   static_assert(sizeof(index_type) <= 2, "This datatype requires a <=16Bit datatype for source_T");
+
+  [[nodiscard]] inline const_iterator cbegin() const noexcept { return internal::StaticContainerIterator{this, this->getOffset()}; };
+
+  [[nodiscard]] inline const_iterator cend() const noexcept { return internal::StaticContainerIterator{this, static_cast<int64_t>(this->size())}; };
 
   [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const { return *this->lookupSafe(sourceSymbol); };
 
@@ -103,7 +110,8 @@ StaticSymbolTable<source_T, value_T>::StaticSymbolTable(const RenormedStaticFreq
   }();
 
   count_type cumulatedFrequency = 0;
-  for (const auto symbolFrequency : frequencyTable) {
+  for (size_t i = 0; i < frequencyTable.size(); ++i) {
+    const auto symbolFrequency = frequencyTable[static_cast<source_type>(i)];
     if (symbolFrequency) {
       this->mContainer.emplace_back(symbolFrequency, cumulatedFrequency, this->getPrecision());
       cumulatedFrequency += symbolFrequency;
