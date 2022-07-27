@@ -34,9 +34,10 @@ class HashFrequencyContainer : public FrequencyContainer<source_T,
                                                          source_T,
                                                          count_t,
                                                          absl::flat_hash_map<source_T, count_t>,
+                                                         typename absl::flat_hash_map<source_T, count_t>::const_iterator,
                                                          HashFrequencyContainer<source_T>>
 {
-  using base_type = FrequencyContainer<source_T, source_T, count_t, absl::flat_hash_map<source_T, count_t>, HashFrequencyContainer<source_T>>;
+  using base_type = FrequencyContainer<source_T, source_T, count_t, absl::flat_hash_map<source_T, count_t>, typename absl::flat_hash_map<source_T, count_t>::const_iterator, HashFrequencyContainer<source_T>>;
 
  public:
   using source_type = source_T;
@@ -54,6 +55,10 @@ class HashFrequencyContainer : public FrequencyContainer<source_T,
   // constructors and operators are implicit.
 
   // accessors
+  [[nodiscard]] inline const_iterator cbegin() const noexcept { return this->mContainer.begin(); };
+
+  [[nodiscard]] inline const_iterator cend() const noexcept { return this->mContainer.end(); };
+
   [[nodiscard]] inline value_type operator[](source_type sourceSymbol) const
   {
     auto iter = this->mContainer.find(sourceSymbol);
