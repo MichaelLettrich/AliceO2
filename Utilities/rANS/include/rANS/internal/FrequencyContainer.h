@@ -29,12 +29,12 @@ namespace rans
 namespace internal
 {
 
-template <class source_T, class index_T, class value_T, class container_T, class derived_T>
-class FrequencyContainer : public ContainerInterface<source_T, index_T, value_T, container_T,
-                                                     FrequencyContainer<source_T, index_T, value_T, container_T, derived_T>>
+template <class source_T, class index_T, class value_T, class container_T, class const_iterator_T, class derived_T>
+class FrequencyContainer : public ContainerInterface<source_T, index_T, value_T, container_T, const_iterator_T,
+                                                     FrequencyContainer<source_T, index_T, value_T, container_T, const_iterator_T, derived_T>>
 {
-  using base_type = ContainerInterface<source_T, index_T, value_T, container_T,
-                                       FrequencyContainer<source_T, index_T, value_T, container_T, derived_T>>;
+  using base_type = ContainerInterface<source_T, index_T, value_T, container_T, const_iterator_T,
+                                       FrequencyContainer<source_T, index_T, value_T, container_T, const_iterator_T, derived_T>>;
 
  public:
   using source_type = typename base_type::source_type;
@@ -50,6 +50,10 @@ class FrequencyContainer : public ContainerInterface<source_T, index_T, value_T,
   using const_iterator = typename base_type::const_iterator;
 
   // accessors
+  [[nodiscard]] inline const_iterator cbegin() const noexcept { return static_cast<const derived_T*>(this)->cbegin(); };
+
+  [[nodiscard]] inline const_iterator cend() const noexcept { return static_cast<const derived_T*>(this)->cend(); };
+
   [[nodiscard]] inline value_type operator[](source_type sourceSymbol) const { static_cast<const derived_T*>(this)->operator[](sourceSymbol); };
 
   [[nodiscard]] inline size_type size() const noexcept { return static_cast<const derived_T*>(this)->size(); };

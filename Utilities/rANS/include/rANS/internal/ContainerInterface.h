@@ -28,7 +28,7 @@ namespace rans
 namespace internal
 {
 
-template <class source_T, class index_T, class value_T, class container_T, class derived_T>
+template <class source_T, class index_T, class value_T, class container_T, class const_iterator_T, class derived_T>
 class ContainerInterface
 {
  public:
@@ -42,12 +42,12 @@ class ContainerInterface
   using const_reference = const value_type&;
   using pointer = value_type*;
   using const_pointer = const value_type*;
-  using const_iterator = typename container_type::const_iterator;
+  using const_iterator = const_iterator_T;
 
   // accessors
-  [[nodiscard]] inline const_iterator cbegin() const noexcept { return mContainer.begin(); };
+  [[nodiscard]] inline const_iterator cbegin() const noexcept { return static_cast<const derived_T*>(this)->cbegin(); };
 
-  [[nodiscard]] inline const_iterator cend() const noexcept { return mContainer.end(); };
+  [[nodiscard]] inline const_iterator cend() const noexcept { return static_cast<const derived_T*>(this)->cend(); };
 
   [[nodiscard]] inline const_iterator begin() const noexcept { return cbegin(); };
 
