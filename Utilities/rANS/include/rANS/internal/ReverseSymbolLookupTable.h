@@ -144,17 +144,6 @@ class RLUT
     }
   };
 
-  void buildRLUTImpl(const RenormedStaticFrequencyTable<source_T>& frequencyTable)
-  {
-    using frequencyTableIndex_type = typename RenormedStaticFrequencyTable<source_T>::index_type;
-
-    frequencyTableIndex_type symbol = 0;
-    for (count_type symbolFrequency : frequencyTable) {
-      mLut.insert(mLut.end(), symbolFrequency, static_cast<source_type>(symbol));
-      ++symbol;
-    }
-  };
-
   void buildRLUTImpl(const RenormedHashFrequencyTable<source_T>& frequencyTable)
   {
     using hashIterator_type = typename RenormedHashFrequencyTable<source_T>::const_iterator;

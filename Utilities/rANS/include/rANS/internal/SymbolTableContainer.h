@@ -34,12 +34,12 @@ namespace rans
 namespace internal
 {
 
-template <class source_T, class index_T, class value_T, class container_T, class derived_T>
-class SymbolTableContainer : public ContainerInterface<source_T, index_T, value_T, container_T,
-                                                       SymbolTableContainer<source_T, index_T, value_T, container_T, derived_T>>
+template <class source_T, class index_T, class value_T, class container_T, class const_iterator_T, class derived_T>
+class SymbolTableContainer : public ContainerInterface<source_T, index_T, value_T, container_T, const_iterator_T,
+                                                       SymbolTableContainer<source_T, index_T, value_T, container_T, const_iterator_T, derived_T>>
 {
-  using base_type = ContainerInterface<source_T, index_T, value_T, container_T,
-                                       SymbolTableContainer<source_T, index_T, value_T, container_T, derived_T>>;
+  using base_type = ContainerInterface<source_T, index_T, value_T, container_T, const_iterator_T,
+                                       SymbolTableContainer<source_T, index_T, value_T, container_T, const_iterator_T, derived_T>>;
 
  public:
   using source_type = typename base_type::source_type;
@@ -59,6 +59,10 @@ class SymbolTableContainer : public ContainerInterface<source_T, index_T, value_
     const_pointer ptr = lookupSafe(sourceSymbol);
     return ptr ? *ptr : this->getEscapeSymbol();
   };
+
+  [[nodiscard]] inline const_iterator cbegin() const noexcept { return static_cast<const derived_T*>(this)->cbegin(); };
+
+  [[nodiscard]] inline const_iterator cend() const noexcept { return static_cast<const derived_T*>(this)->cend(); };
 
   [[nodiscard]] inline const_pointer lookupSafe(source_type sourceSymbol) const { return static_cast<const derived_T*>(this)->lookupSafe(sourceSymbol); };
 

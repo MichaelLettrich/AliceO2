@@ -37,9 +37,9 @@ class DynamicFrequencyContainer : public FrequencyContainer<
                                     source_T,
                                     std::make_unsigned_t<source_T>,
                                     count_t,
-                                    std::vector<count_t>, DynamicFrequencyContainer<source_T>>
+                                    std::vector<count_t>, const count_t*, DynamicFrequencyContainer<source_T>>
 {
-  using base_type = FrequencyContainer<source_T, std::make_unsigned_t<source_T>, count_t, std::vector<count_t>, DynamicFrequencyContainer<source_T>>;
+  using base_type = FrequencyContainer<source_T, std::make_unsigned_t<source_T>, count_t, std::vector<count_t>, const count_t*, DynamicFrequencyContainer<source_T>>;
 
  public:
   using source_type = source_T;
@@ -59,6 +59,9 @@ class DynamicFrequencyContainer : public FrequencyContainer<
   {
     return this->getSymbol(sourceSymbol);
   };
+  [[nodiscard]] inline const_iterator cbegin() const noexcept { return this->data(); };
+
+  [[nodiscard]] inline const_iterator cend() const noexcept { return this->data() + this->size(); };
 
   [[nodiscard]] inline const_pointer data() const noexcept { return this->mContainer.data(); };
 

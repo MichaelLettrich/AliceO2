@@ -30,7 +30,7 @@
 
 #include "rANS/renorm.h"
 
-#include "rANS/internal/backend/cpp/DecoderSymbol.h"
+#include "rANS/internal/Symbol.h"
 #include "rANS/StaticSymbolTable.h"
 #include "rANS/DynamicSymbolTable.h"
 #include "rANS/HashSymbolTable.h"
@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_empty, frequencyTable_T, frequencyTable_t)
   frequencyTable_T f{};
   f.addSamples(gsl::make_span(samples));
 
-  const auto symbolTable = makeSymbolTable<source_type, internal::cpp::DecoderSymbol>(renormCutoffIncompressible(f));
+  const auto symbolTable = makeSymbolTable<source_type, internal::Symbol>(renormCutoffIncompressible(f));
 
   BOOST_CHECK_EQUAL(symbolTable.size(), f.size());
   BOOST_CHECK_EQUAL(symbolTable.computeNUsedAlphabetSymbols(), 0);
@@ -92,7 +92,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_symbolTable, frequencyTable_T, frequencyTable
   frequencyTable_T frequencyTable{frequencies.begin(), frequencies.end(), static_cast<uint8_t>(0)};
   const size_t scaleBits = 8;
   auto renormedFrequencyTable = renormCutoffIncompressible<frequencyTable_T>(std::move(frequencyTable), scaleBits, 1);
-  const auto symbolTable = makeSymbolTable<source_type, internal::cpp::DecoderSymbol>(renormedFrequencyTable);
+  const auto symbolTable = makeSymbolTable<source_type, internal::Symbol>(renormedFrequencyTable);
 
   const histogram_t rescaledFrequencies{1, 2, 1, 3, 2, 3, 3, 5, 6, 7, 8, 9, 10, 11, 13, 11, 12, 10, 14, 13, 10, 13, 12, 8, 12, 7, 8, 6, 7, 5, 4, 3, 4, 2, 2, 1, 2, 1, 1};
   histogram_t cumulativeFrequencies;

@@ -160,7 +160,8 @@ template <typename T>
 struct isSymbolTableContainer : public std::is_base_of<internal::SymbolTableContainer<typename T::source_type,
                                                                                       typename T::index_type,
                                                                                       typename T::value_type,
-                                                                                      typename T::container_type, T>,
+                                                                                      typename T::container_type,
+                                                                                      typename T::const_iterator, T>,
                                                        T> {
 };
 
@@ -190,7 +191,8 @@ template <typename T>
 struct isFrequencyContainer : public std::is_base_of<internal::FrequencyContainer<typename T::source_type,
                                                                                   typename T::index_type,
                                                                                   typename T::value_type,
-                                                                                  typename T::container_type, T>,
+                                                                                  typename T::container_type,
+                                                                                  typename T::const_iterator, T>,
                                                      T> {
 };
 

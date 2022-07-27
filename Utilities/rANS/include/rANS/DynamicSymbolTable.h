@@ -39,12 +39,14 @@ class DynamicSymbolTable : public internal::SymbolTableContainer<source_T,
                                                                  source_T,
                                                                  value_T,
                                                                  std::vector<value_T>,
+                                                                 const value_T*,
                                                                  DynamicSymbolTable<source_T, value_T>>
 {
   using base_type = internal::SymbolTableContainer<source_T,
                                                    source_T,
                                                    value_T,
                                                    std::vector<value_T>,
+                                                   const value_T*,
                                                    DynamicSymbolTable<source_T, value_T>>;
 
  public:
@@ -63,6 +65,10 @@ class DynamicSymbolTable : public internal::SymbolTableContainer<source_T,
   DynamicSymbolTable() = default;
 
   DynamicSymbolTable(const RenormedDynamicFrequencyTable<source_type>& renormedFrequencies);
+
+  [[nodiscard]] inline const_iterator cbegin() const noexcept { return this->data(); };
+
+  [[nodiscard]] inline const_iterator cend() const noexcept { return this->data() + this->size(); };
 
   [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const noexcept
   {
