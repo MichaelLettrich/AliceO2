@@ -124,17 +124,6 @@ count_t getFrequency(const container_T& container, typename container_T::const_i
   }
 };
 
-template <typename container_T, typename IT, std::enable_if_t<getContainerTag_v<container_T> == ContainerTag::Hash, bool> = true>
-count_t getFrequency(const container_T& container, IT iter)
-{
-  const auto& ret = *iter->second();
-  if constexpr (isSymbolTableContainer_v<container_T>) {
-    return container.isEscapeSymbol(ret) ? 0 : ret.getFrequency();
-  } else {
-    return ret;
-  }
-};
-
 template <typename container_T>
 count_t getIncompressibleFrequency(const container_T& container)
 {
@@ -143,37 +132,6 @@ count_t getIncompressibleFrequency(const container_T& container)
   } else {
     return 0;
   }
-};
-
-template <typename container_T, typename std::enable_if_t<getContainerTag_v<container_T> == ContainerTag::Hash, bool> = true>
-auto flattenContainer(const container_T& container) -> FlatContainer<typename container_T::source_type>
-{
-  if (container.empty()) {
-    return {};
-  }
-
-  std::vector<typename container_T::const_iterator> orderedIndices = [&]() {
-    std::vector<typename container_T::const_iterator> orderedIndices;
-    orderedIndices.reserve(container.size());
-    for (auto iter = container.begin(); iter != container.end(); ++iter) {
-      orderedIndices.push_back(iter);
-    }
-
-    std::stable_sort(orderedIndices.begin(), orderedIndices.end(), [](const auto& a, const auto& b) -> bool { return a->first < b->first; });
-    return orderedIndices;
-  }();
-
-  FlatContainer<typename container_T::source_type> flattened;
-
-  flattened.index.reserve(container.size());
-  flattened.count.reserve(container.size());
-
-  for (auto iter = container.begin(); iter != container.end(); ++iter) {
-    flattened.index.push_back(iter->first());
-    flattened.count.push_back(getFrequency(container, iter));
-  }
-
-  return flattened;
 };
 
 template <typename container_T, typename std::enable_if_t<getContainerTag_v<container_T> == ContainerTag::Dynamic, bool> = true>

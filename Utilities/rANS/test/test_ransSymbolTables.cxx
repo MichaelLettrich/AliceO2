@@ -26,14 +26,12 @@
 
 #include "rANS/StaticFrequencyTable.h"
 #include "rANS/DynamicFrequencyTable.h"
-#include "rANS/HashFrequencyTable.h"
 
 #include "rANS/renorm.h"
 
 #include "rANS/internal/Symbol.h"
 #include "rANS/StaticSymbolTable.h"
 #include "rANS/DynamicSymbolTable.h"
-#include "rANS/HashSymbolTable.h"
 
 using namespace o2::rans;
 
@@ -46,8 +44,7 @@ size_t getNUniqueSymbols(const T& container)
 using source_type = int8_t;
 
 using frequencyTable_t = boost::mpl::vector<StaticFrequencyTable<source_type>,
-                                            DynamicFrequencyTable<source_type>,
-                                            HashFrequencyTable<source_type>>;
+                                            DynamicFrequencyTable<source_type>>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_empty, frequencyTable_T, frequencyTable_t)
 {
@@ -68,11 +65,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_empty, frequencyTable_T, frequencyTable_t)
 
   //test in range
   for (const auto& symbol : symbolTable) {
-    if constexpr (std::is_same_v<frequencyTable_T, HashFrequencyTable<source_type>>) {
-      BOOST_CHECK_EQUAL(symbolTable.isEscapeSymbol(symbol.second), true);
-    } else {
-      BOOST_CHECK_EQUAL(symbolTable.isEscapeSymbol(symbol), true);
-    }
+    BOOST_CHECK_EQUAL(symbolTable.isEscapeSymbol(symbol), true);
   }
 
   // out of range checks:
