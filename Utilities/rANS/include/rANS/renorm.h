@@ -24,7 +24,6 @@
 #include "rANS/RenormedFrequencies.h"
 #include "rANS/StaticFrequencyTable.h"
 #include "rANS/DynamicFrequencyTable.h"
-#include "rANS/HashFrequencyTable.h"
 #include "rANS/FrequencyTable.h"
 #include "rANS/RenormedFrequencyTable.h"
 #include "rANS/internal/helper.h"
@@ -206,50 +205,18 @@ decltype(auto) renormCutoffIncompressible(frequencyTable_T unrenomredTable, uint
 
   container_type rescaledFrequencies = std::move(unrenomredTable).release();
 
-  auto expandSymbol = [&](auto iter) -> std::pair<index_type, count_type> {
-    if constexpr (std::is_same_v<container_type, typename HashFrequencyTable<source_type>::container_type>) {
-      return *iter;
-    } else {
-      return {static_cast<index_type>(rescaledFrequencies.begin, iter), *iter};
-    }
-  };
-
-  auto getFrequency = [&](auto iter) -> count_type {
-    if constexpr (std::is_same_v<container_type, typename HashFrequencyTable<source_type>::container_type>) {
-      return iter->second;
-    } else {
-      return *iter;
-    }
-  };
-
-  auto setFrequency = [&](auto iter, count_type value) -> void {
-    if constexpr (std::is_same_v<container_type, typename HashFrequencyTable<source_type>::container_type>) {
-      iter->second = value;
-    } else {
-      *iter = value;
-    }
-  };
-
-  auto setToZero = [&](auto iter) -> void {
-    if constexpr (std::is_same_v<container_type, typename HashFrequencyTable<source_type>::container_type>) {
-      rescaledFrequencies.erase(iter);
-    } else {
-      *iter = 0;
-    }
-  };
-
   for (auto frequencyIter = rescaledFrequencies.begin(); frequencyIter != rescaledFrequencies.end(); ++frequencyIter) {
-    const count_type frequency = getFrequency(frequencyIter);
+    const count_type frequency = *frequencyIter;
     if (frequency > 0) {
       const double_t symbolProbability = static_cast<double_t>(frequency) / nSamples;
       if (symbolProbability < probabilityCutOffThreshold) {
         incompressibleSymbolProbability += symbolProbability;
-        setToZero(frequencyIter);
+        *frequencyIter = 0;
       } else {
         const double_t scaledFrequencyD = scaleFrequency(symbolProbability);
         count_type rescaledFrequency = roundFrequency(scaledFrequencyD);
         assert(rescaledFrequency > 0);
-        setFrequency(frequencyIter, rescaledFrequency);
+        *frequencyIter = rescaledFrequency;
         nSamplesRescaledUncorrected += rescaledFrequency;
         if (rescaledFrequency > 1) {
           correctableIndices.push_back(frequencyIter);
@@ -263,25 +230,14 @@ decltype(auto) renormCutoffIncompressible(frequencyTable_T unrenomredTable, uint
   nSamplesRescaledUncorrected += incompressibleSymbolFrequency;
 
   // correction
-  std::stable_sort(correctableIndices.begin(), correctableIndices.end(), [&rescaledFrequencies](const iterator_type& a, const iterator_type& b) {
-    if constexpr (std::is_same_v<container_type, typename HashFrequencyTable<source_type>::container_type>) {
-      // iterator over unodered_map is by storage location and not key. For same (stable) results of array and hash map approach, we need to enforce the same order.
-      if (a->second == b->second) {
-        return a->first < b->first;
-      } else {
-        return a->second < b->second;
-      }
-    } else {
-      return *a < *b;
-    }
-  });
+  std::stable_sort(correctableIndices.begin(), correctableIndices.end(), [&rescaledFrequencies](const iterator_type& a, const iterator_type& b) { return *a < *b; });
 
   difference_type nCorrections = static_cast<difference_type>(nSamplesRescaled) - static_cast<difference_type>(nSamplesRescaledUncorrected);
   const double_t rescalingFactor = static_cast<double_t>(nSamplesRescaled) / static_cast<double_t>(nSamplesRescaledUncorrected);
 
   for (auto iter : correctableIndices) {
     if (std::abs(nCorrections) > 0) {
-      const difference_type uncorrectedFrequency = getFrequency(iter);
+      const difference_type uncorrectedFrequency = *iter;
       difference_type correction = uncorrectedFrequency - roundFrequency(uncorrectedFrequency * rescalingFactor);
 
       if (nCorrections < 0) {
@@ -295,7 +251,7 @@ decltype(auto) renormCutoffIncompressible(frequencyTable_T unrenomredTable, uint
       // the corrected frequency must be at least 1 though
       const count_type correctedFrequency = std::max(1l, uncorrectedFrequency - correction);
       nCorrections += uncorrectedFrequency - correctedFrequency;
-      setFrequency(iter, correctedFrequency);
+      *iter = correctedFrequency;
     } else {
       break;
     }
@@ -312,8 +268,6 @@ decltype(auto) renormCutoffIncompressible(frequencyTable_T unrenomredTable, uint
     return RenormedStaticFrequencyTable<source_type>(std::move(rescaledFrequencies), offset, newPrecision, incompressibleSymbolFrequency);
   } else if constexpr (std::is_same_v<frequencyTable_T, DynamicFrequencyTable<source_type>>) {
     return RenormedDynamicFrequencyTable<source_type>(std::move(rescaledFrequencies), offset, newPrecision, incompressibleSymbolFrequency);
-  } else if constexpr (std::is_same_v<frequencyTable_T, HashFrequencyTable<source_type>>) {
-    return RenormedHashFrequencyTable<source_type>(std::move(rescaledFrequencies), offset, newPrecision, incompressibleSymbolFrequency);
   }
 }
 

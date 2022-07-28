@@ -61,8 +61,7 @@ quo voluptas nulla pariatur?)";
 using string_types = boost::mp11::mp_list<Empty, Full>;
 
 using container_types = boost::mp11::mp_list<std::integral_constant<ContainerTag, ContainerTag::Dynamic>,
-                                             std::integral_constant<ContainerTag, ContainerTag::Static>,
-                                             std::integral_constant<ContainerTag, ContainerTag::Hash>>;
+                                             std::integral_constant<ContainerTag, ContainerTag::Static>>;
 
 using coder_types = boost::mp11::mp_list<std::integral_constant<CoderTag, CoderTag::Compat>,
                                          std::integral_constant<CoderTag, CoderTag::SingleStream>,

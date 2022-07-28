@@ -21,7 +21,6 @@
 
 #include "rANS/internal/StaticFrequencyContainer.h"
 #include "rANS/internal/DynamicFrequencyContainer.h"
-#include "rANS/internal/HashFrequencyContainer.h"
 
 namespace o2
 {
@@ -80,8 +79,7 @@ template <typename source_T>
 using RenormedStaticFrequencyTable = RenormedFrequencyTable_Impl<internal::StaticFrequencyContainer<source_T>>;
 template <typename source_T>
 using RenormedDynamicFrequencyTable = RenormedFrequencyTable_Impl<internal::DynamicFrequencyContainer<source_T>>;
-template <typename source_T>
-using RenormedHashFrequencyTable = RenormedFrequencyTable_Impl<internal::HashFrequencyContainer<source_T>>;
+
 } // namespace rans
 } // namespace o2
 

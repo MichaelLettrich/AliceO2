@@ -19,7 +19,6 @@
 #include "rANS/FrequencyTable.h"
 #include "rANS/StaticFrequencyTable.h"
 #include "rANS/DynamicFrequencyTable.h"
-#include "rANS/HashFrequencyTable.h"
 #include "rANS/RenormedFrequencies.h"
 #include "rANS/RenormedFrequencyTable.h"
 #include "rANS/renorm.h"
@@ -436,42 +435,6 @@ void buildStaticFrequencyTable(const std::vector<source_T>& inputData, rapidjson
   LOGP(info, "\t\tRenormed in {} ms ( {} MiB/s)", timeMs, computeBandwidth<source_T>(inputData.size(), timeMs));
 };
 
-template <typename source_T>
-void buildHashFrequencyTable(const std::vector<source_T>& inputData, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
-{
-  using namespace o2;
-  rans::internal::RANSTimer timer{};
-  double_t timeMs = 0;
-
-  timer.start();
-
-  __itt_task_begin(hashDomain, __itt_null, __itt_null, frequencyTask);
-  auto frequencyTable = rans::HashFrequencyTable<source_T>{};
-  frequencyTable.addSamples(gsl::make_span(inputData));
-  __itt_task_end(hashDomain);
-
-  timer.stop();
-  writer.Key("FrequencyTable");
-  timeMs = timer.getDurationMS();
-  writer.Double(timeMs);
-  LOGP(info, "\t\tBuilt frequency table in {} ms ( {} MiB/s)", timeMs, computeBandwidth<source_T>(inputData.size(), timeMs));
-  writer.Key("Renorm");
-  try {
-    timer.start();
-    __itt_task_begin(hashDomain, __itt_null, __itt_null, renormTask);
-    auto renormedFrequencyTable = rans::renormCutoffIncompressible(std::move(frequencyTable));
-    __itt_task_end(hashDomain);
-    timer.stop();
-    timeMs = timer.getDurationMS();
-    writer.Double(timeMs);
-  } catch (...) {
-    LOGP(warning, "failed to renorm");
-    timeMs = 0;
-    writer.String("NaN");
-  }
-  LOGP(info, "\t\tRenormed in {} ms ( {} MiB/s)", timeMs, computeBandwidth<source_T>(inputData.size(), timeMs));
-};
-
 template <typename source_T,
           bool dynamicEnable = false,
           bool boundedDynamicEnable = false,
@@ -512,14 +475,6 @@ void processColumn(const std::string& name, const std::vector<source_T>& inputDa
   writer.StartObject();
   if constexpr (staticEnable) {
     buildStaticFrequencyTable<source_T>(inputData, writer);
-  }
-  writer.EndObject();
-
-  writer.Key("HashFrequencyTable");
-  LOGP(info, "HashFrequencyTable");
-  writer.StartObject();
-  if constexpr (hashEnable) {
-    buildHashFrequencyTable<source_T>(inputData, writer);
   }
   writer.EndObject();
 
