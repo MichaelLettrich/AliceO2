@@ -174,7 +174,7 @@ void CTFCoder::compress(CompressedClusters& cc,
           LOG(warning) << "Negative Chip increment " << cl.getChipID() << " -> " << prevChip;
         }
 #endif
-        cc.chipMul.push_back(1);                         // this is the version with chipInc stored once per new chip
+        cc.chipMul.push_back(1); // this is the version with chipInc stored once per new chip
         prevCol = cc.colInc[iclOut] = cl.getCol();
         prevChip = cl.getChipID();
       }
@@ -219,7 +219,7 @@ size_t CTFCoder::estimateCompressedSize(const CompressedClusters& cc)
   // RS FIXME this is very crude estimate, instead, an empirical values should be used
 #define VTP(vec) typename std::remove_reference<decltype(vec)>::type::value_type
 #define ESTSIZE(vec, slot) mCoders[int(slot)] ?                         \
-  rans::calculateMaxBufferSize(vec.size(), reinterpret_cast<const o2::rans::LiteralEncoder64<VTP(vec)>*>(mCoders[int(slot)].get())->getAlphabetRangeBits(), sizeof(VTP(vec)) ) : vec.size()*sizeof(VTP(vec))
+  ranslegacy::calculateMaxBufferSize(vec.size(), reinterpret_cast<const o2::ranslegacy::LiteralEncoder64<VTP(vec)>*>(mCoders[int(slot)].get())->getAlphabetRangeBits(), sizeof(VTP(vec)) ) : vec.size()*sizeof(VTP(vec))
   sz += ESTSIZE(cc.firstChipROF, CTF::BLCfirstChipROF);
   sz += ESTSIZE(cc.bcIncROF,     CTF::BLCbcIncROF    );
   sz += ESTSIZE(cc.orbitIncROF,  CTF::BLCorbitIncROF );

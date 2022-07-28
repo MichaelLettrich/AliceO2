@@ -20,8 +20,6 @@
 #include <cstdint>
 #include <tuple>
 
-#include "rANS/internal/backend/cpp/EncoderSymbol.h"
-
 #include "rANS/internal/EncodeCommandInterface.h"
 #include "rANS/internal/helper.h"
 #include "rANS/internal/Symbol.h"

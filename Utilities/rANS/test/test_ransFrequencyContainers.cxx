@@ -25,6 +25,7 @@
 #include "rANS/StaticFrequencyTable.h"
 #include "rANS/DynamicFrequencyTable.h"
 #include "rANS/renorm.h"
+#include "rANSLegacy/renorm.h"
 
 using namespace o2::rans;
 
@@ -459,7 +460,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesDynamic, frequencyTable_T, dyna
 using frequencyContainer_t = boost::mpl::vector<
   StaticFrequencyTable<uint8_t>,
   DynamicFrequencyTable<uint8_t>,
-  FrequencyTable>;
+  o2::ranslegacy::FrequencyTable>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_renormIncompressible, frequencyTable_T, frequencyContainer_t)
 {
@@ -468,14 +469,19 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_renormIncompressible, frequencyTable_T, frequ
 
   const size_t scaleBits = 8;
 
-  auto renormedFrequencyTable = renormCutoffIncompressible<frequencyTable_T>(std::move(frequencyTable), scaleBits, 1);
+  auto renormedFrequencyTable = [&]() -> decltype(auto) {
+    if constexpr (std::is_same_v<frequencyTable_T, o2::ranslegacy::FrequencyTable>) {
+      return o2::ranslegacy::renormCutoffIncompressible<>(std::move(frequencyTable), scaleBits, 1);
+    } else {
+      return o2::rans::renormCutoffIncompressible<frequencyTable_T>(std::move(frequencyTable), scaleBits, 1);
+    } }();
 
   const o2::rans::histogram_t rescaledFrequencies{1, 2, 1, 3, 2, 3, 3, 5, 6, 7, 8, 9, 10, 11, 13, 11, 12, 10, 14, 13, 10, 13, 12, 8, 12, 7, 8, 6, 7, 5, 4, 3, 4, 2, 2, 1, 2, 1, 1};
   BOOST_CHECK_EQUAL(renormedFrequencyTable.isRenormedTo(scaleBits), true);
   BOOST_CHECK_EQUAL(renormedFrequencyTable.getNumSamples(), 1 << scaleBits);
   BOOST_CHECK_EQUAL(renormedFrequencyTable.getIncompressibleSymbolFrequency(), 4);
 
-  if constexpr (std::is_same_v<frequencyTable_T, FrequencyTable>) {
+  if constexpr (std::is_same_v<frequencyTable_T, o2::ranslegacy::FrequencyTable>) {
     BOOST_CHECK_EQUAL_COLLECTIONS(renormedFrequencyTable.begin(), renormedFrequencyTable.end(), rescaledFrequencies.begin(), rescaledFrequencies.end());
   } else {
     BOOST_CHECK_EQUAL_COLLECTIONS(renormedFrequencyTable.begin() + 6, renormedFrequencyTable.begin() + 6 + rescaledFrequencies.size(), rescaledFrequencies.begin(), rescaledFrequencies.end());

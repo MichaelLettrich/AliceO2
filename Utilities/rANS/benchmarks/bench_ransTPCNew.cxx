@@ -12,10 +12,10 @@
 #include <rapidjson/ostreamwrapper.h>
 #include <fairlogger/Logger.h>
 
-#include "rANS/rans.h"
-#include "rANS/LiteralSIMDEncoder.h"
-#include "rANS/LiteralSIMDDecoder.h"
-#include "rANS/LiteralDecoder.h"
+#include "rANSLegacy/rans.h"
+#include "rANSLegacy/LiteralSIMDEncoder.h"
+#include "rANSLegacy/LiteralSIMDDecoder.h"
+#include "rANSLegacy/LiteralDecoder.h"
 #include "rANS/typetraits.h"
 #include "rANS/renorm.h"
 #include "rANS/utils/serialize.h"
@@ -33,8 +33,8 @@ using ransCoder_type = uint64_t;
 using ransStream_type = uint32_t;
 
 template <typename source_T>
-using decoder_type = LiteralSIMDDecoder<ransCoder_type, ransStream_type, source_T, NStreams, 1>;
-// using decoder_type = LiteralDecoder<ransCoder_type, ransStream_type, source_T>;
+using decoder_type = o2::ranslegacy::LiteralSIMDDecoder<ransCoder_type, ransStream_type, source_T, NStreams, 1>;
+// using decoder_type = o2::ranslegacy::LiteralDecoder<ransCoder_type, ransStream_type, source_T>;
 
 // using container_types = boost::mp11::mp_list<std::integral_constant<ContainerTag, ContainerTag::Dynamic>,
 //                                              std::integral_constant<ContainerTag, ContainerTag::Static>>;
@@ -170,8 +170,8 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
   writer.Double(timer.getDurationMS());
   LOGP(info, "Serialized Dict of {} Bytes in {} ms", std::distance(dict.data(), dictEnd), timer.getDurationMS());
 
-  auto decoderFrequencyTable = makeFrequencyTableFromSamples(inputData.begin(), inputData.end());
-  auto decoderRenormed = renormCutoffIncompressible<>(decoderFrequencyTable, renormedFrequencyTable.getRenormingBits());
+  auto decoderFrequencyTable = o2::ranslegacy::makeFrequencyTableFromSamples(inputData.begin(), inputData.end());
+  auto decoderRenormed = o2::ranslegacy::renormCutoffIncompressible(decoderFrequencyTable, renormedFrequencyTable.getRenormingBits());
   decoder_type<source_type> decoder{decoderRenormed};
   encodeBuffer.literals.resize(std::distance(encodeBuffer.literals.data(), encodeBuffer.literalsEnd));
   const auto literalsSize = encodeBuffer.literals.size();

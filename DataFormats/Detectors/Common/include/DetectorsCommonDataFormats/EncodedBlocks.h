@@ -21,8 +21,8 @@
 #include <type_traits>
 #include <cstddef>
 #include <Rtypes.h>
-#include "rANS/rans.h"
-#include "rANS/utils.h"
+#include "rANSLegacy/rans.h"
+#include "rANSLegacy/utils.h"
 #include "TTree.h"
 #include "CommonUtils/StringUtils.h"
 #include "Framework/Logger.h"
@@ -52,7 +52,7 @@ template <class T>
 inline constexpr bool is_iterator_v = is_iterator<T>::value;
 } // namespace detail
 
-using namespace o2::rans;
+using namespace o2::ranslegacy;
 constexpr size_t Alignment = 16;
 
 constexpr int WrappersSplitLevel = 99;
@@ -361,12 +361,12 @@ class EncodedBlocks
     return mBlocks[i];
   }
 
-  o2::rans::RenormedFrequencyTable getFrequencyTable(int i) const
+  o2::ranslegacy::RenormedFrequencyTable getFrequencyTable(int i) const
   {
     const auto& block = getBlock(i);
     const auto& metadata = getMetadata(i);
-    rans::FrequencyTable frequencyTable{block.getDict(), block.getDict() + block.getNDict(), metadata.min};
-    return rans::renorm(std::move(frequencyTable), metadata.probabilityBits);
+    ranslegacy::FrequencyTable frequencyTable{block.getDict(), block.getDict() + block.getNDict(), metadata.min};
+    return ranslegacy::renorm(std::move(frequencyTable), metadata.probabilityBits);
   }
 
   void setANSHeader(const ANSHeader& h) { mANSHeader = h; }
@@ -453,7 +453,7 @@ class EncodedBlocks
   o2::ctf::CTFIOSize decode(D_IT dest, int slot, const void* decoderExt = nullptr) const;
 
   /// create a special EncodedBlocks containing only dictionaries made from provided vector of frequency tables
-  static std::vector<char> createDictionaryBlocks(const std::vector<o2::rans::FrequencyTable>& vfreq, const std::vector<Metadata>& prbits);
+  static std::vector<char> createDictionaryBlocks(const std::vector<o2::ranslegacy::FrequencyTable>& vfreq, const std::vector<Metadata>& prbits);
 
   /// print itself
   void print(const std::string& prefix = "", int verbosity = 1) const;
@@ -787,10 +787,10 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::decode(D_IT dest,                    
         LOG(error) << "Dictionaty is not saved for slot " << slot << " and no external decoder is provided";
         throw std::runtime_error("Dictionary is not saved and no external decoder provided");
       }
-      const o2::rans::LiteralDecoder64<dest_t>* decoder = reinterpret_cast<const o2::rans::LiteralDecoder64<dest_t>*>(decoderExt);
-      std::unique_ptr<o2::rans::LiteralDecoder64<dest_t>> decoderLoc;
+      const o2::ranslegacy::LiteralDecoder64<dest_t>* decoder = reinterpret_cast<const o2::ranslegacy::LiteralDecoder64<dest_t>*>(decoderExt);
+      std::unique_ptr<o2::ranslegacy::LiteralDecoder64<dest_t>> decoderLoc;
       if (block.getNDict()) { // if dictionaty is saved, prefer it
-        decoderLoc = std::make_unique<o2::rans::LiteralDecoder64<dest_t>>(this->getFrequencyTable(slot));
+        decoderLoc = std::make_unique<o2::ranslegacy::LiteralDecoder64<dest_t>>(this->getFrequencyTable(slot));
         decoder = decoderLoc.get();
       } else { // verify that decoded corresponds to stored metadata
         if (md.min != decoder->getMinSymbol()) {
@@ -834,13 +834,13 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::encode(const input_IT srcBegin,      
 
   using storageBuffer_t = W;
   using input_t = typename std::iterator_traits<input_IT>::value_type;
-  using ransEncoder_t = typename rans::LiteralEncoder64<input_t>;
+  using ransEncoder_t = typename ranslegacy::LiteralEncoder64<input_t>;
   using ransState_t = typename ransEncoder_t::coder_t;
   using ransStream_t = typename ransEncoder_t::stream_t;
 
   // assert at compile time that output types align so that padding is not necessary.
   static_assert(std::is_same_v<storageBuffer_t, ransStream_t>);
-  static_assert(std::is_same_v<storageBuffer_t, typename rans::count_t>);
+  static_assert(std::is_same_v<storageBuffer_t, typename ranslegacy::count_t>);
 
   // fill a new block
   assert(slot == mRegistry.nFilledBlocks);
@@ -885,17 +885,17 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::encode(const input_IT srcBegin,      
 
     const auto [inplaceEncoder, frequencyTable] = [&]() {
       if (encoderExt) {
-        return std::make_tuple(ransEncoder_t{}, rans::FrequencyTable{});
+        return std::make_tuple(ransEncoder_t{}, ranslegacy::FrequencyTable{});
       } else {
-        rans::FrequencyTable frequencyTable = rans::makeFrequencyTableFromSamples(srcBegin, srcEnd);
-        RenormedFrequencyTable renormedFrequencyTable = rans::renorm(frequencyTable, symbolTablePrecision);
+        ranslegacy::FrequencyTable frequencyTable = ranslegacy::makeFrequencyTableFromSamples(srcBegin, srcEnd);
+        RenormedFrequencyTable renormedFrequencyTable = ranslegacy::renorm(frequencyTable, symbolTablePrecision);
         return std::make_tuple(ransEncoder_t{renormedFrequencyTable}, frequencyTable);
       }
     }();
     ransEncoder_t const* const encoder = encoderExt ? reinterpret_cast<ransEncoder_t const* const>(encoderExt) : &inplaceEncoder;
 
     // estimate size of encode buffer
-    int dataSize = rans::calculateMaxBufferSize(messageLength, encoder->getAlphabetRangeBits(), sizeof(input_t)); // size in bytes
+    int dataSize = ranslegacy::calculateMaxBufferSize(messageLength, encoder->getAlphabetRangeBits(), sizeof(input_t)); // size in bytes
     // preliminary expansion of storage based on dict size + estimated size of encode buffer
     dataSize = SizeEstMarginAbs + int(SizeEstMarginRel * (dataSize / sizeof(storageBuffer_t))) + (sizeof(input_t) < sizeof(storageBuffer_t)); // size in words of output stream
     expandStorage(frequencyTable.size() + dataSize);
@@ -910,7 +910,7 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::encode(const input_IT srcBegin,      
     storageBuffer_t* const blockBufferBegin = thisBlock->getCreateData();
     const size_t maxBufferSize = thisBlock->registry->getFreeSize(); // note: "this" might be not valid after expandStorage call!!!
     const auto encodedMessageEnd = encoder->process(srcBegin, srcEnd, blockBufferBegin, literals);
-    rans::utils::checkBounds(encodedMessageEnd, blockBufferBegin + maxBufferSize / sizeof(W));
+    ranslegacy::utils::checkBounds(encodedMessageEnd, blockBufferBegin + maxBufferSize / sizeof(W));
     dataSize = encodedMessageEnd - thisBlock->getDataPointer();
     thisBlock->setNData(dataSize);
     thisBlock->realignBlock();
@@ -967,7 +967,7 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::encode(const input_IT srcBegin,      
 
 /// create a special EncodedBlocks containing only dictionaries made from provided vector of frequency tables
 template <typename H, int N, typename W>
-std::vector<char> EncodedBlocks<H, N, W>::createDictionaryBlocks(const std::vector<o2::rans::FrequencyTable>& vfreq, const std::vector<Metadata>& vmd)
+std::vector<char> EncodedBlocks<H, N, W>::createDictionaryBlocks(const std::vector<o2::ranslegacy::FrequencyTable>& vfreq, const std::vector<Metadata>& vmd)
 {
   if (vfreq.size() != N) {
     throw std::runtime_error(fmt::format("mismatch between the size of frequencies vector {} and number of blocks {}", vfreq.size(), N));

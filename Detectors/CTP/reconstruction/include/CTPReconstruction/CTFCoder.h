@@ -23,7 +23,7 @@
 #include "DataFormatsCTP/CTF.h"
 #include "DetectorsCommonDataFormats/DetID.h"
 #include "DetectorsBase/CTFCoderBase.h"
-#include "rANS/rans.h"
+#include "rANSLegacy/rans.h"
 #include "CTPReconstruction/CTFHelper.h"
 #include "CTPReconstruction/RawDataDecoder.h"
 

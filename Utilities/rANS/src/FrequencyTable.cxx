@@ -14,11 +14,11 @@
 /// @since  Aug 1, 2020
 /// @brief Implementation of a frequency table for rANS symbole (i.e. a histogram)
 
-#include "rANS/FrequencyTable.h"
+#include "rANSLegacy/FrequencyTable.h"
 
 namespace o2
 {
-namespace rans
+namespace ranslegacy
 {
 
 FrequencyTable& FrequencyTable::trim()
@@ -104,11 +104,11 @@ std::ostream& operator<<(std::ostream& out, const FrequencyTable& fTable)
       << "maxSymbol: " << fTable.getMaxSymbol() << ", "
       << "incompressibleSymbolFrequency: " << fTable.getIncompressibleSymbolFrequency() << ", "
       << "sizeFrequencyTable: " << fTable.size() << ", "
-      << "sizeFrequencyTableB: " << fTable.size() * sizeof(typename o2::rans::symbol_t) << ", "
+      << "sizeFrequencyTableB: " << fTable.size() * sizeof(typename o2::ranslegacy::symbol_t) << ", "
       << "entropy: " << computeEntropy(fTable) << "}";
 
   return out;
 }
 
-} // namespace rans
+} // namespace ranslegacy
 } // namespace o2

@@ -14,11 +14,11 @@
 /// @since  Aug 1, 2020
 /// @brief Implementation of a frequency table for rANS symbole (i.e. a histogram)
 
-#include "rANS/RenormedFrequencyTable.h"
+#include "rANSLegacy/RenormedFrequencyTable.h"
 
 namespace o2
 {
-namespace rans
+namespace ranslegacy
 {
 
 RenormedFrequencyTable renorm(FrequencyTable frequencyTable, size_t newPrecision)
@@ -239,5 +239,5 @@ RenormedFrequencyTable renormCutoffIncompressible(FrequencyTable frequencyTable,
   return RenormedFrequencyTable{std::move(newFrequencyTable), newPrecision};
 }
 
-} // namespace rans
+} // namespace ranslegacy
 } // namespace o2

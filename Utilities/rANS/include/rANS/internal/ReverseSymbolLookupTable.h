@@ -23,7 +23,6 @@
 
 #include "rANS/definitions.h"
 #include "rANS/internal/helper.h"
-#include "rANS/RenormedFrequencyTable.h"
 #include "rANS/RenormedFrequencies.h"
 
 namespace o2
@@ -32,65 +31,6 @@ namespace rans
 {
 namespace internal
 {
-
-class ReverseSymbolLookupTable
-{
- public:
-  using iterator_t = const symbol_t*;
-
-  // TODO(milettri): fix once ROOT cling respects the standard http://wg21.link/p1286r2
-  ReverseSymbolLookupTable() noexcept {}; // NOLINT
-
-  explicit ReverseSymbolLookupTable(const RenormedFrequencyTable& frequencyTable)
-  {
-    LOG(trace) << "start building reverse symbol lookup table";
-
-    mLut.resize(frequencyTable.getNumSamples());
-    // go over all normal symbols
-    count_t cumulativeFrequency = 0;
-    for (size_t index = 0; index < frequencyTable.size(); ++index) {
-      const symbol_t symbol = frequencyTable.getMinSymbol() + index;
-      const count_t symbolFrequency = frequencyTable.at(index);
-      for (count_t cumulative = cumulativeFrequency; cumulative < cumulativeFrequency + symbolFrequency; ++cumulative) {
-        mLut[cumulative] = symbol;
-      }
-      cumulativeFrequency += symbolFrequency;
-    }
-
-    // incompressible Symbol
-    const symbol_t symbol = frequencyTable.empty() ? 0 : frequencyTable.getMaxSymbol() + 1;
-    const count_t symbolFrequency = frequencyTable.getIncompressibleSymbolFrequency();
-    for (count_t cumulative = cumulativeFrequency; cumulative < cumulativeFrequency + symbolFrequency; ++cumulative) {
-      mLut[cumulative] = symbol;
-    }
-
-// advanced diagnostics for debug builds
-#if !defined(NDEBUG)
-    LOG(debug2) << "reverseSymbolLookupTableProperties: {"
-                << "elements: " << mLut.size() << ", "
-                << "sizeB: " << mLut.size() * sizeof(typename std::decay_t<decltype(mLut)>::value_type) << "}";
-#endif
-
-    if (frequencyTable.empty()) {
-      LOG(warning) << "SymbolStatistics of empty message passed to " << __func__;
-    }
-
-    LOG(trace) << "done building reverse symbol lookup table";
-  };
-
-  inline size_t size() const noexcept { return mLut.size(); };
-  inline symbol_t operator[](count_t cumul) const noexcept
-  {
-    LOG_IF(fatal, cumul >= size()) << fmt::format("[iLUT]: {} exceeds max {}", cumul, size());
-    assert(cumul < size());
-    return mLut[cumul];
-  };
-  inline iterator_t begin() const noexcept { return mLut.data(); };
-  inline iterator_t end() const noexcept { return mLut.data() + size(); };
-
- private:
-  std::vector<symbol_t> mLut{};
-};
 
 template <typename source_T>
 class RLUT
