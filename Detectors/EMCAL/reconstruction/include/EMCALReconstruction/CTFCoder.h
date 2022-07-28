@@ -23,7 +23,7 @@
 #include "DataFormatsEMCAL/CTF.h"
 #include "DetectorsCommonDataFormats/DetID.h"
 #include "DetectorsBase/CTFCoderBase.h"
-#include "rANS/rans.h"
+#include "rANSLegacy/rans.h"
 #include "EMCALReconstruction/CTFHelper.h"
 
 class TTree;

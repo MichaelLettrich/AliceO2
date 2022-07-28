@@ -21,7 +21,7 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/mpl/vector.hpp>
 
-#include "rANS/rans.h"
+#include "rANSLegacy/rans.h"
 
 template <typename T>
 size_t getNUniqueSymbols(const T& container)
@@ -40,7 +40,7 @@ struct ReferenceState {
 };
 
 template <typename Fixture_T>
-void stateChecker(Fixture_T f, o2::rans::FrequencyTable& frequencyTable)
+void stateChecker(Fixture_T f, o2::ranslegacy::FrequencyTable& frequencyTable)
 {
   BOOST_CHECK_EQUAL(frequencyTable.getMinSymbol(), f.min);
   BOOST_CHECK_EQUAL(frequencyTable.getMaxSymbol(), f.max);
@@ -63,7 +63,7 @@ struct FrequencyTableFixture {
   }
 
   ReferenceState state{};
-  o2::rans::FrequencyTable frequencyTable{};
+  o2::ranslegacy::FrequencyTable frequencyTable{};
 };
 
 struct EmptyFrequencyTable : FrequencyTableFixture {
@@ -102,7 +102,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_empty, fTableContainer_T, emptyFrequencyTable
 struct AddEmptyFrequencies : public FrequencyTableFixture {
   AddEmptyFrequencies() : FrequencyTableFixture()
   {
-    frequencyTable = o2::rans::FrequencyTable();
+    frequencyTable = o2::ranslegacy::FrequencyTable();
     const int32_t min = -3;
     BOOST_CHECK_NO_THROW(frequencyTable.addFrequencies(frequencies.begin(), frequencies.end(), min));
     BOOST_CHECK_EQUAL(frequencyTable.begin(), frequencyTable.end());
@@ -114,7 +114,7 @@ struct AddEmptyFrequencies : public FrequencyTableFixture {
 struct AddFrequenciesTrim : public FrequencyTableFixture {
   AddFrequenciesTrim() : FrequencyTableFixture()
   {
-    frequencyTable = o2::rans::FrequencyTable();
+    frequencyTable = o2::ranslegacy::FrequencyTable();
     const int32_t min = -3;
     BOOST_CHECK_NO_THROW(frequencyTable.addFrequencies(frequencies.begin(), frequencies.end(), min));
     BOOST_CHECK_EQUAL_COLLECTIONS(frequencyTable.begin(), frequencyTable.end(), ++frequencies.begin(), --frequencies.end());
@@ -133,7 +133,7 @@ struct AddFrequenciesTrim : public FrequencyTableFixture {
 struct addFrequenciesExpandRightOverlap : public FrequencyTableFixture {
   addFrequenciesExpandRightOverlap() : FrequencyTableFixture()
   {
-    frequencyTable = o2::rans::FrequencyTable();
+    frequencyTable = o2::ranslegacy::FrequencyTable();
     const int32_t min = -3;
     BOOST_CHECK_NO_THROW(frequencyTable.addFrequencies(A.begin(), A.end(), min));
     BOOST_CHECK_EQUAL_COLLECTIONS(frequencyTable.begin(), frequencyTable.end(), ++A.begin(), --A.end());
@@ -155,7 +155,7 @@ struct addFrequenciesExpandRightOverlap : public FrequencyTableFixture {
 struct addFrequenciesExpandleftOverlap : public FrequencyTableFixture {
   addFrequenciesExpandleftOverlap() : FrequencyTableFixture()
   {
-    frequencyTable = o2::rans::FrequencyTable();
+    frequencyTable = o2::ranslegacy::FrequencyTable();
     BOOST_CHECK_NO_THROW(frequencyTable.addFrequencies(A.begin(), A.end(), -2));
     BOOST_CHECK_EQUAL_COLLECTIONS(frequencyTable.begin(), frequencyTable.end(), ++A.begin(), --A.end());
     BOOST_CHECK_NO_THROW(frequencyTable.addFrequencies(A.begin(), A.end(), 0));
@@ -176,7 +176,7 @@ struct addFrequenciesExpandleftOverlap : public FrequencyTableFixture {
 struct addFrequenciesIncompressibleRightOverlap : public FrequencyTableFixture {
   addFrequenciesIncompressibleRightOverlap() : FrequencyTableFixture()
   {
-    frequencyTable = o2::rans::FrequencyTable();
+    frequencyTable = o2::ranslegacy::FrequencyTable();
     const int32_t min = -3;
     BOOST_CHECK_NO_THROW(frequencyTable.addFrequencies(A.begin(), A.end(), min));
     BOOST_CHECK_EQUAL_COLLECTIONS(frequencyTable.begin(), frequencyTable.end(), ++A.begin(), --A.end());
@@ -200,7 +200,7 @@ struct addFrequenciesIncompressibleRightOverlap : public FrequencyTableFixture {
 struct addFrequenciesIncompressibleLeftOverlap : public FrequencyTableFixture {
   addFrequenciesIncompressibleLeftOverlap() : FrequencyTableFixture()
   {
-    frequencyTable = o2::rans::FrequencyTable();
+    frequencyTable = o2::ranslegacy::FrequencyTable();
     BOOST_CHECK_NO_THROW(frequencyTable.addFrequencies(A.begin(), A.end(), -2));
     BOOST_CHECK_EQUAL_COLLECTIONS(frequencyTable.begin(), frequencyTable.end(), ++A.begin(), --A.end());
     BOOST_CHECK_EQUAL(frequencyTable.getIncompressibleSymbolFrequency(), 0);
@@ -223,7 +223,7 @@ struct addFrequenciesIncompressibleLeftOverlap : public FrequencyTableFixture {
 struct resize : public FrequencyTableFixture {
   resize() : FrequencyTableFixture()
   {
-    frequencyTable = o2::rans::FrequencyTable();
+    frequencyTable = o2::ranslegacy::FrequencyTable();
     BOOST_CHECK_NO_THROW(frequencyTable.addFrequencies(A.begin(), A.end(), -3));
     BOOST_CHECK_EQUAL_COLLECTIONS(frequencyTable.begin(), frequencyTable.end(), ++A.begin(), --A.end());
     BOOST_CHECK_EQUAL(frequencyTable.getIncompressibleSymbolFrequency(), 0);
@@ -245,7 +245,7 @@ struct resize : public FrequencyTableFixture {
 struct resizeTruncate : public FrequencyTableFixture {
   resizeTruncate() : FrequencyTableFixture()
   {
-    frequencyTable = o2::rans::FrequencyTable();
+    frequencyTable = o2::ranslegacy::FrequencyTable();
     BOOST_CHECK_NO_THROW(frequencyTable.addFrequencies(A.begin(), A.end(), -3));
     BOOST_CHECK_EQUAL_COLLECTIONS(frequencyTable.begin(), frequencyTable.end(), ++A.begin(), --A.end());
     BOOST_CHECK_EQUAL(frequencyTable.getIncompressibleSymbolFrequency(), 0);
@@ -286,10 +286,10 @@ BOOST_AUTO_TEST_CASE(test_addFrequencies1)
   std::vector<int> A{5, 5, 6, 6, 8, 8, 8, 8, 8, -1, -5, 2, 7, 3};
   std::vector<uint32_t> histA{1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 2, 2, 1, 5};
 
-  o2::rans::FrequencyTable ftmp;
+  o2::ranslegacy::FrequencyTable ftmp;
   ftmp.addSamples(std::begin(A), std::end(A));
 
-  o2::rans::FrequencyTable fA;
+  o2::ranslegacy::FrequencyTable fA;
   fA.addFrequencies(std::begin(ftmp), std::end(ftmp), ftmp.getMinSymbol());
 
   BOOST_CHECK_EQUAL(fA.getMinSymbol(), -5);
@@ -302,7 +302,7 @@ BOOST_AUTO_TEST_CASE(test_addFrequencies1)
   BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(fA), std::end(fA), std::begin(histA), std::end(histA));
 
   std::vector<int> B{10, 8, -10};
-  o2::rans::FrequencyTable fB;
+  o2::ranslegacy::FrequencyTable fB;
   fB.addSamples(std::begin(B), std::end(B));
 
   fA = fA + fB;
@@ -339,7 +339,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamples, samples_T, samples_t)
 {
   samples_T s{};
 
-  o2::rans::FrequencyTable fA;
+  o2::ranslegacy::FrequencyTable fA;
   fA.addSamples(std::begin(s.A), std::end(s.A));
 
   BOOST_CHECK_EQUAL(fA.getMinSymbol(), *std::min_element(s.A.begin(), s.A.end()));
@@ -366,13 +366,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamples, samples_T, samples_t)
 
 BOOST_AUTO_TEST_CASE(test_renorm)
 {
-  o2::rans::histogram_t frequencies{1, 1, 2, 2, 2, 2, 6, 8, 4, 10, 8, 14, 10, 19, 26, 30, 31, 35, 41, 45, 51, 44, 47, 39, 58, 52, 42, 53, 50, 34, 50, 30, 32, 24, 30, 20, 17, 12, 16, 6, 8, 5, 6, 4, 4, 2, 2, 2, 1};
-  o2::rans::FrequencyTable frequencyTable{frequencies.begin(), frequencies.end(), 0};
+  o2::ranslegacy::histogram_t frequencies{1, 1, 2, 2, 2, 2, 6, 8, 4, 10, 8, 14, 10, 19, 26, 30, 31, 35, 41, 45, 51, 44, 47, 39, 58, 52, 42, 53, 50, 34, 50, 30, 32, 24, 30, 20, 17, 12, 16, 6, 8, 5, 6, 4, 4, 2, 2, 2, 1};
+  o2::ranslegacy::FrequencyTable frequencyTable{frequencies.begin(), frequencies.end(), 0};
 
   const size_t scaleBits = 8;
 
-  auto renormedFrequencyTable = o2::rans::renorm(std::move(frequencyTable), scaleBits);
-  const o2::rans::histogram_t rescaledFrequencies{1, 1, 1, 2, 1, 2, 1, 2, 2, 2, 2, 3, 3, 4, 6, 7, 7, 9, 9, 11, 12, 10, 11, 9, 13, 12, 10, 13, 11, 8, 12, 7, 7, 6, 7, 4, 4, 3, 4, 1, 2, 1, 2, 2, 2, 1, 2, 1, 1};
+  auto renormedFrequencyTable = o2::ranslegacy::renorm(std::move(frequencyTable), scaleBits);
+  const o2::ranslegacy::histogram_t rescaledFrequencies{1, 1, 1, 2, 1, 2, 1, 2, 2, 2, 2, 3, 3, 4, 6, 7, 7, 9, 9, 11, 12, 10, 11, 9, 13, 12, 10, 13, 11, 8, 12, 7, 7, 6, 7, 4, 4, 3, 4, 1, 2, 1, 2, 2, 2, 1, 2, 1, 1};
   BOOST_CHECK_EQUAL(renormedFrequencyTable.isRenormedTo(scaleBits), true);
   BOOST_CHECK_EQUAL(renormedFrequencyTable.getNumSamples(), 1 << scaleBits);
   BOOST_CHECK_EQUAL(renormedFrequencyTable.getMinSymbol(), 0);
@@ -383,14 +383,14 @@ BOOST_AUTO_TEST_CASE(test_renorm)
 
 BOOST_AUTO_TEST_CASE(test_renormIncompressible)
 {
-  o2::rans::histogram_t frequencies{1, 1, 2, 2, 2, 2, 6, 8, 4, 10, 8, 14, 10, 19, 26, 30, 31, 35, 41, 45, 51, 44, 47, 39, 58, 52, 42, 53, 50, 34, 50, 30, 32, 24, 30, 20, 17, 12, 16, 6, 8, 5, 6, 4, 4, 2, 2, 2, 1};
-  o2::rans::FrequencyTable frequencyTable{frequencies.begin(), frequencies.end(), 0};
+  o2::ranslegacy::histogram_t frequencies{1, 1, 2, 2, 2, 2, 6, 8, 4, 10, 8, 14, 10, 19, 26, 30, 31, 35, 41, 45, 51, 44, 47, 39, 58, 52, 42, 53, 50, 34, 50, 30, 32, 24, 30, 20, 17, 12, 16, 6, 8, 5, 6, 4, 4, 2, 2, 2, 1};
+  o2::ranslegacy::FrequencyTable frequencyTable{frequencies.begin(), frequencies.end(), 0};
 
   const size_t scaleBits = 8;
 
-  auto renormedFrequencyTable = o2::rans::renormCutoffIncompressible(std::move(frequencyTable), scaleBits, 1);
+  auto renormedFrequencyTable = o2::ranslegacy::renormCutoffIncompressible(std::move(frequencyTable), scaleBits, 1);
 
-  const o2::rans::histogram_t rescaledFrequencies{1, 2, 1, 3, 2, 3, 3, 5, 6, 7, 8, 9, 10, 11, 13, 11, 12, 10, 14, 13, 10, 13, 12, 8, 12, 7, 8, 6, 7, 5, 4, 3, 4, 2, 2, 1, 2, 1, 1};
+  const o2::ranslegacy::histogram_t rescaledFrequencies{1, 2, 1, 3, 2, 3, 3, 5, 6, 7, 8, 9, 10, 11, 13, 11, 12, 10, 14, 13, 10, 13, 12, 8, 12, 7, 8, 6, 7, 5, 4, 3, 4, 2, 2, 1, 2, 1, 1};
   BOOST_CHECK_EQUAL(renormedFrequencyTable.isRenormedTo(scaleBits), true);
   BOOST_CHECK_EQUAL(renormedFrequencyTable.getNumSamples(), 1 << scaleBits);
   BOOST_CHECK_EQUAL(renormedFrequencyTable.getMinSymbol(), 6);
@@ -401,10 +401,10 @@ BOOST_AUTO_TEST_CASE(test_renormIncompressible)
 
 BOOST_AUTO_TEST_CASE(test_computeEntropy)
 {
-  o2::rans::histogram_t frequencies{9, 0, 8, 0, 7, 0, 6, 0, 5, 0, 4, 0, 3, 0, 2, 0, 1};
-  o2::rans::FrequencyTable frequencyTable{frequencies.begin(), frequencies.end(), 0};
+  o2::ranslegacy::histogram_t frequencies{9, 0, 8, 0, 7, 0, 6, 0, 5, 0, 4, 0, 3, 0, 2, 0, 1};
+  o2::ranslegacy::FrequencyTable frequencyTable{frequencies.begin(), frequencies.end(), 0};
 
   constexpr double entropy = 2.957295041922758;
-  const double computedEntropy = o2::rans::computeEntropy(frequencyTable);
+  const double computedEntropy = o2::ranslegacy::computeEntropy(frequencyTable);
   BOOST_CHECK_CLOSE(computedEntropy, entropy, 1e-5);
 }

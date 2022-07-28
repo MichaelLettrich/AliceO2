@@ -15,12 +15,12 @@
 #include <rapidjson/ostreamwrapper.h>
 #include <fairlogger/Logger.h>
 
-#include "rANS/rans.h"
-#include "rANS/FrequencyTable.h"
+#include "rANSLegacy/rans.h"
+#include "rANSLegacy/FrequencyTable.h"
 #include "rANS/StaticFrequencyTable.h"
 #include "rANS/DynamicFrequencyTable.h"
 #include "rANS/RenormedFrequencies.h"
-#include "rANS/RenormedFrequencyTable.h"
+#include "rANSLegacy/RenormedFrequencyTable.h"
 #include "rANS/renorm.h"
 
 namespace bpo = boost::program_options;
@@ -36,11 +36,11 @@ __itt_string_handle* renormTask = __itt_string_handle_create("Renorming");
 #endif
 
 template <typename source_T>
-double_t computeExpectedCodewordLength(const o2::rans::FrequencyTable& frequencies, const o2::rans::RenormedFrequencyTable& rescaled)
+double_t computeExpectedCodewordLength(const o2::ranslegacy::FrequencyTable& frequencies, const o2::ranslegacy::RenormedFrequencyTable& rescaled)
 {
 
-  using symbol_t = o2::rans::symbol_t;
-  using count_t = o2::rans::count_t;
+  using symbol_t = o2::ranslegacy::symbol_t;
+  using count_t = o2::ranslegacy::count_t;
   double_t expectedCodewordLength = 0;
   count_t trueIncompressibleFrequency = frequencies.getIncompressibleSymbolFrequency();
 
@@ -74,7 +74,7 @@ double_t computeExpectedCodewordLength(const o2::rans::FrequencyTable& frequenci
   const double_t rescaledProbability = static_cast<double_t>(rescaled.getIncompressibleSymbolFrequency()) / rescaled.getNumSamples();
 
   expectedCodewordLength -= trueProbability * std::log2(rescaledProbability);
-  expectedCodewordLength += trueProbability * std::log2(o2::rans::internal::toBits(sizeof(source_T)));
+  expectedCodewordLength += trueProbability * std::log2(o2::ranslegacy::internal::toBits(sizeof(source_T)));
 
   return expectedCodewordLength;
 };
@@ -331,13 +331,13 @@ template <typename source_T>
 void buildDynamicFrequencyTable(const std::vector<source_T>& inputData, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
 {
   using namespace o2;
-  rans::internal::RANSTimer timer{};
+  ranslegacy::internal::RANSTimer timer{};
   double_t timeMs = 0;
 
   timer.start();
 
   __itt_task_begin(oldDomain, __itt_null, __itt_null, frequencyTask);
-  rans::FrequencyTable frequencyTable{};
+  ranslegacy::FrequencyTable frequencyTable{};
   frequencyTable.addSamples(inputData.begin(), inputData.end());
   __itt_task_end(oldDomain);
 
@@ -350,7 +350,7 @@ void buildDynamicFrequencyTable(const std::vector<source_T>& inputData, rapidjso
   try {
     timer.start();
     __itt_task_begin(oldDomain, __itt_null, __itt_null, renormTask);
-    auto renormedFrequencyTable = rans::renormCutoffIncompressible<>(std::move(frequencyTable));
+    auto renormedFrequencyTable = ranslegacy::renormCutoffIncompressible(std::move(frequencyTable));
     __itt_task_end(oldDomain);
     timer.stop();
     timeMs = timer.getDurationMS();
@@ -367,7 +367,7 @@ template <typename source_T>
 void buildBoundedDynamicFrequencyTable(const std::vector<source_T>& inputData, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
 {
   using namespace o2;
-  rans::internal::RANSTimer timer{};
+  ranslegacy::internal::RANSTimer timer{};
   double_t timeMs = 0;
 
   timer.start();

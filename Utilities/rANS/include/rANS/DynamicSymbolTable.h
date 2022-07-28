@@ -23,7 +23,6 @@
 #include <fairlogger/Logger.h>
 
 #include "rANS/definitions.h"
-#include "rANS/RenormedFrequencyTable.h"
 #include "rANS/internal/Symbol.h"
 
 #include "rANS/internal/SymbolTableContainer.h"

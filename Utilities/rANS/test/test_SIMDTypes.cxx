@@ -26,7 +26,6 @@
 
 #include <fairlogger/Logger.h>
 
-#include "rANS/rans.h"
 #include "rANS/internal/backend/simd/types.h"
 
 using namespace o2::rans::internal::simd;
