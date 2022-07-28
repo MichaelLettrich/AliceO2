@@ -28,7 +28,6 @@
 
 #include "rANS/typetraits.h"
 #include "rANS/renorm.h"
-#include "rANS/rans.h"
 
 using namespace o2::rans;
 

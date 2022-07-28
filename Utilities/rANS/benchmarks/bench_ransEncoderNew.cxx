@@ -7,11 +7,12 @@
 
 #include <benchmark/benchmark.h>
 
-#include "rANS/rans.h"
-#include "rANS/LiteralSIMDDecoder.h"
+#include "rANSLegacy/rans.h"
+#include "rANSLegacy/LiteralSIMDDecoder.h"
 
 #include "rANS/typetraits.h"
 #include "rANS/renorm.h"
+#include "rANSLegacy/renorm.h"
 
 #ifdef ENABLE_VTUNE_PROFILER
 #include <ittnotify.h>
@@ -25,7 +26,7 @@ using ransCoder_type = uint64_t;
 using ransStream_type = uint32_t;
 
 template <typename source_T>
-using decoder_type = LiteralSIMDDecoder<ransCoder_type, ransStream_type, source_T, NStreams, 1>;
+using decoder_type = o2::ranslegacy::LiteralSIMDDecoder<ransCoder_type, ransStream_type, source_T, NStreams, 1>;
 
 inline constexpr size_t MessageSize = 1ull << 22;
 
@@ -102,8 +103,8 @@ void ransCompressionBenchmark(benchmark::State& st)
   __itt_pause();
 #endif
 
-  auto decoderFrequencyTable = makeFrequencyTableFromSamples(inputData.begin(), inputData.end());
-  auto decoderRenormed = renormCutoffIncompressible<>(decoderFrequencyTable, renormedFrequencyTable.getRenormingBits(), 10);
+  auto decoderFrequencyTable = o2::ranslegacy::makeFrequencyTableFromSamples<>(inputData.begin(), inputData.end());
+  auto decoderRenormed = o2::ranslegacy::renormCutoffIncompressible(decoderFrequencyTable, renormedFrequencyTable.getRenormingBits(), 10);
   decoder_type<source_type> decoder{decoderRenormed};
   decoder.process(encodeBuffer.encodeBufferEnd, decodeBuffer.buffer.data(), inputData.size(), encodeBuffer.literals);
   if (!(decodeBuffer == inputData)) {
@@ -161,8 +162,8 @@ void ransLiteralCompressionBenchmark(benchmark::State& st)
   __itt_pause();
 #endif
 
-  auto decoderFrequencyTable = makeFrequencyTableFromSamples(inputData.begin(), inputData.end());
-  auto decoderRenormed = renormCutoffIncompressible<>(decoderFrequencyTable, renormedFrequencyTable.getRenormingBits());
+  auto decoderFrequencyTable = o2::ranslegacy::makeFrequencyTableFromSamples<>(inputData.begin(), inputData.end());
+  auto decoderRenormed = o2::ranslegacy::renormCutoffIncompressible(decoderFrequencyTable, renormedFrequencyTable.getRenormingBits());
   encodeBuffer.literals.resize(std::distance(encodeBuffer.literals.data(), encodeBuffer.literalsEnd));
   decoder_type<source_type> decoder{decoderRenormed};
   decoder.process(encodeBuffer.encodeBufferEnd, decodeBuffer.buffer.data(), inputData.size(), encodeBuffer.literals);

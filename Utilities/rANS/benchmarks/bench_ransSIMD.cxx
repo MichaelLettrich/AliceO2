@@ -22,8 +22,8 @@
 
 #include <benchmark/benchmark.h>
 
-#include "rANS/utils.h"
-#include "rANS/rans.h"
+#include "rANSLegacy/utils.h"
+#include "rANSLegacy/rans.h"
 // #include "rANS/internal/backend/simd/kernel.h"
 // #include "rANS/internal/backend/simd/SymbolTable.h"
 // #include "rANS/SIMDEncoder.h"

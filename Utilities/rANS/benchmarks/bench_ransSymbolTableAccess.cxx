@@ -23,7 +23,7 @@
 #include <benchmark/benchmark.h>
 
 #include "rANS/utils.h"
-#include "rANS/rans.h"
+#include "rANSLegacy/rans.h"
 // #include "rANS/internal/backend/simd/kernel.h"
 // #include "rANS/internal/backend/simd/SymbolTable.h"
 // #include "rANS/SIMDEncoder.h"
@@ -52,7 +52,7 @@ class SymbolTableData
     mSourceMessage.resize(sourceSize);
     std::generate(std::execution::par_unseq, mSourceMessage.begin(), mSourceMessage.end(), [&dist, &mt]() { return dist(mt); });
 
-    mRenormedFrequencies = o2::rans::renorm(o2::rans::makeFrequencyTableFromSamples(std::begin(mSourceMessage), std::end(mSourceMessage)));
+    mRenormedFrequencies = o2::ranslegacy::renorm(o2::ranslegacy::makeFrequencyTableFromSamples(std::begin(mSourceMessage), std::end(mSourceMessage)));
   };
 
   const auto& getSourceMessage() const { return mSourceMessage; };
@@ -60,7 +60,7 @@ class SymbolTableData
 
  private:
   std::vector<source_T> mSourceMessage{};
-  o2::rans::RenormedFrequencyTable mRenormedFrequencies{};
+  o2::ranslegacy::RenormedFrequencyTable mRenormedFrequencies{};
 };
 
 const SymbolTableData<uint8_t> Data8(MessageSize);
@@ -82,7 +82,7 @@ const auto& getData()
 template <typename source_T>
 static void ransSymbolTableAccessLight(benchmark::State& st)
 {
-  using namespace o2::rans;
+  using namespace o2::ranslegacy;
 
   const auto& data = getData<source_T>();
 
@@ -102,7 +102,7 @@ static void ransSymbolTableAccessLight(benchmark::State& st)
 template <typename source_T>
 static void ransSymbolTableAccessHeavy(benchmark::State& st)
 {
-  using namespace o2::rans;
+  using namespace o2::ranslegacy;
 
   const auto& data = getData<source_T>();
 
@@ -119,11 +119,11 @@ static void ransSymbolTableAccessHeavy(benchmark::State& st)
   st.SetBytesProcessed(int64_t(st.iterations()) * getData<source_T>().getSourceMessage().size() * sizeof(source_T));
 };
 
-// template <typename source_T, o2::rans::internal::simd::SIMDWidth width_V>
+// template <typename source_T, o2::ranslegacy::internal::simd::SIMDWidth width_V>
 // static void ransSymbolTableAccessSIMD(benchmark::State& st)
 // {
-//   using namespace o2::rans;
-//   static constexpr size_t nElems = o2::rans::internal::simd::getElementCount<ransState_t>(width_V);
+//   using namespace o2::ranslegacy;
+//   static constexpr size_t nElems = o2::ranslegacy::internal::simd::getElementCount<ransState_t>(width_V);
 
 //   const auto& data = getData<source_T>();
 
@@ -148,12 +148,12 @@ BENCHMARK_TEMPLATE1(ransSymbolTableAccessHeavy, uint8_t);
 BENCHMARK_TEMPLATE1(ransSymbolTableAccessHeavy, uint16_t);
 BENCHMARK_TEMPLATE1(ransSymbolTableAccessHeavy, uint32_t);
 
-// BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint8_t, o2::rans::internal::simd::SIMDWidth::SSE);
-// BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint16_t, o2::rans::internal::simd::SIMDWidth::SSE);
-// BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint32_t, o2::rans::internal::simd::SIMDWidth::SSE);
+// BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint8_t, o2::ranslegacy::internal::simd::SIMDWidth::SSE);
+// BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint16_t, o2::ranslegacy::internal::simd::SIMDWidth::SSE);
+// BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint32_t, o2::ranslegacy::internal::simd::SIMDWidth::SSE);
 
-// BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint8_t, o2::rans::internal::simd::SIMDWidth::AVX);
-// BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint16_t, o2::rans::internal::simd::SIMDWidth::AVX);
-// BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint32_t, o2::rans::internal::simd::SIMDWidth::AVX);
+// BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint8_t, o2::ranslegacy::internal::simd::SIMDWidth::AVX);
+// BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint16_t, o2::ranslegacy::internal::simd::SIMDWidth::AVX);
+// BENCHMARK_TEMPLATE2(ransSymbolTableAccessSIMD, uint32_t, o2::ranslegacy::internal::simd::SIMDWidth::AVX);
 
 BENCHMARK_MAIN();
