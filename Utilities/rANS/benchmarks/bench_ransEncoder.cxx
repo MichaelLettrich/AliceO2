@@ -8,18 +8,18 @@
 
 #include <benchmark/benchmark.h>
 
-#include "rANS/rans.h"
-#include "rANS/SimpleEncoder.h"
-#include "rANS/SimpleDecoder.h"
-#include "rANS/SIMDEncoder.h"
-#include "rANS/SIMDDecoder.h"
+#include "rANSLegacy/rans.h"
+#include "rANSLegacy/SimpleEncoder.h"
+#include "rANSLegacy/SimpleDecoder.h"
+#include "rANSLegacy/SIMDEncoder.h"
+#include "rANSLegacy/SIMDDecoder.h"
 
 #ifdef ENABLE_VTUNE_PROFILER
 #include <ittnotify.h>
 #endif
 
 double_t
-  computeExpectedCodewordLength(const o2::rans::FrequencyTable& frequencies, const o2::rans::RenormedFrequencyTable& rescaled)
+  computeExpectedCodewordLength(const o2::ranslegacy::FrequencyTable& frequencies, const o2::ranslegacy::RenormedFrequencyTable& rescaled)
 {
   if (frequencies.getNumSamples() > 0 && frequencies.getMinSymbol() == rescaled.getMinSymbol() && frequencies.getMaxSymbol() == rescaled.getMaxSymbol()) {
     return std::inner_product(frequencies.begin(), frequencies.end(), rescaled.begin(), static_cast<double>(0),
@@ -87,8 +87,8 @@ struct Fixture : public benchmark::Fixture {
   void SetUp(const ::benchmark::State& state) final
   {
     const auto& sourceMessage = getMessage<source_T>();
-    o2::rans::FrequencyTable frequencies = o2::rans::makeFrequencyTableFromSamples(std::begin(sourceMessage), std::end(sourceMessage));
-    o2::rans::RenormedFrequencyTable rescaledFrequencies = o2::rans::renorm(frequencies);
+    o2::ranslegacy::FrequencyTable frequencies = o2::ranslegacy::makeFrequencyTableFromSamples(std::begin(sourceMessage), std::end(sourceMessage));
+    o2::ranslegacy::RenormedFrequencyTable rescaledFrequencies = o2::ranslegacy::renorm(frequencies);
 
     encoder = Encoder_T<source_t>{rescaledFrequencies};
     decoder = Decoder_T<source_t>{rescaledFrequencies};
@@ -96,7 +96,7 @@ struct Fixture : public benchmark::Fixture {
     nUsedAlphabetSymbols = frequencies.getNUsedAlphabetSymbols();
     alphabetRangeBits = encoder.getAlphabetRangeBits();
     symbolTablePrecision = encoder.getSymbolTablePrecision();
-    entropy = o2::rans::computeEntropy(frequencies);
+    entropy = o2::ranslegacy::computeEntropy(frequencies);
     expectedCodewordLength = computeExpectedCodewordLength(frequencies, rescaledFrequencies);
   }
 
@@ -152,19 +152,19 @@ static void ransCompressionBenchmark(benchmark::State& st, fixture_T& fixture)
 };
 
 template <typename source_T>
-using simpleRansEncoder_t = typename o2::rans::SimpleEncoder<uint64_t, uint32_t, source_T>;
+using simpleRansEncoder_t = typename o2::ranslegacy::SimpleEncoder<uint64_t, uint32_t, source_T>;
 template <typename source_T>
-using simpleRansDecoder_t = typename o2::rans::SimpleDecoder<uint64_t, uint32_t, source_T>;
+using simpleRansDecoder_t = typename o2::ranslegacy::SimpleDecoder<uint64_t, uint32_t, source_T>;
 
 template <typename source_T>
-using sseRansEncoder_t = typename o2::rans::SIMDEncoder<uint64_t, uint32_t, source_T, 8, 2>;
+using sseRansEncoder_t = typename o2::ranslegacy::SIMDEncoder<uint64_t, uint32_t, source_T, 8, 2>;
 template <typename source_T>
-using sseRansDecoder_t = typename o2::rans::SIMDDecoder<uint64_t, uint32_t, source_T, 8, 2>;
+using sseRansDecoder_t = typename o2::ranslegacy::SIMDDecoder<uint64_t, uint32_t, source_T, 8, 2>;
 
 template <typename source_T>
-using avxRansEncoder_t = typename o2::rans::SIMDEncoder<uint64_t, uint32_t, source_T, 16, 4>;
+using avxRansEncoder_t = typename o2::ranslegacy::SIMDEncoder<uint64_t, uint32_t, source_T, 16, 4>;
 template <typename source_T>
-using avxRansDecoder_t = typename o2::rans::SIMDDecoder<uint64_t, uint32_t, source_T, 16, 4>;
+using avxRansDecoder_t = typename o2::ranslegacy::SIMDDecoder<uint64_t, uint32_t, source_T, 16, 4>;
 
 BENCHMARK_TEMPLATE_DEFINE_F(Fixture, simpleRansCompression_64_32_8, simpleRansEncoder_t, simpleRansDecoder_t, uint8_t)
 (benchmark::State& st)
@@ -183,17 +183,17 @@ BENCHMARK_TEMPLATE_DEFINE_F(Fixture, simpleRansCompression_64_32_32, simpleRansE
 {
   ransCompressionBenchmark(st, *this);
 };
-BENCHMARK_TEMPLATE_DEFINE_F(Fixture, ransCompression_64_32_8, o2::rans::Encoder64, o2::rans::Decoder64, uint8_t)
+BENCHMARK_TEMPLATE_DEFINE_F(Fixture, ransCompression_64_32_8, o2::ranslegacy::Encoder64, o2::ranslegacy::Decoder64, uint8_t)
 (benchmark::State& st)
 {
   ransCompressionBenchmark(st, *this);
 };
-BENCHMARK_TEMPLATE_DEFINE_F(Fixture, ransCompression_64_32_16, o2::rans::Encoder64, o2::rans::Decoder64, uint16_t)
+BENCHMARK_TEMPLATE_DEFINE_F(Fixture, ransCompression_64_32_16, o2::ranslegacy::Encoder64, o2::ranslegacy::Decoder64, uint16_t)
 (benchmark::State& st)
 {
   ransCompressionBenchmark(st, *this);
 };
-BENCHMARK_TEMPLATE_DEFINE_F(Fixture, ransCompression_64_32_32, o2::rans::Encoder64, o2::rans::Decoder64, uint32_t)
+BENCHMARK_TEMPLATE_DEFINE_F(Fixture, ransCompression_64_32_32, o2::ranslegacy::Encoder64, o2::ranslegacy::Decoder64, uint32_t)
 (benchmark::State& st)
 {
   ransCompressionBenchmark(st, *this);

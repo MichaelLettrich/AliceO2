@@ -21,10 +21,10 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/mpl/vector.hpp>
 
-#include "rANS/internal/SymbolTable.h"
-#include "rANS/internal/backend/cpp/DecoderSymbol.h"
-#include "rANS/internal/backend/simd/SymbolTable.h"
-#include "rANS/internal/Symbol.h"
+#include "rANSLegacy/internal/SymbolTable.h"
+#include "rANSLegacy/internal/backend/cpp/DecoderSymbol.h"
+#include "rANSLegacy/internal/backend/simd/SymbolTable.h"
+#include "rANSLegacy/internal/Symbol.h"
 
 template <typename T>
 size_t getNUniqueSymbols(const T& container)
@@ -32,12 +32,12 @@ size_t getNUniqueSymbols(const T& container)
   return std::count_if(container.begin(), container.end(), [](uint32_t value) { return value != 0; });
 };
 
-using SymbolTable_t = boost::mpl::vector<o2::rans::internal::SymbolTable<o2::rans::internal::cpp::DecoderSymbol>,
-                                         o2::rans::internal::simd::SymbolTable>;
+using SymbolTable_t = boost::mpl::vector<o2::ranslegacy::internal::SymbolTable<o2::ranslegacy::internal::cpp::DecoderSymbol>,
+                                         o2::ranslegacy::internal::simd::SymbolTable>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_empty, SymbolTable_T, SymbolTable_t)
 {
-  using namespace o2::rans;
+  using namespace o2::ranslegacy;
 
   const auto frequencyTable = renorm(FrequencyTable{});
   const SymbolTable_T symbolTable{frequencyTable};
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_empty, SymbolTable_T, SymbolTable_t)
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_symbolTable, SymbolTable_T, SymbolTable_t)
 {
-  using namespace o2::rans;
+  using namespace o2::ranslegacy;
 
   const std::vector<int> A{5, 5, 6, 6, 8, 8, 8, 8, 8, -1, -5, 2, 7, 3};
   const std::vector<uint32_t> histA{1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 2, 2, 1, 5, 1};

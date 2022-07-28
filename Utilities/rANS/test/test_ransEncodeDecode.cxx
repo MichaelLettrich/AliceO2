@@ -24,11 +24,11 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/mpl/vector.hpp>
 
-#include "rANS/rans.h"
-#include "rANS/SIMDEncoder.h"
-#include "rANS/SIMDDecoder.h"
-#include "rANS/LiteralSIMDEncoder.h"
-#include "rANS/LiteralSIMDDecoder.h"
+#include "rANSLegacy/rans.h"
+#include "rANSLegacy/SIMDEncoder.h"
+#include "rANSLegacy/SIMDDecoder.h"
+#include "rANSLegacy/LiteralSIMDEncoder.h"
+#include "rANSLegacy/LiteralSIMDDecoder.h"
 
 struct EmptyTestString {
   std::string data{};
@@ -83,7 +83,7 @@ struct EncodeDecodeBase {
   {
     dictString_T source;
     std::string& s = source.data;
-    o2::rans::RenormedFrequencyTable frequencyTable = o2::rans::renorm(o2::rans::makeFrequencyTableFromSamples(std::begin(s), std::end(s)), params_t::symbolTablePrecision);
+    o2::ranslegacy::RenormedFrequencyTable frequencyTable = o2::ranslegacy::renorm(o2::ranslegacy::makeFrequencyTableFromSamples(std::begin(s), std::end(s)), params_t::symbolTablePrecision);
 
     encoder = decltype(encoder)(frequencyTable);
     decoder = decltype(decoder)(frequencyTable);
@@ -95,7 +95,7 @@ struct EncodeDecodeBase {
       return std::make_tuple(min, max);
     }();
 
-    const size_t alphabetRangeBits = o2::rans::internal::numBitsForNSymbols(max - min + 1 + 1);
+    const size_t alphabetRangeBits = o2::ranslegacy::internal::numBitsForNSymbols(max - min + 1 + 1);
 
     BOOST_CHECK_EQUAL(encoder.getSymbolTablePrecision(), params_t::symbolTablePrecision);
     BOOST_CHECK_EQUAL(encoder.getAlphabetRangeBits(), alphabetRangeBits);
@@ -125,7 +125,7 @@ struct EncodeDecodeBase {
 };
 
 template <typename coder_T, class dictString_T, class testString_T>
-struct EncodeDecode : public EncodeDecodeBase<o2::rans::Encoder, o2::rans::Decoder, coder_T, dictString_T, testString_T> {
+struct EncodeDecode : public EncodeDecodeBase<o2::ranslegacy::Encoder, o2::ranslegacy::Decoder, coder_T, dictString_T, testString_T> {
   void encode() override
   {
     BOOST_CHECK_NO_THROW(this->encoder.process(std::begin(this->source.data), std::end(this->source.data), std::back_inserter(this->encodeBuffer)));
@@ -137,10 +137,10 @@ struct EncodeDecode : public EncodeDecodeBase<o2::rans::Encoder, o2::rans::Decod
 };
 
 template <typename coder_T, typename stream_T, typename source_V>
-using simdEncoderSSE_t = o2::rans::SIMDEncoder<coder_T, stream_T, source_V, 4, 2>;
+using simdEncoderSSE_t = o2::ranslegacy::SIMDEncoder<coder_T, stream_T, source_V, 4, 2>;
 
 template <typename coder_T, typename stream_T, typename source_V>
-using simdDecoderSSE_t = o2::rans::SIMDDecoder<coder_T, stream_T, source_V, 4, 2>;
+using simdDecoderSSE_t = o2::ranslegacy::SIMDDecoder<coder_T, stream_T, source_V, 4, 2>;
 
 template <typename coder_T, class dictString_T, class testString_T>
 struct EncodeDecodeSSE : public EncodeDecodeBase<simdEncoderSSE_t, simdDecoderSSE_t, coder_T, dictString_T, testString_T> {
@@ -155,10 +155,10 @@ struct EncodeDecodeSSE : public EncodeDecodeBase<simdEncoderSSE_t, simdDecoderSS
 };
 
 template <typename coder_T, typename stream_T, typename source_V>
-using simdEncoderAVX_t = o2::rans::SIMDEncoder<coder_T, stream_T, source_V, 8, 4>;
+using simdEncoderAVX_t = o2::ranslegacy::SIMDEncoder<coder_T, stream_T, source_V, 8, 4>;
 
 template <typename coder_T, typename stream_T, typename source_V>
-using simdDecoderAVX_t = o2::rans::SIMDDecoder<coder_T, stream_T, source_V, 8, 4>;
+using simdDecoderAVX_t = o2::ranslegacy::SIMDDecoder<coder_T, stream_T, source_V, 8, 4>;
 
 template <typename coder_T, class dictString_T, class testString_T>
 struct EncodeDecodeAVX : public EncodeDecodeBase<simdEncoderAVX_t, simdDecoderAVX_t, coder_T, dictString_T, testString_T> {
@@ -173,7 +173,7 @@ struct EncodeDecodeAVX : public EncodeDecodeBase<simdEncoderAVX_t, simdDecoderAV
 };
 
 template <typename coder_T, class dictString_T, class testString_T>
-struct EncodeDecodeLiteral : public EncodeDecodeBase<o2::rans::LiteralEncoder, o2::rans::LiteralDecoder, coder_T, dictString_T, testString_T> {
+struct EncodeDecodeLiteral : public EncodeDecodeBase<o2::ranslegacy::LiteralEncoder, o2::ranslegacy::LiteralDecoder, coder_T, dictString_T, testString_T> {
   void encode() override
   {
     BOOST_CHECK_NO_THROW(this->encoder.process(std::begin(this->source.data), std::end(this->source.data), std::back_inserter(this->encodeBuffer), literals));
@@ -188,10 +188,10 @@ struct EncodeDecodeLiteral : public EncodeDecodeBase<o2::rans::LiteralEncoder, o
 };
 
 template <typename coder_T, typename stream_T, typename source_V>
-using literalSimdEncoderSSE_t = o2::rans::LiteralSIMDEncoder<coder_T, stream_T, source_V, 4, 2>;
+using literalSimdEncoderSSE_t = o2::ranslegacy::LiteralSIMDEncoder<coder_T, stream_T, source_V, 4, 2>;
 
 template <typename coder_T, typename stream_T, typename source_V>
-using literalSimdDecoderSSE_t = o2::rans::LiteralSIMDDecoder<coder_T, stream_T, source_V, 4, 2>;
+using literalSimdDecoderSSE_t = o2::ranslegacy::LiteralSIMDDecoder<coder_T, stream_T, source_V, 4, 2>;
 
 template <typename coder_T, class dictString_T, class testString_T>
 struct EncodeDecodeLiteralSSE : public EncodeDecodeBase<literalSimdEncoderSSE_t, literalSimdDecoderSSE_t, coder_T, dictString_T, testString_T> {
@@ -209,10 +209,10 @@ struct EncodeDecodeLiteralSSE : public EncodeDecodeBase<literalSimdEncoderSSE_t,
 };
 
 template <typename coder_T, typename stream_T, typename source_V>
-using literalSimdEncoderAVX_t = o2::rans::LiteralSIMDEncoder<coder_T, stream_T, source_V, 8, 4>;
+using literalSimdEncoderAVX_t = o2::ranslegacy::LiteralSIMDEncoder<coder_T, stream_T, source_V, 8, 4>;
 
 template <typename coder_T, typename stream_T, typename source_V>
-using literalSimdDecoderAVX_t = o2::rans::LiteralSIMDDecoder<coder_T, stream_T, source_V, 8, 4>;
+using literalSimdDecoderAVX_t = o2::ranslegacy::LiteralSIMDDecoder<coder_T, stream_T, source_V, 8, 4>;
 
 template <typename coder_T, class dictString_T, class testString_T>
 struct EncodeDecodeLiteralAVX : public EncodeDecodeBase<literalSimdEncoderAVX_t, literalSimdDecoderAVX_t, coder_T, dictString_T, testString_T> {

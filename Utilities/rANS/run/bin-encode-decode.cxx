@@ -14,8 +14,8 @@
 /// @since  2020-06-22
 /// @brief  benchmark encode/decode using rans on binary data.
 
-#include "rANS/rans.h"
-#include "rANS/utils.h"
+#include "rANSLegacy/rans.h"
+#include "rANSLegacy/utils.h"
 
 #include <boost/program_options.hpp>
 #include <algorithm>
@@ -111,15 +111,15 @@ int main(int argc, char* argv[])
     LOG(info) << "repetion: " << i;
     std::vector<source_t> tokens = readFile<source_t>(filename);
 
-    const auto renormedFrequencies = o2::rans::renorm(o2::rans::makeFrequencyTableFromSamples(std::begin(tokens), std::end(tokens)));
+    const auto renormedFrequencies = o2::ranslegacy::renorm(o2::ranslegacy::makeFrequencyTableFromSamples(std::begin(tokens), std::end(tokens)));
 
     std::vector<stream_t> encoderBuffer;
-    const o2::rans::Encoder64<source_t> encoder{renormedFrequencies};
+    const o2::ranslegacy::Encoder64<source_t> encoder{renormedFrequencies};
     encoder.process(std::begin(tokens), std::end(tokens), std::back_inserter(encoderBuffer));
 
     std::vector<source_t> decoderBuffer(tokens.size());
     [&]() {
-      o2::rans::Decoder64<source_t> decoder{renormedFrequencies};
+      o2::ranslegacy::Decoder64<source_t> decoder{renormedFrequencies};
       decoder.process(encoderBuffer.end(), decoderBuffer.begin(), std::distance(std::begin(tokens), std::end(tokens)));
     }();
 

@@ -22,10 +22,10 @@
 
 #include <benchmark/benchmark.h>
 
-#include "rANS/utils.h"
-#include "rANS/rans.h"
-#include "rANS/internal/backend/simd/kernel.h"
-#include "rANS/internal/backend/simd/SymbolTable.h"
+#include "rANSLegacy/utils.h"
+#include "rANSLegacy/rans.h"
+#include "rANSLegacy/internal/backend/simd/kernel.h"
+#include "rANSLegacy/internal/backend/simd/SymbolTable.h"
 
 #ifdef ENABLE_VTUNE_PROFILER
 #include <ittnotify.h>
@@ -37,7 +37,7 @@ using stream_t = uint32_t;
 
 __extension__ using uint128_t = unsigned __int128;
 
-using namespace o2::rans::internal;
+using namespace o2::ranslegacy::internal;
 
 inline constexpr size_t MessageSize = 1ull << 22;
 inline constexpr size_t LowerBound = 1ul << 20;
@@ -57,7 +57,7 @@ class SymbolTableData
     mSourceMessage.resize(sourceSize);
     std::generate(std::execution::par_unseq, mSourceMessage.begin(), mSourceMessage.end(), [&dist, &mt]() { return dist(mt); });
 
-    mRenormedFrequencies = o2::rans::renorm(o2::rans::makeFrequencyTableFromSamples(std::begin(mSourceMessage), std::end(mSourceMessage)));
+    mRenormedFrequencies = o2::ranslegacy::renorm(o2::ranslegacy::makeFrequencyTableFromSamples(std::begin(mSourceMessage), std::end(mSourceMessage)));
 
     double_t expectationValue = std::accumulate(mRenormedFrequencies.begin(), mRenormedFrequencies.end(), 0.0, [this](const double_t& a, const count_t& b) {
       double_t prb = static_cast<double_t>(b) / static_cast<double_t>(mRenormedFrequencies.getNumSamples());
@@ -74,7 +74,7 @@ class SymbolTableData
 
  private:
   std::vector<source_T> mSourceMessage{};
-  o2::rans::RenormedFrequencyTable mRenormedFrequencies{};
+  o2::ranslegacy::RenormedFrequencyTable mRenormedFrequencies{};
   ransState_t mState{};
 };
 

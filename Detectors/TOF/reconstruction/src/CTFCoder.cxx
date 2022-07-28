@@ -176,7 +176,7 @@ size_t CTFCoder::estimateCompressedSize(const CompressedInfos& cc)
   // RS FIXME this is very crude estimate, instead, an empirical values should be used
 #define VTP(vec) typename std::remove_reference<decltype(vec)>::type::value_type
 #define ESTSIZE(vec, slot) mCoders[int(slot)] ?                         \
-  rans::calculateMaxBufferSize(vec.size(), reinterpret_cast<const o2::rans::LiteralEncoder64<VTP(vec)>*>(mCoders[int(slot)].get())->getAlphabetRangeBits(), sizeof(VTP(vec)) ) : vec.size()*sizeof(VTP(vec))
+  ranslegacy::calculateMaxBufferSize(vec.size(), reinterpret_cast<const o2::ranslegacy::LiteralEncoder64<VTP(vec)>*>(mCoders[int(slot)].get())->getAlphabetRangeBits(), sizeof(VTP(vec)) ) : vec.size()*sizeof(VTP(vec))
 
   sz += ESTSIZE(cc.bcIncROF,     CTF::BLCbcIncROF);
   sz += ESTSIZE(cc.orbitIncROF,  CTF::BLCorbitIncROF);
