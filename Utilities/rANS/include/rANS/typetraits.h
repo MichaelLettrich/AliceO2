@@ -19,13 +19,11 @@
 
 #include "rANS/StaticFrequencyTable.h"
 #include "rANS/DynamicFrequencyTable.h"
-#include "rANS/HashFrequencyTable.h"
 
 #include "rANS/RenormedFrequencies.h"
 
 #include "rANS/StaticSymbolTable.h"
 #include "rANS/DynamicSymbolTable.h"
-#include "rANS/HashSymbolTable.h"
 
 #include "rANS/internal/SingleStreamEncodeCommand.h"
 #include "rANS/internal/SIMDEncodeCommand.h"
@@ -41,8 +39,7 @@ namespace rans
 {
 
 enum class ContainerTag : uint8_t { Dynamic,
-                                    Static,
-                                    Hash };
+                                    Static };
 
 enum class CoderTag : uint8_t { Compat,
                                 SingleStream,
@@ -65,25 +62,16 @@ template <typename source_T>
 struct getContainerTag<DynamicFrequencyTable<source_T>> : public std::integral_constant<ContainerTag, ContainerTag::Dynamic> {
 };
 template <typename source_T>
-struct getContainerTag<HashFrequencyTable<source_T>> : public std::integral_constant<ContainerTag, ContainerTag::Hash> {
-};
-template <typename source_T>
 struct getContainerTag<RenormedStaticFrequencyTable<source_T>> : public std::integral_constant<ContainerTag, ContainerTag::Static> {
 };
 template <typename source_T>
 struct getContainerTag<RenormedDynamicFrequencyTable<source_T>> : public std::integral_constant<ContainerTag, ContainerTag::Dynamic> {
-};
-template <typename source_T>
-struct getContainerTag<RenormedHashFrequencyTable<source_T>> : public std::integral_constant<ContainerTag, ContainerTag::Hash> {
 };
 template <typename source_T, typename symbol_T>
 struct getContainerTag<StaticSymbolTable<source_T, symbol_T>> : public std::integral_constant<ContainerTag, ContainerTag::Static> {
 };
 template <typename source_T, typename symbol_T>
 struct getContainerTag<DynamicSymbolTable<source_T, symbol_T>> : public std::integral_constant<ContainerTag, ContainerTag::Dynamic> {
-};
-template <typename source_T, typename symbol_T>
-struct getContainerTag<HashSymbolTable<source_T, symbol_T>> : public std::integral_constant<ContainerTag, ContainerTag::Hash> {
 };
 
 template <class encoderCommand_T, class symbolTable_T, size_t nStreams_V>
@@ -145,17 +133,6 @@ struct ContainerTraits<ContainerTag::Static> {
   using symbolTable_type = StaticSymbolTable<source_T, symbol_T>;
 };
 
-template <>
-struct ContainerTraits<ContainerTag::Hash> {
-
-  template <typename source_T>
-  using frequencyTable_type = HashFrequencyTable<source_T>;
-  template <typename source_T>
-  using renormedFrequencyTable_type = RenormedHashFrequencyTable<source_T>;
-  template <typename source_T, class symbol_T>
-  using symbolTable_type = HashSymbolTable<source_T, symbol_T>;
-};
-
 template <typename T>
 struct isSymbolTableContainer : public std::is_base_of<internal::SymbolTableContainer<typename T::source_type,
                                                                                       typename T::index_type,
@@ -178,10 +155,6 @@ struct isFrequencyTable<DynamicFrequencyTable<source_T>> : std::true_type {
 
 template <typename source_T>
 struct isFrequencyTable<StaticFrequencyTable<source_T>> : std::true_type {
-};
-
-template <typename source_T>
-struct isFrequencyTable<HashFrequencyTable<source_T>> : std::true_type {
 };
 
 template <typename T>
@@ -209,10 +182,6 @@ struct isRenormedFrequencyTable<RenormedStaticFrequencyTable<source_T>> : std::t
 
 template <typename source_T>
 struct isRenormedFrequencyTable<RenormedDynamicFrequencyTable<source_T>> : std::true_type {
-};
-
-template <typename source_T>
-struct isRenormedFrequencyTable<RenormedHashFrequencyTable<source_T>> : std::true_type {
 };
 
 template <typename T>

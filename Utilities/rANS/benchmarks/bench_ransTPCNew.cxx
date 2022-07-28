@@ -37,8 +37,7 @@ using decoder_type = LiteralSIMDDecoder<ransCoder_type, ransStream_type, source_
 // using decoder_type = LiteralDecoder<ransCoder_type, ransStream_type, source_T>;
 
 // using container_types = boost::mp11::mp_list<std::integral_constant<ContainerTag, ContainerTag::Dynamic>,
-//                                              std::integral_constant<ContainerTag, ContainerTag::Static>,
-//                                              std::integral_constant<ContainerTag, ContainerTag::Hash>>;
+//                                              std::integral_constant<ContainerTag, ContainerTag::Static>>;
 
 using container_types = boost::mp11::mp_list<std::integral_constant<ContainerTag, ContainerTag::Static>>;
 
@@ -78,9 +77,6 @@ std::string toString(ContainerTag tag)
       break;
     case ContainerTag::Static:
       return {"Static"};
-      break;
-    case ContainerTag::Hash:
-      return {"Hash"};
       break;
     default:
       throw std::runtime_error("Invalid");

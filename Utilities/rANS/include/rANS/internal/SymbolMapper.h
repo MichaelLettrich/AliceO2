@@ -29,7 +29,6 @@
 #include "rANS/internal/SingleStreamEncodeCommand.h"
 #include "rANS/StaticSymbolTable.h"
 #include "rANS/DynamicSymbolTable.h"
-#include "rANS/HashSymbolTable.h"
 #include "rANS/internal/backend/simd/kernel.h"
 #include "rANS/internal/backend/simd/types.h"
 
