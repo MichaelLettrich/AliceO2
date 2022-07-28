@@ -115,7 +115,11 @@ class RLUT
     }
 
     mLut.reserve(frequencyTable.getNumSamples());
-    buildRLUTImpl(frequencyTable);
+
+    index_type symbol = frequencyTable.getOffset();
+    for (count_type symbolFrequency : frequencyTable) {
+      mLut.insert(mLut.end(), symbolFrequency, symbol++);
+    }
   };
 
   inline size_type size() const noexcept { return mLut.size(); };
@@ -133,38 +137,6 @@ class RLUT
 
   inline const iterator_type begin() const noexcept { return mLut.data(); };
   inline const iterator_type end() const noexcept { return mLut.data() + size(); };
-
- private:
-  template <typename renormedFrequencyTable_T>
-  void buildRLUTImpl(const renormedFrequencyTable_T& frequencyTable)
-  {
-    index_type symbol = frequencyTable.getOffset();
-    for (count_type symbolFrequency : frequencyTable) {
-      mLut.insert(mLut.end(), symbolFrequency, symbol++);
-    }
-  };
-
-  void buildRLUTImpl(const RenormedHashFrequencyTable<source_T>& frequencyTable)
-  {
-    using hashIterator_type = typename RenormedHashFrequencyTable<source_T>::const_iterator;
-
-    std::vector<hashIterator_type>
-      orderedIndices = [&, this]() {
-        std::vector<hashIterator_type> orderedIndices;
-        orderedIndices.reserve(frequencyTable.size());
-        for (auto iter = frequencyTable.begin(); iter != frequencyTable.end(); ++iter) {
-          orderedIndices.push_back(iter);
-        }
-
-        std::stable_sort(orderedIndices.begin(), orderedIndices.end(), [](const auto& a, const auto& b) -> bool { return a->first < b->first; });
-        return orderedIndices;
-      }();
-
-    for (const auto iter : orderedIndices) {
-      auto [symbol, symbolFrequency] = *iter;
-      mLut.insert(mLut.end(), symbolFrequency, symbol);
-    }
-  };
 
   container_type mLut{};
   count_type mIncompressibleFrequency{};
