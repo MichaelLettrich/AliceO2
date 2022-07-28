@@ -17,19 +17,19 @@
 #include <rapidjson/ostreamwrapper.h>
 #include <fairlogger/Logger.h>
 
-#include "rANS/rans.h"
-#include "rANS/LiteralSIMDEncoder.h"
-#include "rANS/LiteralSIMDDecoder.h"
+#include "rANSLegacy/rans.h"
+#include "rANSLegacy/LiteralSIMDEncoder.h"
+#include "rANSLegacy/LiteralSIMDDecoder.h"
 #include "rANS/StaticFrequencyTable.h"
 
 namespace bpo = boost::program_options;
 
 template <typename source_T>
-double_t computeExpectedCodewordLength(const o2::rans::FrequencyTable& frequencies, const o2::rans::RenormedFrequencyTable& rescaled)
+double_t computeExpectedCodewordLength(const o2::ranslegacy::FrequencyTable& frequencies, const o2::ranslegacy::RenormedFrequencyTable& rescaled)
 {
 
-  using symbol_t = o2::rans::symbol_t;
-  using count_t = o2::rans::count_t;
+  using symbol_t = o2::ranslegacy::symbol_t;
+  using count_t = o2::ranslegacy::count_t;
   double_t expectedCodewordLength = 0;
   count_t trueIncompressibleFrequency = frequencies.getIncompressibleSymbolFrequency();
 
@@ -63,7 +63,7 @@ double_t computeExpectedCodewordLength(const o2::rans::FrequencyTable& frequenci
   const double_t rescaledProbability = static_cast<double_t>(rescaled.getIncompressibleSymbolFrequency()) / rescaled.getNumSamples();
 
   expectedCodewordLength -= trueProbability * std::log2(rescaledProbability);
-  expectedCodewordLength += trueProbability * std::log2(o2::rans::internal::toBits(sizeof(source_T)));
+  expectedCodewordLength += trueProbability * std::log2(o2::ranslegacy::internal::toBits(sizeof(source_T)));
 
   return expectedCodewordLength;
 };
@@ -344,7 +344,7 @@ void ransEncodeDecode(const std::string& name, const std::vector<typename encode
 {
   using namespace o2;
   using source_t = typename encoder_T::source_t;
-  rans::internal::RANSTimer timer{};
+  ranslegacy::internal::RANSTimer timer{};
   writer.Key(name.c_str());
   writer.StartObject();
 
@@ -356,14 +356,14 @@ void ransEncodeDecode(const std::string& name, const std::vector<typename encode
 
   LOGP(info, "processing: {} (nItems: {}, size: {} MiB)", name, inputData.size(), inputData.size() * sizeof(source_t) / 1024.0 / 1024.0);
   timer.start();
-  auto frequencyTable = rans::makeFrequencyTableFromSamples(inputData.begin(), inputData.end());
+  auto frequencyTable = ranslegacy::makeFrequencyTableFromSamples(inputData.begin(), inputData.end());
   timer.stop();
   writer.Key("FrequencyTable");
   writer.Double(timer.getDurationMS());
   LOGP(info, "Built Frequency Table in {} ms", timer.getDurationMS());
 
   timer.start();
-  auto renormedFrequencyTable = rans::renormCutoffIncompressible(frequencyTable);
+  auto renormedFrequencyTable = ranslegacy::renormCutoffIncompressible(frequencyTable);
 
   timer.stop();
   writer.Key("Renorming");
@@ -455,7 +455,7 @@ void ransEncodeDecode(const std::string& name, const std::vector<typename encode
   writer.Key("SymbolSize");
   writer.Uint(sizeof(source_t));
   writer.Key("Entropy");
-  writer.Double(o2::rans::computeEntropy(frequencyTable));
+  writer.Double(o2::ranslegacy::computeEntropy(frequencyTable));
   writer.Key("ExpectedCodewordLength");
   writer.Double(computeExpectedCodewordLength<source_t>(frequencyTable, renormedFrequencyTable));
   writer.EndObject(); // Message
@@ -509,14 +509,14 @@ void encodeTPC(const std::string& name, const TPCCompressedClusters& compressedC
 };
 
 template <typename source_T>
-using sseRansEncoder_t = typename o2::rans::LiteralSIMDEncoder<uint64_t, uint32_t, source_T, 16, 2>;
+using sseRansEncoder_t = typename o2::ranslegacy::LiteralSIMDEncoder<uint64_t, uint32_t, source_T, 16, 2>;
 template <typename source_T>
-using sseRansDecoder_t = typename o2::rans::LiteralSIMDDecoder<uint64_t, uint32_t, source_T, 16, 2>;
+using sseRansDecoder_t = typename o2::ranslegacy::LiteralSIMDDecoder<uint64_t, uint32_t, source_T, 16, 2>;
 
 template <typename source_T>
-using avxRansEncoder_t = typename o2::rans::LiteralSIMDEncoder<uint64_t, uint32_t, source_T, 16, 4>;
+using avxRansEncoder_t = typename o2::ranslegacy::LiteralSIMDEncoder<uint64_t, uint32_t, source_T, 16, 4>;
 template <typename source_T>
-using avxRansDecoder_t = typename o2::rans::LiteralSIMDDecoder<uint64_t, uint32_t, source_T, 16, 4>;
+using avxRansDecoder_t = typename o2::ranslegacy::LiteralSIMDDecoder<uint64_t, uint32_t, source_T, 16, 4>;
 
 int main(int argc, char* argv[])
 {
@@ -572,13 +572,13 @@ int main(int argc, char* argv[])
   LOG(info) << "loaded Compressed Clusters from file";
   LOG(info) << "######################################################";
   LOG(info) << "start rANS LiteralEncode/Decode";
-  encodeTPC<o2::rans::LiteralEncoder64, o2::rans::LiteralDecoder64>("LiteralEncoder64", compressedClusters, false, writer);
-  // LOG(info) << "######################################################";
-  // LOG(info) << "start rANS SSE LiteralEncode/Decode";
-  // encodeTPC<sseRansEncoder_t, sseRansDecoder_t>("SSE16", compressedClusters, false, writer);
-  // LOG(info) << "######################################################";
-  // LOG(info) << "start rANS AVX LiteralEncode/Decode";
-  // encodeTPC<avxRansEncoder_t, avxRansDecoder_t>("AVX16", compressedClusters, false, writer);
+  encodeTPC<o2::ranslegacy::LiteralEncoder64, o2::ranslegacy::LiteralDecoder64>("LiteralEncoder64", compressedClusters, false, writer);
+  LOG(info) << "######################################################";
+  LOG(info) << "start rANS SSE LiteralEncode/Decode";
+  encodeTPC<sseRansEncoder_t, sseRansDecoder_t>("SSE16", compressedClusters, false, writer);
+  LOG(info) << "######################################################";
+  LOG(info) << "start rANS AVX LiteralEncode/Decode";
+  encodeTPC<avxRansEncoder_t, avxRansDecoder_t>("AVX16", compressedClusters, false, writer);
 
   writer.EndObject();
   writer.Flush();

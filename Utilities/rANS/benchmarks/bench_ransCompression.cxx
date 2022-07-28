@@ -7,13 +7,13 @@
 
 #include <benchmark/benchmark.h>
 
-#include "rANS/SimpleEncoder.h"
-#include "rANS/SimpleDecoder.h"
-#include "rANS/rans.h"
+#include "rANSLegacy/SimpleEncoder.h"
+#include "rANSLegacy/SimpleDecoder.h"
+#include "rANSLegacy/rans.h"
 
-inline constexpr size_t SourceSize = o2::rans::internal::pow2(24) + 3;
+inline constexpr size_t SourceSize = o2::ranslegacy::internal::pow2(24) + 3;
 
-double_t computeExpectedCodewordLength(const o2::rans::FrequencyTable& frequencies, const o2::rans::RenormedFrequencyTable& rescaled)
+double_t computeExpectedCodewordLength(const o2::ranslegacy::FrequencyTable& frequencies, const o2::ranslegacy::RenormedFrequencyTable& rescaled)
 {
   if (frequencies.getNumSamples() > 0 && frequencies.getMinSymbol() == rescaled.getMinSymbol() && frequencies.getMaxSymbol() == rescaled.getMaxSymbol()) {
     return std::inner_product(frequencies.begin(), frequencies.end(), rescaled.begin(), static_cast<double>(0),
@@ -65,11 +65,11 @@ void ransCompressionBenchmark(benchmark::State& st, const std::vector<source_T>&
 {
   const size_t SymbolTablePrecision = st.range(0);
 
-  o2::rans::FrequencyTable frequencies = o2::rans::makeFrequencyTableFromSamples(std::begin(sourceMessage), std::end(sourceMessage));
-  o2::rans::RenormedFrequencyTable rescaledFrequencies = o2::rans::renorm(frequencies, SymbolTablePrecision);
+  o2::ranslegacy::FrequencyTable frequencies = o2::ranslegacy::makeFrequencyTableFromSamples(std::begin(sourceMessage), std::end(sourceMessage));
+  o2::ranslegacy::RenormedFrequencyTable rescaledFrequencies = o2::ranslegacy::renorm(frequencies, SymbolTablePrecision);
 
-  o2::rans::SimpleEncoder<coder_T, stream_T, source_T> encoder{rescaledFrequencies};
-  o2::rans::SimpleDecoder<coder_T, stream_T, source_T> decoder{rescaledFrequencies};
+  o2::ranslegacy::SimpleEncoder<coder_T, stream_T, source_T> encoder{rescaledFrequencies};
+  o2::ranslegacy::SimpleDecoder<coder_T, stream_T, source_T> decoder{rescaledFrequencies};
 
   std::vector<stream_T> encodeBuffer{};
   std::vector<source_T> decodeBuffer{};
@@ -96,7 +96,7 @@ void ransCompressionBenchmark(benchmark::State& st, const std::vector<source_T>&
   st.counters["CompressedSize"] = encodeBuffer.size() * sizeof(stream_T);
   st.counters["Compression"] = st.counters["SourceSize"] / static_cast<double>(st.counters["CompressedSize"]);
   st.counters["nUsedAlphabetSymbols"] = frequencies.getNUsedAlphabetSymbols();
-  st.counters["Entropy"] = o2::rans::computeEntropy(frequencies);
+  st.counters["Entropy"] = o2::ranslegacy::computeEntropy(frequencies);
   st.counters["ExpectedCodewordLength"] = computeExpectedCodewordLength(frequencies, rescaledFrequencies);
   st.counters["LowerBound"] = sourceMessage.size() * (static_cast<double>(st.counters["Entropy"]) / 8);
   st.counters["CompressionWRTEntropy"] = st.counters["CompressedSize"] / st.counters["LowerBound"];

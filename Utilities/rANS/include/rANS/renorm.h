@@ -24,8 +24,6 @@
 #include "rANS/RenormedFrequencies.h"
 #include "rANS/StaticFrequencyTable.h"
 #include "rANS/DynamicFrequencyTable.h"
-#include "rANS/FrequencyTable.h"
-#include "rANS/RenormedFrequencyTable.h"
 #include "rANS/internal/helper.h"
 
 namespace o2
@@ -121,16 +119,6 @@ inline size_t getIncompressibleSymbolFrequency(const frequencyTable_T&)
   return 0;
 }
 
-inline size_t getIncompressibleSymbolFrequency(const FrequencyTable& f)
-{
-  return f.getIncompressibleSymbolFrequency();
-}
-
-inline size_t getNUsedAlphabetSymbols(const FrequencyTable& f)
-{
-  return f.getNUsedAlphabetSymbols();
-}
-
 template <typename source_T>
 inline size_t getNUsedAlphabetSymbols(const DynamicFrequencyTable<source_T>& f)
 {
@@ -145,11 +133,6 @@ inline size_t getNUsedAlphabetSymbols(const frequencyTable_T& f)
   } else {
     return f.size();
   }
-}
-
-inline auto getOffset(const FrequencyTable& f)
-{
-  return f.getMinSymbol();
 }
 
 template <typename frequencyTable_T>
@@ -261,10 +244,7 @@ decltype(auto) renormCutoffIncompressible(frequencyTable_T unrenomredTable, uint
     throw std::runtime_error(fmt::format("rANS rescaling incomplete: {} corrections Remaining", nCorrections));
   }
 
-  if constexpr (std::is_same_v<frequencyTable_T, FrequencyTable>) {
-    frequencyTable_T newFrequencyTable{rescaledFrequencies.begin(), rescaledFrequencies.end(), offset, incompressibleSymbolFrequency};
-    return RenormedFrequencyTable{std::move(newFrequencyTable), newPrecision};
-  } else if constexpr (std::is_same_v<frequencyTable_T, StaticFrequencyTable<source_type>>) {
+  if constexpr (std::is_same_v<frequencyTable_T, StaticFrequencyTable<source_type>>) {
     return RenormedStaticFrequencyTable<source_type>(std::move(rescaledFrequencies), offset, newPrecision, incompressibleSymbolFrequency);
   } else if constexpr (std::is_same_v<frequencyTable_T, DynamicFrequencyTable<source_type>>) {
     return RenormedDynamicFrequencyTable<source_type>(std::move(rescaledFrequencies), offset, newPrecision, incompressibleSymbolFrequency);

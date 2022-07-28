@@ -28,8 +28,8 @@
 #include "DataFormatsTPC/CompressedClusters.h"
 #include "DetectorsCommonDataFormats/DetID.h"
 #include "DetectorsBase/CTFCoderBase.h"
-#include "rANS/rans.h"
-#include "rANS/utils.h"
+#include "rANSLegacy/rans.h"
+#include "rANSLegacy/utils.h"
 
 class TTree;
 
@@ -70,7 +70,7 @@ class ShiftFunctor
 template <typename iterA_T, typename iterB_T, typename F>
 auto makeInputIterators(iterA_T iterA, iterB_T iterB, size_t nElements, F functor)
 {
-  using namespace o2::rans::utils;
+  using namespace o2::ranslegacy::utils;
 
   auto advanceIter = [](auto iter, size_t nElements) {
     auto tmp = iter;
@@ -91,7 +91,7 @@ struct MergedColumnsDecoder {
   static void decode(iterA_T iterA, iterB_T iterB, CTF::Slots slot, F decodingFunctor)
   {
     ShiftFunctor<combined_t, bits_B> f{};
-    auto iter = rans::utils::CombinedOutputIteratorFactory<combined_t>::makeIter(iterA, iterB, f);
+    auto iter = ranslegacy::utils::CombinedOutputIteratorFactory<combined_t>::makeIter(iterA, iterB, f);
 
     decodingFunctor(iter, slot);
   }

@@ -24,9 +24,9 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/mpl/vector.hpp>
 
-#include "rANS/SimpleEncoder.h"
-#include "rANS/SimpleDecoder.h"
-#include "rANS/rans.h"
+#include "rANSLegacy/SimpleEncoder.h"
+#include "rANSLegacy/SimpleDecoder.h"
+#include "rANSLegacy/rans.h"
 
 using source_t = uint8_t;
 using stream_t = uint32_t;
@@ -55,10 +55,10 @@ struct Fixture {
 
 BOOST_FIXTURE_TEST_CASE(test_largeScaleEncodeDecode, Fixture)
 {
-  auto frequencies = o2::rans::renorm(o2::rans::makeFrequencyTableFromSamples(std::begin(sourceSymbols), std::end(sourceSymbols)), SymbolTablePrecision);
+  auto frequencies = o2::ranslegacy::renorm(o2::ranslegacy::makeFrequencyTableFromSamples(std::begin(sourceSymbols), std::end(sourceSymbols)), SymbolTablePrecision);
 
-  o2::rans::SimpleEncoder<coder_t, stream_t, source_t> encoder{frequencies};
-  o2::rans::SimpleDecoder<coder_t, stream_t, source_t> decoder{frequencies};
+  o2::ranslegacy::SimpleEncoder<coder_t, stream_t, source_t> encoder{frequencies};
+  o2::ranslegacy::SimpleDecoder<coder_t, stream_t, source_t> decoder{frequencies};
 
   std::vector<stream_t> encodeBuffer{};
   std::vector<source_t> decodeBuffer{};

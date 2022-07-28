@@ -23,7 +23,7 @@
 #include "DataFormatsZDC/CTF.h"
 #include "DetectorsCommonDataFormats/DetID.h"
 #include "DetectorsBase/CTFCoderBase.h"
-#include "rANS/rans.h"
+#include "rANSLegacy/rans.h"
 #include "ZDCReconstruction/CTFHelper.h"
 
 class TTree;
