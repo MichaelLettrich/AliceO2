@@ -22,6 +22,8 @@
 #include <array>
 #include <tuple>
 
+#include <gsl/span>
+
 #include "rANS/internal/backend/simd/types.h"
 #include "rANS/internal/backend/simd/utils.h"
 #include "rANS/internal/helper.h"
@@ -37,12 +39,23 @@ namespace simd
 {
 
 template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-inline __m128i load(SIMDView<const T, SIMDWidth::SSE, 1> v) noexcept
+inline __m128i load(gsl::span<const T, getElementCount<T>(SIMDWidth::SSE)> v) noexcept
 {
   return _mm_load_si128(reinterpret_cast<const __m128i*>(v.data()));
 };
 
-inline __m128d load(pdcV_t<SIMDWidth::SSE> v) noexcept
+template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
+inline __m128i load(gsl::span<T, getElementCount<T>(SIMDWidth::SSE)> v) noexcept
+{
+  return _mm_load_si128(reinterpret_cast<const __m128i*>(v.data()));
+};
+
+inline __m128d load(gsl::span<const double_t, getElementCount<double_t>(SIMDWidth::SSE)> v) noexcept
+{
+  return _mm_load_pd(v.data());
+};
+
+inline __m128d load(gsl::span<double_t, getElementCount<double_t>(SIMDWidth::SSE)> v) noexcept
 {
   return _mm_load_pd(v.data());
 };
@@ -72,12 +85,23 @@ inline __m256d load(const pd_t<SIMDWidth::AVX> v) noexcept
 };
 
 template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-inline __m256i load(SIMDView<const T, SIMDWidth::AVX, 1> v) noexcept
+inline __m256i load(gsl::span<const T, getElementCount<T>(SIMDWidth::AVX)> v) noexcept
 {
   return _mm256_load_si256(reinterpret_cast<const __m256i*>(v.data()));
 };
 
-inline __m256d load(pdcV_t<SIMDWidth::AVX> v) noexcept
+template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
+inline __m256i load(gsl::span<T, getElementCount<T>(SIMDWidth::AVX)> v) noexcept
+{
+  return _mm256_load_si256(reinterpret_cast<const __m256i*>(v.data()));
+};
+
+inline __m256d load(gsl::span<double_t, getElementCount<double_t>(SIMDWidth::AVX)> v) noexcept
+{
+  return _mm256_load_pd(v.data());
+};
+
+inline __m256d load(gsl::span<const double_t, getElementCount<double_t>(SIMDWidth::AVX)> v) noexcept
 {
   return _mm256_load_pd(v.data());
 };
@@ -100,12 +124,12 @@ inline AlignedArray<double_t, SIMDWidth::SSE> store(__m128d inVec) noexcept
 };
 
 template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-inline void store(__m128i inVec, SIMDView<T, SIMDWidth::SSE, 1, true> v) noexcept
+inline void store(__m128i inVec, gsl::span<T, getElementCount<T>(SIMDWidth::SSE)> v) noexcept
 {
   _mm_store_si128(reinterpret_cast<__m128i*>(v.data()), inVec);
 };
 
-inline void store(__m128d inVec, SIMDView<double_t, SIMDWidth::SSE, 1, true> v) noexcept
+inline void store(__m128d inVec, gsl::span<double_t, getElementCount<double>(SIMDWidth::SSE)> v) noexcept
 {
   _mm_store_pd(v.data(), inVec);
 };
@@ -128,12 +152,12 @@ inline AlignedArray<double_t, SIMDWidth::AVX> store(__m256d inVec) noexcept
 };
 
 template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-inline void store(__m256i inVec, SIMDView<T, SIMDWidth::AVX, 1, true> v) noexcept
+inline void store(__m256i inVec, gsl::span<T, getElementCount<T>(SIMDWidth::AVX)> v) noexcept
 {
   _mm256_store_si256(reinterpret_cast<__m256i*>(v.data()), inVec);
 };
 
-inline void store(__m256d inVec, SIMDView<double_t, SIMDWidth::AVX, 1, true> v) noexcept
+inline void store(__m256d inVec, gsl::span<double_t, getElementCount<double>(SIMDWidth::AVX)> v) noexcept
 {
   _mm256_store_pd(v.data(), inVec);
 };
@@ -351,7 +375,7 @@ inline __m256i ransEncode(__m256i state, __m256d frequency, __m256d cumulative, 
 
 #endif /* __AVX2__ */
 
-inline void aosToSoa(ArrayView<const Symbol*, 2> in, __m128i* __restrict__ frequency, __m128i* __restrict__ cumulatedFrequency) noexcept
+inline void aosToSoa(gsl::span<const Symbol*, 2> in, __m128i* __restrict__ frequency, __m128i* __restrict__ cumulatedFrequency) noexcept
 {
   __m128i in0Reg = _mm_loadu_si128(reinterpret_cast<__m128i const*>(in[0]->data()));
   __m128i in1Reg = _mm_loadu_si128(reinterpret_cast<__m128i const*>(in[1]->data()));
@@ -360,7 +384,7 @@ inline void aosToSoa(ArrayView<const Symbol*, 2> in, __m128i* __restrict__ frequ
   *cumulatedFrequency = _mm_shuffle_epi32(*frequency, _MM_SHUFFLE(0, 0, 3, 2));
 }
 
-inline void aosToSoa(ArrayView<const Symbol*, 4> in, __m128i* __restrict__ frequency, __m128i* __restrict__ cumulatedFrequency) noexcept
+inline void aosToSoa(gsl::span<const Symbol*, 4> in, __m128i* __restrict__ frequency, __m128i* __restrict__ cumulatedFrequency) noexcept
 {
   __m128i in0Reg = _mm_loadu_si128(reinterpret_cast<__m128i const*>(in[0]->data()));
   __m128i in1Reg = _mm_loadu_si128(reinterpret_cast<__m128i const*>(in[1]->data()));
@@ -735,11 +759,11 @@ struct StreamOutResult<SIMDWidth::SSE> {
 //   __m128i permutationMask = _mm_set1_epi32(AVXInterleavedPermutationLUT[id]);
 //   //  std::cout <<"permutationMask "<< asHex(store<uint32_t>(permutationMask)) << "\n";
 //   constexpr epi32_t<SIMDWidth::SSE> mask{0xF0000000u, 0x0F000000u, 0x00F00000u, 0x000F0000u};
-//   permutationMask = _mm_and_si128(permutationMask, load(toConstSIMDView(mask)));
+//   permutationMask = _mm_and_si128(permutationMask, load(mask.data()));
 //   //  std::cout <<"permutationMask "<< asHex(store<uint32_t>(permutationMask)) << "\n";
 
 //   constexpr epi32_t<SIMDWidth::SSE> shift{28u, 24u, 20u, 16u};
-//   permutationMask = _mm_srlv_epi32(permutationMask, load(toConstSIMDView(shift)));
+//   permutationMask = _mm_srlv_epi32(permutationMask, load(shift.data()));
 //   //  std::cout <<"permutationMask "<< asHex(store<uint32_t>(permutationMask)) << "\n";
 //   auto streamOutVec = _mm_shuffle_epi8(statesFused, permutationMask);
 
@@ -763,7 +787,7 @@ inline StreamOutResult<SIMDWidth::SSE> streamOut(const __m128i* __restrict__ sta
   const uint32_t id = _mm_movemask_ps(_mm_castsi128_ps(cmpFused));
   // std::cout << fmt::format("id: {:#0b}\n", id);
 
-  __m128i permutationMask = load(toConstSIMDView(SSEStreamOutLUT[id]));
+  __m128i permutationMask = load(SSEStreamOutLUT[id]);
   // std::cout << "permutationMask " << asHex(store<uint32_t>(permutationMask)) << "\n";
   auto streamOutVec = _mm_shuffle_epi8(statesFused, permutationMask);
 
@@ -794,9 +818,9 @@ struct StreamOutResult<SIMDWidth::AVX> {
 //   // std::cout << "cmpFused " << asHex(store<uint32_t>(cmpFused)) << "\n";
 //   // std::cout << "statesFused " << asHex(store<uint32_t>(statesFused)) << "\n";
 
-//   statesFused = _mm256_permutevar8x32_epi32(statesFused, load(toConstSIMDView(PermuteAVX)));
+//   statesFused = _mm256_permutevar8x32_epi32(statesFused, load(PermuteAVX.data()));
 //   // std::cout << "statesFused2 " << asHex(store<uint32_t>(statesFused2)) << "\n";
-//   cmpFused = _mm256_permutevar8x32_epi32(cmpFused, load(toConstSIMDView(PermuteAVX)));
+//   cmpFused = _mm256_permutevar8x32_epi32(cmpFused, load(PermuteAVX.data()));
 //   // std::cout << "cmpFused2 " << asHex(store<uint32_t>(cmpFused2)) << "\n";
 //   statesFused = _mm256_and_si256(statesFused, cmpFused);
 //   const uint32_t mask = _mm256_movemask_ps(_mm256_castsi256_ps(cmpFused));
@@ -852,10 +876,10 @@ inline StreamOutResult<SIMDWidth::AVX> streamOut(const __m256i* __restrict__ sta
   __m256i permutationMask = _mm256_set1_epi32(AVXStreamOutLUT[id]);
   //  std::cout <<"permutationMask "<< asHex(store<uint32_t>(permutationMask)) << "\n";
   constexpr epi32_t<SIMDWidth::AVX> mask{0xF0000000u, 0x0F000000u, 0x00F00000u, 0x000F0000u, 0x0000F000u, 0x00000F00u, 0x000000F0u, 0x0000000Fu};
-  permutationMask = _mm256_and_si256(permutationMask, load(toConstSIMDView(mask)));
+  permutationMask = _mm256_and_si256(permutationMask, load(mask));
   //  std::cout <<"permutationMask "<< asHex(store<uint32_t>(permutationMask)) << "\n";
   constexpr epi32_t<SIMDWidth::AVX> shift{28u, 24u, 20u, 16u, 12u, 8u, 4u, 0u};
-  permutationMask = _mm256_srlv_epi32(permutationMask, load(toConstSIMDView(shift)));
+  permutationMask = _mm256_srlv_epi32(permutationMask, load(shift));
   //  std::cout <<"permutationMask "<< asHex(store<uint32_t>(permutationMask)) << "\n";
   auto streamOutVec = _mm256_permutevar8x32_epi32(statesFused, permutationMask);
 
@@ -905,7 +929,7 @@ inline output_IT ransRenorm(const __m128i* __restrict__ state, const __m128i* __
   } else {
     auto result = store<uint32_t>(streamOutResult);
     for (size_t i = 0; i < nStreamOutWords; ++i) {
-      *(++outputIter) = result[i];
+      *(++outputIter) = result(i);
     }
   }
 
@@ -936,7 +960,7 @@ inline output_IT ransRenorm(const __m256i* __restrict__ state, const __m128i* __
   } else {
     auto result = store<uint32_t>(streamOutResult);
     for (size_t i = 0; i < nStreamOutWords; ++i) {
-      *(++outputIter) = result[i];
+      *(++outputIter) = result(i);
     }
   }
 
