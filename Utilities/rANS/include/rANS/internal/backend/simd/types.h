@@ -24,8 +24,61 @@
 #include <sstream>
 #include <fmt/format.h>
 
+#include <gsl/span>
+
 #include "rANS/internal/backend/simd/utils.h"
 #include "rANS/internal/helper.h"
+
+namespace o2::rans::internal::simd::impl
+{
+class IdentityFormatingFunctor
+{
+ public:
+  template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
+  inline std::string operator()(const T& value)
+  {
+    return fmt::format("{}", value);
+  }
+
+  inline std::string operator()(const uint8_t& value)
+  {
+    return fmt::format("{}", static_cast<uint32_t>(value));
+  }
+};
+
+class HexFormatingFunctor
+{
+ public:
+  template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
+  inline std::string operator()(const T& value)
+  {
+    return fmt::format("{:#0x}, ", value);
+  }
+};
+} // namespace o2::rans::internal::simd::impl
+
+namespace std
+{
+template <typename T, size_t extent_V, class formatingFunctor = o2::rans::internal::simd::impl::IdentityFormatingFunctor>
+std::ostream& operator<<(std::ostream& stream, const gsl::span<T, extent_V>& span)
+{
+
+  if (span.empty()) {
+    stream << "[]";
+    return stream;
+  } else {
+    formatingFunctor formater;
+
+    stream << "[";
+    for (size_t i = 0; i < span.size() - 1; ++i) {
+      stream << formater(span[i]) << ", ";
+    }
+    stream << formater(*(--span.end())) << "]";
+    return stream;
+  }
+  return stream;
+}
+} // namespace std
 
 namespace o2
 {
@@ -78,388 +131,165 @@ inline constexpr SIMDWidth getSimdWidth(size_t nHardwareStreams) noexcept
   return static_cast<SIMDWidth>(nHardwareStreams * toBits(sizeof(T)));
 };
 
-template <typename T, SIMDWidth width_V, size_t size_V = getElementCount<T>(width_V)>
+template <typename array_T>
+class AlignedArrayIterator
+{
+  template <typename T>
+  struct getValueType {
+    using type = std::conditional_t<std::is_const_v<T>, const typename T::value_type, typename T::value_type>;
+  };
+
+ public:
+  using difference_type = std::ptrdiff_t;
+  using value_type = gsl::span<typename getValueType<array_T>::type, array_T::nElementsPerLane()>;
+  using pointer = value_type*;
+  using reference = value_type&;
+  using iterator_category = std::random_access_iterator_tag;
+
+  inline constexpr AlignedArrayIterator() noexcept = default;
+
+  inline constexpr AlignedArrayIterator(array_T* array, size_t index) noexcept : mIndex{index} {};
+  inline constexpr AlignedArrayIterator(const AlignedArrayIterator& iter) noexcept = default;
+  inline constexpr AlignedArrayIterator(AlignedArrayIterator&& iter) noexcept = default;
+  inline constexpr AlignedArrayIterator& operator=(const AlignedArrayIterator& other) noexcept = default;
+  inline constexpr AlignedArrayIterator& operator=(AlignedArrayIterator&& other) noexcept = default;
+  inline ~AlignedArrayIterator() noexcept = default;
+
+  // pointer arithmetics
+  inline constexpr AlignedArrayIterator& operator++() noexcept
+  {
+    ++mIndex;
+    return *this;
+  };
+
+  inline constexpr AlignedArrayIterator operator++(int) noexcept
+  {
+    auto res = *this;
+    ++(*this);
+    return res;
+  };
+
+  inline constexpr AlignedArrayIterator& operator--() noexcept
+  {
+    --mIndex;
+    return *this;
+  };
+
+  inline constexpr AlignedArrayIterator operator--(int) noexcept
+  {
+    auto res = *this;
+    --(*this);
+    return res;
+  };
+
+  inline constexpr AlignedArrayIterator& operator+=(difference_type i) noexcept
+  {
+    mIndex += i;
+    return *this;
+  };
+
+  inline constexpr AlignedArrayIterator operator+(difference_type i) const noexcept
+  {
+    auto tmp = *const_cast<AlignedArrayIterator*>(this);
+    return tmp += i;
+  }
+
+  inline constexpr AlignedArrayIterator& operator-=(difference_type i) noexcept
+  {
+    mIndex -= i;
+    return *this;
+  };
+
+  inline constexpr AlignedArrayIterator operator-(difference_type i) const noexcept
+  {
+    auto tmp = *const_cast<AlignedArrayIterator*>(this);
+    return tmp -= i;
+  };
+
+  inline constexpr difference_type operator-(const AlignedArrayIterator& other) const noexcept
+  {
+    return this->mIter - other.mIter;
+  };
+
+  // comparison
+  inline constexpr bool operator==(const AlignedArrayIterator& other) const noexcept { return this->mIndex == other.mIndex; };
+  inline constexpr bool operator!=(const AlignedArrayIterator& other) const noexcept { return this->mIndex != other.mIndex; };
+  inline constexpr bool operator<(const AlignedArrayIterator& other) const noexcept { return this->mIndex < other->mIndex; };
+  inline constexpr bool operator>(const AlignedArrayIterator& other) const noexcept { return this->mIndex > other->mIndex; };
+  inline constexpr bool operator>=(const AlignedArrayIterator& other) const noexcept { return this->mIndex >= other->mIndex; };
+  inline constexpr bool operator<=(const AlignedArrayIterator& other) const noexcept { return this->mIndex <= other->mIndex; };
+
+  // dereference
+  inline constexpr value_type operator*() const noexcept { return (*mContainer)[mIndex]; };
+
+  inline constexpr value_type operator[](difference_type i) const noexcept { return (*mContainer)[mIndex + i]; };
+
+ private:
+  array_T* mContainer;
+  size_t mIndex{};
+}; // namespace simd
+
+template <typename T, SIMDWidth width_V, size_t size_V = 1>
 class alignas(getAlignment(width_V)) AlignedArray
 {
  public:
   using value_type = T;
-  using pointer = T*;
-  using reference = T&;
-  using iterator = T*;
-  using const_iterator = const T*;
+  using pointer = value_type*;
+  using reference = value_type&;
+  using iterator = AlignedArrayIterator<AlignedArray>;
+  using const_iterator = AlignedArrayIterator<const AlignedArray>;
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
   static inline constexpr size_t size() noexcept { return size_V; };
+  static inline constexpr size_t nElementsPerLane() noexcept { return getElementCount<value_type>(width_V); };
+  static inline constexpr size_t nElements() noexcept { return size() * nElementsPerLane(); };
 
   inline constexpr AlignedArray() noexcept {}; //NOLINT
 
   template <typename elem_T, std::enable_if_t<std::is_convertible_v<elem_T, value_type>, bool> = true>
-  inline constexpr AlignedArray(elem_T elem) noexcept
+  inline constexpr AlignedArray(elem_T value) noexcept
   {
-    //#pragma omp simd
-    for (size_t i = 0; i < size(); ++i) {
-      mData[i] = static_cast<value_type>(elem);
+    for (auto& elem : mData) {
+      elem = static_cast<value_type>(value);
     }
   };
 
-  template <typename... Args, std::enable_if_t<(sizeof...(Args) == AlignedArray<T, width_V, size_V>::size()) && std::is_convertible_v<std::common_type_t<Args...>, value_type>, bool> = true>
+  template <typename... Args, std::enable_if_t<(sizeof...(Args) == AlignedArray<T, width_V, size_V>::nElements()) && std::is_convertible_v<std::common_type_t<Args...>, value_type>, bool> = true>
   inline constexpr AlignedArray(Args... args) noexcept : mData{static_cast<value_type>(args)...} {};
 
   inline constexpr const T* data() const noexcept { return mData; };
   inline constexpr T* data() noexcept { return const_cast<T*>(static_cast<const AlignedArray&>(*this).data()); };
-  inline constexpr const_iterator begin() const noexcept { return data(); };
-  inline constexpr const_iterator end() const noexcept { return data() + size(); };
-  inline constexpr iterator begin() noexcept { return const_cast<iterator>(static_cast<const AlignedArray&>(*this).begin()); };
-  inline constexpr iterator end() noexcept { return const_cast<iterator>(static_cast<const AlignedArray&>(*this).end()); };
+  inline constexpr const_iterator begin() const noexcept { return {this, 0}; };
+  inline constexpr const_iterator end() const noexcept { return {this, size()}; };
+  inline constexpr iterator begin() noexcept { return {this, 0}; };
+  inline constexpr iterator end() noexcept { return {this, size()}; };
   inline constexpr const_reverse_iterator rbegin() const noexcept { return std::reverse_iterator(this->end()); };
   inline constexpr const_reverse_iterator rend() const noexcept { return std::reverse_iterator(this->begin()); };
   inline constexpr reverse_iterator rbegin() noexcept { return std::reverse_iterator(this->end()); };
   inline constexpr reverse_iterator rend() noexcept { return std::reverse_iterator(this->begin()); };
-  inline constexpr const T& operator[](size_t i) const
+
+  inline constexpr gsl::span<T, nElementsPerLane()> operator[](size_t idx) { return gsl::span<T, nElementsPerLane()>{mData + idx * nElementsPerLane(), nElementsPerLane()}; };
+
+  inline constexpr gsl::span<const T, nElementsPerLane()> operator[](size_t idx) const { return gsl::span<const T, nElementsPerLane()>{mData + idx * nElementsPerLane(), nElementsPerLane()}; };
+
+  inline constexpr const T& operator()(size_t idx, size_t elem) const
   {
-    assert(i < size());
-    return mData[i];
+    return (*this)[idx][elem];
   };
-  inline constexpr T& operator[](size_t i) { return const_cast<T&>(static_cast<const AlignedArray&>(*this)[i]); };
+
+  inline constexpr T& operator()(size_t idx, size_t elem) { return const_cast<T&>(static_cast<const AlignedArray&>(*this)(idx, elem)); };
+
+  inline constexpr const T& operator()(size_t idx) const
+  {
+    return *(this->data() + idx);
+  };
+
+  inline constexpr T& operator()(size_t idx) { return const_cast<T&>(static_cast<const AlignedArray&>(*this)(idx)); };
 
  private:
-  T mData[size_V]{};
+  T mData[nElements()]{};
 };
-
-namespace impl
-{
-template <typename From, typename To>
-struct isArrayConvertible : public std::bool_constant<std::is_convertible_v<From (*)[], To (*)[]>> {
-};
-
-template <typename From, typename To>
-inline constexpr bool isArrayConvertible_v = isArrayConvertible<From, To>::value;
-
-} // namespace impl
-
-template <class element_T, size_t extent_V>
-class ArrayView
-{
- public:
-  using element_type = element_T;
-  using value_type = std::remove_const_t<element_type>;
-  using size_type = std::size_t;
-  using difference_type = std::ptrdiff_t;
-  using pointer = element_type*;
-  using const_pointer = const element_type*;
-  using reference = element_type&;
-  using const_reference = const element_type&;
-  using iterator = element_type*;
-  using reverse_iterator = std::reverse_iterator<iterator>;
-
-  inline constexpr ArrayView(pointer ptr, size_t size) noexcept : mBegin{ptr} { assert(size == extent_V); };
-
-  inline constexpr ArrayView(element_type (&array)[extent_V]) noexcept : mBegin{array} {};
-
-  template <typename T, std::enable_if_t<impl::isArrayConvertible_v<T, element_type>, bool> = true>
-  inline constexpr ArrayView(std::array<T, extent_V>& array) noexcept : mBegin{static_cast<pointer>(array.data())} {};
-
-  template <class T, std::enable_if_t<impl::isArrayConvertible_v<const T, element_type>, bool> = true>
-  inline constexpr ArrayView(const std::array<T, extent_V>& array) noexcept : mBegin{static_cast<pointer>(array.data())} {};
-
-  template <class T, SIMDWidth width_V, std::enable_if_t<impl::isArrayConvertible_v<T, element_type>, bool> = true>
-  inline constexpr ArrayView(AlignedArray<T, width_V, extent_V>& array) noexcept : mBegin{static_cast<pointer>(array.data())} {};
-
-  template <class T, SIMDWidth width_V, std::enable_if_t<impl::isArrayConvertible_v<const T, element_type>, bool> = true>
-  inline constexpr ArrayView(const AlignedArray<T, width_V, extent_V>& array) noexcept : mBegin{static_cast<pointer>(array.data())} {};
-
-  inline constexpr iterator begin() const noexcept
-  {
-    return mBegin;
-  };
-  inline constexpr iterator end() const noexcept { return mBegin + this->size(); };
-  inline constexpr reverse_iterator rbegin() const noexcept { return std::reverse_iterator(this->end()); };
-  inline constexpr reverse_iterator rend() const noexcept { return std::reverse_iterator(this->begin()); };
-
-  inline constexpr pointer data() const noexcept { return mBegin; };
-  inline constexpr reference operator[](size_t index) const
-  {
-    assert(index < size());
-    return *(mBegin + index);
-  };
-
-  inline constexpr size_type size() const noexcept { return extent_V; };
-  inline constexpr bool empty() const noexcept { return this->size() == 0ull; };
-
-  template <size_t offset_V, size_t count_V>
-  inline constexpr ArrayView<element_type, count_V> subView() const noexcept
-  {
-    static_assert(count_V <= extent_V);
-    static_assert(count_V <= (extent_V - offset_V));
-    return ArrayView<element_type, count_V>{mBegin + offset_V, count_V};
-  };
-
- private:
-  pointer mBegin{};
-};
-
-// Deduction Guides
-template <class T, std::size_t size_V>
-ArrayView(T (&)[size_V]) -> ArrayView<T, size_V>;
-
-template <class T, std::size_t size_V>
-ArrayView(std::array<T, size_V>&) -> ArrayView<T, size_V>;
-
-template <class T, std::size_t size_V>
-ArrayView(const std::array<T, size_V>&) -> ArrayView<const T, size_V>;
-
-template <class T, SIMDWidth width_V, size_t extent_V>
-ArrayView(AlignedArray<T, width_V, extent_V>&) -> ArrayView<T, extent_V>;
-
-template <class T, SIMDWidth width_V, size_t extent_V>
-ArrayView(const AlignedArray<T, width_V, extent_V>&) -> ArrayView<const T, extent_V>;
-
-namespace impl
-{
-
-template <typename T>
-inline constexpr size_t simdViewSize(SIMDWidth width, size_t extent) noexcept
-{
-  return getElementCount<T>(width) * extent;
-}
-
-} // namespace impl
-
-template <class element_T, SIMDWidth width_V, size_t extent_V, bool aligned_V = true>
-class SIMDView
-{
-
- public:
-  class Iterator;
-
- public:
-  using element_type = element_T;
-  using value_type = std::remove_const_t<element_type>;
-  using size_type = std::size_t;
-  using difference_type = std::ptrdiff_t;
-  using pointer = element_type*;
-  using const_pointer = const element_type*;
-  using reference = element_type&;
-  using const_reference = const element_type&;
-  using iterator = SIMDView::Iterator;
-  using reverse_iterator = std::reverse_iterator<iterator>;
-
- public:
-  inline constexpr SIMDView(pointer ptr, size_t size) : mBegin{ptr}
-  {
-    assert(size == extent_V);
-  };
-
-  inline constexpr SIMDView(element_type (&array)[impl::simdViewSize<element_type>(width_V, extent_V)]) : mBegin{array} { checkAlignment(mBegin); };
-
-  template <typename T, std::enable_if_t<impl::isArrayConvertible_v<T, element_type>, bool> = true>
-  inline constexpr SIMDView(std::array<T, impl::simdViewSize<element_type>(width_V, extent_V)>& array) : mBegin{static_cast<pointer>(array.data())}
-  {
-    checkAlignment(mBegin);
-  };
-
-  template <class T, std::enable_if_t<impl::isArrayConvertible_v<const T, element_type>, bool> = true>
-  inline constexpr SIMDView(const std::array<T, impl::simdViewSize<element_type>(width_V, extent_V)>& array) : mBegin{static_cast<pointer>(array.data())}
-  {
-    checkAlignment(mBegin);
-  };
-
-  template <class T, size_t size_V, std::enable_if_t<impl::isArrayConvertible_v<T, element_type>, bool> = true>
-  inline constexpr SIMDView(AlignedArray<T, width_V, size_V>& array) : mBegin{static_cast<pointer>(array.data())}
-  {
-    static_assert(size_V == impl::simdViewSize<element_type>(width_V, extent_V));
-  };
-
-  template <class T, size_t size_V, std::enable_if_t<impl::isArrayConvertible_v<const T, element_type>, bool> = true>
-  inline constexpr SIMDView(const AlignedArray<T, width_V, size_V>& array) : mBegin{static_cast<pointer>(array.data())}
-  {
-    static_assert(size_V == impl::simdViewSize<element_type>(width_V, extent_V));
-  };
-
-  inline constexpr iterator begin() const noexcept { return iterator{mBegin}; };
-  inline constexpr iterator end() const noexcept { return iterator{mBegin + impl::simdViewSize<element_type>(width_V, extent_V)}; };
-  inline constexpr reverse_iterator rbegin() const noexcept { return std::reverse_iterator(this->end()); };
-  inline constexpr reverse_iterator rend() const noexcept { return std::reverse_iterator(this->begin()); };
-
-  inline constexpr pointer data() const noexcept
-  {
-    if constexpr (aligned_V) {
-      return assume_aligned<element_type, width_V>(mBegin);
-    } else {
-      return mBegin;
-    }
-  };
-  inline constexpr reference operator[](size_t index) const
-  {
-    assert(index < extent_V);
-    return mBegin[index * getElementCount<element_type>(width_V)];
-  };
-
-  inline constexpr size_t size() const noexcept { return extent_V; };
-  inline constexpr bool empty() const noexcept { return this->size() == 0ull; };
-
-  template <size_t offset_V, size_t count_V>
-  inline constexpr SIMDView<element_type, width_V, count_V, aligned_V> subView() const
-  {
-    static_assert(count_V <= extent_V);
-    static_assert(count_V <= (extent_V - offset_V));
-    return SIMDView<element_type, width_V, count_V, aligned_V>{mBegin + (offset_V * getElementCount<element_type>(width_V)), count_V};
-  };
-
-  inline constexpr operator ArrayView<element_type, impl::simdViewSize<element_type>(width_V, extent_V)>() const noexcept
-  {
-    return {mBegin, impl::simdViewSize<element_type>(width_V, extent_V)};
-  };
-
-  inline constexpr operator SIMDView<element_T, width_V, extent_V, false>() const
-  {
-    if constexpr (aligned_V) {
-      return {mBegin, extent_V};
-    } else {
-      return *this;
-    }
-  };
-
-  inline constexpr operator SIMDView<element_T, width_V, extent_V, true>() const
-  {
-    if constexpr (aligned_V) {
-      return *this;
-    } else {
-      return {mBegin, extent_V};
-    }
-  };
-
- private:
-  template <typename T>
-  inline constexpr void checkAlignment(T* ptr)
-  {
-    // material implication aligned_V -> isAligned(ptr)
-    const bool alignment = !aligned_V || isAligned<T, width_V>(ptr);
-    if (__builtin_expect(!alignment, 0)) {
-      throw std::runtime_error("alignment missmatch");
-    }
-  };
-
-  pointer mBegin{};
-
- public:
-  class Iterator
-  {
-   public:
-    using difference_type = std::ptrdiff_t;
-    using value_type = SIMDView::element_type;
-    using pointer = value_type*;
-    using reference = value_type&;
-    using iterator_category = std::random_access_iterator_tag;
-
-    inline constexpr Iterator() noexcept = default;
-    inline constexpr explicit Iterator(SIMDView::pointer ptr) noexcept : mIter{ptr} {};
-    inline constexpr Iterator(const Iterator& iter) noexcept = default;
-    inline constexpr Iterator(Iterator&& iter) noexcept = default;
-    inline constexpr Iterator& operator=(const Iterator& other) noexcept = default;
-    inline constexpr Iterator& operator=(Iterator&& other) noexcept = default;
-    inline ~Iterator() noexcept = default;
-
-    // pointer arithmetics
-    inline constexpr Iterator& operator++() noexcept
-    {
-      mIter += advanceBySIMDStep(1);
-      return *this;
-    };
-
-    inline constexpr Iterator operator++(int) noexcept
-    {
-      auto res = *this;
-      ++(*this);
-      return res;
-    };
-
-    inline constexpr Iterator& operator--() noexcept
-    {
-      mIter -= advanceBySIMDStep(1);
-      return *this;
-    };
-
-    inline constexpr Iterator operator--(int) noexcept
-    {
-      auto res = *this;
-      --(*this);
-      return res;
-    };
-
-    inline constexpr Iterator& operator+=(difference_type i) noexcept
-    {
-      mIter += advanceBySIMDStep(i);
-      return *this;
-    };
-
-    inline constexpr Iterator operator+(difference_type i) const noexcept
-    {
-      auto tmp = *const_cast<Iterator*>(this);
-      return tmp += advanceBySIMDStep(i);
-    }
-
-    inline constexpr Iterator& operator-=(difference_type i) noexcept
-    {
-      mIter -= advanceBySIMDStep(i);
-      return *this;
-    };
-
-    inline constexpr Iterator operator-(difference_type i) const noexcept
-    {
-      auto tmp = *const_cast<Iterator*>(this);
-      return tmp -= advanceBySIMDStep(i);
-    };
-
-    inline constexpr difference_type operator-(const Iterator& other) const noexcept
-    {
-      return this->mIter - other.mIter;
-    };
-
-    // comparison
-    inline constexpr bool operator==(const Iterator& other) const noexcept { return this->mIter == other.mIter; };
-    inline constexpr bool operator!=(const Iterator& other) const noexcept { return this->mIter != other.mIter; };
-    inline constexpr bool operator<(const Iterator& other) const noexcept { return this->mIter < other->mIter; };
-    inline constexpr bool operator>(const Iterator& other) const noexcept { return this->mIter > other->mIter; };
-    inline constexpr bool operator>=(const Iterator& other) const noexcept { return this->mIter >= other->mIter; };
-    inline constexpr bool operator<=(const Iterator& other) const noexcept { return this->mIter <= other->mIter; };
-
-    // dereference
-    inline constexpr const value_type& operator*() const { return *mIter; };
-    inline constexpr value_type& operator*() { return *mIter; };
-
-    inline constexpr const value_type& operator[](difference_type i) const noexcept { return *(*this + i); };
-
-   private:
-    pointer mIter{};
-
-    inline constexpr difference_type advanceBySIMDStep(difference_type nSteps) noexcept
-    {
-      return getElementCount<element_type>(width_V) * nSteps;
-    };
-  };
-};
-
-// seems not to work with GCC 10.x, so provide factory functions instead
-// //Type deduction guides
-// template <class T, SIMDWidth width_V, size_t extent_V>
-// SIMDView(AlignedArray<T, width_V, extent_V>&) -> SIMDView<T, width_V, (extent_V / getElementCount<T>(width_V)), true>;
-
-// template <class T, SIMDWidth width_V, size_t extent_V>
-// SIMDView(const AlignedArray<T, width_V, extent_V>&) -> SIMDView<const T, width_V, (extent_V / getElementCount<T>(width_V)), true>;
-
-template <typename T, SIMDWidth width_V, size_t extent_V>
-inline constexpr SIMDView<T, width_V, (extent_V / getElementCount<T>(width_V)), true> toSIMDView(AlignedArray<T, width_V, extent_V>& array) noexcept
-{
-  return {array};
-}
-
-template <typename T, SIMDWidth width_V, size_t extent_V>
-inline constexpr SIMDView<const T, width_V, (extent_V / getElementCount<T>(width_V)), true> toConstSIMDView(const AlignedArray<T, width_V, extent_V>& array) noexcept
-{
-  return {array};
-}
 
 template <typename T>
 struct simdWidth;
@@ -482,48 +312,15 @@ template <typename T>
 inline constexpr size_t elementCount_v = elementCount<T>::value;
 
 template <SIMDWidth width_V, size_t size_V = 1>
-using pd_t = AlignedArray<double_t, width_V, getElementCount<double_t>(width_V) * size_V>;
+using pd_t = AlignedArray<double_t, width_V, size_V>;
 template <SIMDWidth width_V, size_t size_V = 1>
-using epi64_t = AlignedArray<uint64_t, width_V, getElementCount<uint64_t>(width_V) * size_V>;
+using epi64_t = AlignedArray<uint64_t, width_V, size_V>;
 template <SIMDWidth width_V, size_t size_V = 1>
-using epi32_t = AlignedArray<uint32_t, width_V, getElementCount<uint32_t>(width_V) * size_V>;
+using epi32_t = AlignedArray<uint32_t, width_V, size_V>;
 template <SIMDWidth width_V, size_t size_V = 1>
-using epi16_t = AlignedArray<uint16_t, width_V, getElementCount<uint16_t>(width_V) * size_V>;
+using epi16_t = AlignedArray<uint16_t, width_V, size_V>;
 template <SIMDWidth width_V, size_t size_V = 1>
-using epi8_t = AlignedArray<uint8_t, width_V, getElementCount<uint8_t>(width_V) * size_V>;
-
-template <SIMDWidth width_V, size_t size_V = 1>
-using pdV_t = SIMDView<double_t, width_V, size_V>;
-template <SIMDWidth width_V, size_t size_V = 1>
-using epi64V_t = SIMDView<uint64_t, width_V, size_V>;
-template <SIMDWidth width_V, size_t size_V = 1>
-using epi32V_t = SIMDView<uint32_t, width_V, size_V>;
-template <SIMDWidth width_V, size_t size_V = 1>
-using epi16V_t = SIMDView<uint16_t, width_V, size_V>;
-template <SIMDWidth width_V, size_t size_V = 1>
-using epi8V_t = SIMDView<uint8_t, width_V, size_V>;
-
-template <SIMDWidth width_V, size_t size_V = 1>
-using pdcV_t = SIMDView<const double_t, width_V, size_V>;
-template <SIMDWidth width_V, size_t size_V = 1>
-using epi64cV_t = SIMDView<const uint64_t, width_V, size_V>;
-template <SIMDWidth width_V, size_t size_V = 1>
-using epi32cV_t = SIMDView<const uint32_t, width_V, size_V>;
-template <SIMDWidth width_V, size_t size_V = 1>
-using epi16cV_t = SIMDView<const uint16_t, width_V, size_V>;
-template <SIMDWidth width_V, size_t size_V = 1>
-using epi8cV_t = SIMDView<const uint8_t, width_V, size_V>;
-
-template <SIMDWidth width_V, size_t size_V>
-using pdVec_t = AlignedArray<double_t, width_V, size_V>;
-template <SIMDWidth width_V, size_t size_V>
-using u64Vec_t = AlignedArray<uint64_t, width_V, size_V>;
-template <SIMDWidth width_V, size_t size_V>
-using u32Vec_t = AlignedArray<uint32_t, width_V, size_V>;
-template <SIMDWidth width_V, size_t size_V>
-using u16Vec_t = AlignedArray<uint16_t, width_V, size_V>;
-template <SIMDWidth width_V, size_t size_V>
-using u8Vec_t = AlignedArray<uint8_t, width_V, size_V>;
+using epi8_t = AlignedArray<uint8_t, width_V, size_V>;
 
 inline constexpr std::uint8_t operator"" _u8(unsigned long long int value) { return static_cast<uint8_t>(value); };
 inline constexpr std::int8_t operator"" _i8(unsigned long long int value) { return static_cast<int8_t>(value); };
@@ -600,43 +397,45 @@ inline constexpr SIMDWidth toSIMDWidth_v = toSIMDWidth<T>::value;
 
 #pragma GCC diagnostic pop
 
-template <typename T, SIMDWidth width_V, size_t size_V>
-std::ostream& operator<<(std::ostream& stream, const AlignedArray<T, width_V, size_V>& vec)
+template <typename T, SIMDWidth width_V, size_t size_V, class formater_T = impl::IdentityFormatingFunctor>
+std::ostream& operator<<(std::ostream& stream, const AlignedArray<T, width_V, size_V>& array)
 {
   stream << "[";
-  for (const auto& elem : vec) {
-    stream << elem << ", ";
-  }
-  stream << "]";
-  return stream;
-};
-
-template <SIMDWidth width_V, size_t size_V>
-std::ostream& operator<<(std::ostream& stream, const AlignedArray<uint8_t, width_V, size_V>& vec)
-{
-  stream << "[";
-  for (const auto& elem : vec) {
-    stream << static_cast<uint32_t>(elem) << ", ";
+  for (auto subspan : array) {
+    operator<<<const T, getElementCount<T>(width_V), formater_T>(stream, subspan);
+    stream << ", ";
   }
   stream << "]";
   return stream;
 };
 
 template <typename T, SIMDWidth width_V, size_t size_V>
-std::string asHex(const AlignedArray<T, width_V, size_V>& vec)
+std::string asHex(const AlignedArray<T, width_V, size_V>& array)
 {
-  std::stringstream ss;
-  ss << "[";
-  for (const auto& elem : vec) {
-    ss << fmt::format("{:#0x}, ", elem);
-  }
-  ss << "]";
-  return ss.str();
+  std::ostringstream stream;
+  operator<<<T, width_V, size_V, impl::HexFormatingFunctor>(stream, array);
+  return stream.str();
 };
 
 } // namespace simd
 } // namespace internal
 } // namespace rans
 } // namespace o2
+
+namespace gsl
+{
+template <typename T, o2::rans::internal::simd::SIMDWidth width_V, size_t size_V>
+auto make_span(const o2::rans::internal::simd::AlignedArray<T, width_V, size_V>& array)
+{
+  return gsl::span<const T, o2::rans::internal::simd::AlignedArray<T, width_V, size_V>::nElements()>(array.data(), array.nElements());
+}
+
+template <typename T, o2::rans::internal::simd::SIMDWidth width_V, size_t size_V>
+auto make_span(o2::rans::internal::simd::AlignedArray<T, width_V, size_V>& array)
+{
+  return gsl::span<T, o2::rans::internal::simd::AlignedArray<T, width_V, size_V>::nElements()>(array.data(), array.nElements());
+}
+
+} // namespace gsl
 
 #endif /* RANS_INTERNAL_SIMD_TYPES_H */
