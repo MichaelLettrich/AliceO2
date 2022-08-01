@@ -104,16 +104,16 @@ Stream_IT SIMDEncoderCommand<streamingLowerBound_V, simdWidth_V>::flush(Stream_I
 {
   using namespace simd;
   epi64_t<simdWidth_V, 2> states;
-  store(mStates[0], toSIMDView(states).template subView<0, 1>());
-  store(mStates[1], toSIMDView(states).template subView<1, 1>());
+  store(mStates[0], states[0]);
+  store(mStates[1], states[1]);
 
   Stream_IT streamPos = iter;
-  for (auto stateIter = states.rbegin(); stateIter != states.rend(); ++stateIter) {
-    streamPos = flushState(*stateIter, streamPos);
+  for (size_t stateIdx = states.nElements(); stateIdx-- > 0;) {
+    streamPos = flushState(*(states.data() + stateIdx), streamPos);
   }
 
-  mStates[0] = load(toConstSIMDView(states).template subView<0, 1>());
-  mStates[1] = load(toConstSIMDView(states).template subView<1, 1>());
+  mStates[0] = load(states[0]);
+  mStates[1] = load(states[1]);
 
   return streamPos;
 };
@@ -150,24 +150,24 @@ Stream_IT SIMDEncoderCommand<streamingLowerBound_V, simdWidth_V>::putSymbols(Str
   Stream_IT streamPos = outputIter;
 
   epi64_t<simdWidth_V, 2> states;
-  store(mStates[0], toSIMDView(states).template subView<0, 1>());
-  store(mStates[1], toSIMDView(states).template subView<1, 1>());
+  store(mStates[0], states[0]);
+  store(mStates[1], states[1]);
 
   epi32_t<SIMDWidth::SSE, 2> frequencies;
   epi32_t<SIMDWidth::SSE, 2> cumulativeFrequencies;
 
-  store<uint32_t>(symbols.frequencies[0], toSIMDView(frequencies).template subView<0, 1>());
-  store<uint32_t>(symbols.frequencies[1], toSIMDView(frequencies).template subView<1, 1>());
-  store<uint32_t>(symbols.cumulativeFrequencies[0], toSIMDView(cumulativeFrequencies).template subView<0, 1>());
-  store<uint32_t>(symbols.cumulativeFrequencies[1], toSIMDView(cumulativeFrequencies).template subView<1, 1>());
+  store<uint32_t>(symbols.frequencies[0], frequencies[0]);
+  store<uint32_t>(symbols.frequencies[1], frequencies[1]);
+  store<uint32_t>(symbols.cumulativeFrequencies[0], cumulativeFrequencies[0]);
+  store<uint32_t>(symbols.cumulativeFrequencies[1], cumulativeFrequencies[1]);
 
   for (size_t i = nActiveStreams; i-- > 0;) {
-    Symbol encodeSymbol{frequencies[i], cumulativeFrequencies[i]};
-    streamPos = putSymbol(streamPos, encodeSymbol, states[i]);
+    Symbol encodeSymbol{frequencies(i), cumulativeFrequencies(i)};
+    streamPos = putSymbol(streamPos, encodeSymbol, states(i));
   }
 
-  mStates[0] = load(toConstSIMDView(states).template subView<0, 1>());
-  mStates[1] = load(toConstSIMDView(states).template subView<1, 1>());
+  mStates[0] = load(states[0]);
+  mStates[1] = load(states[1]);
 
   return streamPos;
 };
