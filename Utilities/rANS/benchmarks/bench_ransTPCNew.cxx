@@ -36,11 +36,6 @@ template <typename source_T>
 using decoder_type = o2::ranslegacy::LiteralSIMDDecoder<ransCoder_type, ransStream_type, source_T, NStreams, 1>;
 // using decoder_type = o2::ranslegacy::LiteralDecoder<ransCoder_type, ransStream_type, source_T>;
 
-// using container_types = boost::mp11::mp_list<std::integral_constant<ContainerTag, ContainerTag::Dynamic>,
-//                                              std::integral_constant<ContainerTag, ContainerTag::Static>>;
-
-using container_types = boost::mp11::mp_list<std::integral_constant<ContainerTag, ContainerTag::Static>>;
-
 using coder_types = boost::mp11::mp_list<std::integral_constant<CoderTag, CoderTag::Compat>,
                                          std::integral_constant<CoderTag, CoderTag::SingleStream>,
                                          std::integral_constant<CoderTag, CoderTag::SSE>,
@@ -69,26 +64,6 @@ std::string toString(CoderTag tag)
   };
 };
 
-std::string toString(ContainerTag tag)
-{
-  switch (tag) {
-    case ContainerTag::Dynamic:
-      return {"Dynamic"};
-      break;
-    case ContainerTag::Static:
-      return {"Static"};
-      break;
-    default:
-      throw std::runtime_error("Invalid");
-      break;
-  };
-};
-
-std::string makeEncoderTitle(ContainerTag containerTag, CoderTag coderTag)
-{
-  return toString(containerTag) + toString(coderTag) + "Encoder";
-};
-
 // std::ofstream ofFrequencies{"frequencies.json"};
 // rapidjson::OStreamWrapper streamFrequencies{ofFrequencies};
 // rapidjson::Writer<rapidjson::OStreamWrapper> writerFrequencies{streamFrequencies};
@@ -97,21 +72,10 @@ std::string makeEncoderTitle(ContainerTag containerTag, CoderTag coderTag)
 // rapidjson::OStreamWrapper streamRenormed{ofRenormed};
 // rapidjson::Writer<rapidjson::OStreamWrapper> writerRenormed{streamRenormed};
 
-template <typename source_T, ContainerTag containerTag_V, CoderTag coderTag_V>
+template <typename source_T, CoderTag coderTag_V>
 void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inputData, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
 {
   using source_type = source_T;
-  constexpr ContainerTag containerTag = [&]() {
-    if (containerTag_V != ContainerTag::Static) {
-      return containerTag_V;
-    } else {
-      if (sizeof(source_T) < 4) {
-        return ContainerTag::Static;
-      } else {
-        return ContainerTag::Dynamic;
-      }
-    }
-  }();
   internal::RANSTimer timer{};
   writer.Key(name.c_str());
   writer.StartObject();
@@ -126,7 +90,7 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
 
   LOGP(info, "processing: {} (nItems: {}, size: {} MiB)", name, inputData.size(), inputData.size() * sizeof(source_type) / 1024.0 / 1024.0);
   timer.start();
-  auto frequencyTable = makeFrequencyTable<containerTag>::fromSamples(gsl::span<const source_type>(inputData));
+  auto frequencyTable = makeFrequencyTable::fromSamples(gsl::span<const source_type>(inputData));
   timer.stop();
   // writerFrequencies.Key(name.c_str());
   // utils::toJSON(frequencyTable, writerFrequencies);
@@ -250,39 +214,39 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
   writer.EndObject(); // Encode/Decode Run
 };
 
-template <ContainerTag containerTag_V, CoderTag coderTag_V>
+template <CoderTag coderTag_V>
 void encodeTPC(const std::string& name, const TPCCompressedClusters& compressedClusters, bool mergeColumns, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
 {
   writer.Key(name.c_str());
   writer.StartObject();
-  ransEncodeDecode<uint16_t, containerTag_V, coderTag_V>("qTotA", compressedClusters.qTotA, writer);
-  ransEncodeDecode<uint16_t, containerTag_V, coderTag_V>("qMaxA", compressedClusters.qMaxA, writer);
-  ransEncodeDecode<uint8_t, containerTag_V, coderTag_V>("flagsA", compressedClusters.flagsA, writer);
-  ransEncodeDecode<uint8_t, containerTag_V, coderTag_V>("rowDiffA", compressedClusters.rowDiffA, writer);
-  ransEncodeDecode<uint8_t, containerTag_V, coderTag_V>("sliceLegDiffA", compressedClusters.sliceLegDiffA, writer);
-  ransEncodeDecode<uint16_t, containerTag_V, coderTag_V>("padResA", compressedClusters.padResA, writer);
-  ransEncodeDecode<uint32_t, containerTag_V, coderTag_V>("timeResA", compressedClusters.timeResA, writer);
-  ransEncodeDecode<uint8_t, containerTag_V, coderTag_V>("sigmaPadA", compressedClusters.sigmaPadA, writer);
-  ransEncodeDecode<uint8_t, containerTag_V, coderTag_V>("sigmaTimeA", compressedClusters.sigmaTimeA, writer);
-  ransEncodeDecode<uint8_t, containerTag_V, coderTag_V>("qPtA", compressedClusters.qPtA, writer);
-  ransEncodeDecode<uint8_t, containerTag_V, coderTag_V>("rowA", compressedClusters.rowA, writer);
-  ransEncodeDecode<uint8_t, containerTag_V, coderTag_V>("sliceA", compressedClusters.sliceA, writer);
-  // ransEncodeDecode<uint32_t, containerTag_V, coderTag_V>("timeA", compressedClusters.timeA, writer);
-  ransEncodeDecode<uint16_t, containerTag_V, coderTag_V>("padA", compressedClusters.padA, writer);
-  ransEncodeDecode<uint16_t, containerTag_V, coderTag_V>("qTotU", compressedClusters.qTotU, writer);
-  ransEncodeDecode<uint16_t, containerTag_V, coderTag_V>("qMaxU", compressedClusters.qMaxU, writer);
-  ransEncodeDecode<uint8_t, containerTag_V, coderTag_V>("flagsU", compressedClusters.flagsU, writer);
-  ransEncodeDecode<uint16_t, containerTag_V, coderTag_V>("padDiffU", compressedClusters.padDiffU, writer);
-  ransEncodeDecode<uint32_t, containerTag_V, coderTag_V>("timeDiffU", compressedClusters.timeDiffU, writer);
-  ransEncodeDecode<uint8_t, containerTag_V, coderTag_V>("sigmaPadU", compressedClusters.sigmaPadU, writer);
-  ransEncodeDecode<uint8_t, containerTag_V, coderTag_V>("sigmaTimeU", compressedClusters.sigmaTimeU, writer);
-  ransEncodeDecode<uint16_t, containerTag_V, coderTag_V>("nTrackClusters", compressedClusters.nTrackClusters, writer);
-  ransEncodeDecode<uint32_t, containerTag_V, coderTag_V>("nSliceRowClusters", compressedClusters.nSliceRowClusters, writer);
+  ransEncodeDecode<uint16_t, coderTag_V>("qTotA", compressedClusters.qTotA, writer);
+  ransEncodeDecode<uint16_t, coderTag_V>("qMaxA", compressedClusters.qMaxA, writer);
+  ransEncodeDecode<uint8_t, coderTag_V>("flagsA", compressedClusters.flagsA, writer);
+  ransEncodeDecode<uint8_t, coderTag_V>("rowDiffA", compressedClusters.rowDiffA, writer);
+  ransEncodeDecode<uint8_t, coderTag_V>("sliceLegDiffA", compressedClusters.sliceLegDiffA, writer);
+  ransEncodeDecode<uint16_t, coderTag_V>("padResA", compressedClusters.padResA, writer);
+  ransEncodeDecode<uint32_t, coderTag_V>("timeResA", compressedClusters.timeResA, writer);
+  ransEncodeDecode<uint8_t, coderTag_V>("sigmaPadA", compressedClusters.sigmaPadA, writer);
+  ransEncodeDecode<uint8_t, coderTag_V>("sigmaTimeA", compressedClusters.sigmaTimeA, writer);
+  ransEncodeDecode<uint8_t, coderTag_V>("qPtA", compressedClusters.qPtA, writer);
+  ransEncodeDecode<uint8_t, coderTag_V>("rowA", compressedClusters.rowA, writer);
+  ransEncodeDecode<uint8_t, coderTag_V>("sliceA", compressedClusters.sliceA, writer);
+  // ransEncodeDecode<uint32_t, coderTag_V>("timeA", compressedClusters.timeA, writer);
+  ransEncodeDecode<uint16_t, coderTag_V>("padA", compressedClusters.padA, writer);
+  ransEncodeDecode<uint16_t, coderTag_V>("qTotU", compressedClusters.qTotU, writer);
+  ransEncodeDecode<uint16_t, coderTag_V>("qMaxU", compressedClusters.qMaxU, writer);
+  ransEncodeDecode<uint8_t, coderTag_V>("flagsU", compressedClusters.flagsU, writer);
+  ransEncodeDecode<uint16_t, coderTag_V>("padDiffU", compressedClusters.padDiffU, writer);
+  ransEncodeDecode<uint32_t, coderTag_V>("timeDiffU", compressedClusters.timeDiffU, writer);
+  ransEncodeDecode<uint8_t, coderTag_V>("sigmaPadU", compressedClusters.sigmaPadU, writer);
+  ransEncodeDecode<uint8_t, coderTag_V>("sigmaTimeU", compressedClusters.sigmaTimeU, writer);
+  ransEncodeDecode<uint16_t, coderTag_V>("nTrackClusters", compressedClusters.nTrackClusters, writer);
+  ransEncodeDecode<uint32_t, coderTag_V>("nSliceRowClusters", compressedClusters.nSliceRowClusters, writer);
 
   writer.EndObject();
 };
 
-using encoder_types = boost::mp11::mp_product<boost::mp11::mp_list, container_types, coder_types>;
+using encoder_types = boost::mp11::mp_product<boost::mp11::mp_list, coder_types>;
 
 int main(int argc, char* argv[])
 {
@@ -341,14 +305,12 @@ int main(int argc, char* argv[])
   LOG(info) << "loaded Compressed Clusters from file";
   LOG(info) << "######################################################";
   boost::mp11::mp_for_each<encoder_types>([&](auto L) {
-    using container_type = boost::mp11::mp_at_c<decltype(L), 0>;
-    using coder_type = boost::mp11::mp_at_c<decltype(L), 1>;
-    constexpr ContainerTag containerTag = container_type::value;
+    using coder_type = boost::mp11::mp_at_c<decltype(L), 0>;
     constexpr CoderTag coderTag = coder_type::value;
-    const std::string encoderTitle = makeEncoderTitle(containerTag, coderTag);
+    const std::string encoderTitle = toString(coderTag);
 
     LOGP(info, "start rANS {}/Decode", encoderTitle);
-    encodeTPC<containerTag, coderTag>(encoderTitle, compressedClusters, false, writer);
+    encodeTPC<coderTag>(encoderTitle, compressedClusters, false, writer);
     LOG(info) << "######################################################";
   });
   writer.EndObject();

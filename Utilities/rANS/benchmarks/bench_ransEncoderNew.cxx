@@ -69,27 +69,16 @@ const auto& getMessage()
   }
 };
 
-template <typename source_T, ContainerTag containerTag_V, CoderTag coderTag_V>
+template <typename source_T, CoderTag coderTag_V>
 void ransCompressionBenchmark(benchmark::State& st)
 {
   using source_type = source_T;
-  constexpr ContainerTag containerTag = [&]() {
-    if (containerTag_V != ContainerTag::Static) {
-      return containerTag_V;
-    } else {
-      if (sizeof(source_T) < 4) {
-        return ContainerTag::Static;
-      } else {
-        return ContainerTag::Dynamic;
-      }
-    }
-  }();
 
   const auto& inputData = getMessage<source_type>();
   EncodeBuffer<source_type> encodeBuffer{inputData.size()};
   DecodeBuffer<source_type> decodeBuffer{inputData.size()};
 
-  auto frequencyTable = makeFrequencyTable<containerTag>::fromSamples(gsl::span<const source_type>(inputData));
+  auto frequencyTable = makeFrequencyTable::fromSamples(gsl::span<const source_type>(inputData));
   auto renormedFrequencyTable = renormCutoffIncompressible<>(frequencyTable, 0, 10);
   auto encoder = makeEncoder<coderTag_V>::fromRenormed(renormedFrequencyTable);
 
@@ -125,21 +114,10 @@ void ransCompressionBenchmark(benchmark::State& st)
   st.counters["CompressionWRTEntropy"] = st.counters["CompressedSize"] / st.counters["LowerBound"];
 };
 
-template <typename source_T, ContainerTag containerTag_V, CoderTag coderTag_V>
+template <typename source_T, CoderTag coderTag_V>
 void ransLiteralCompressionBenchmark(benchmark::State& st)
 {
   using source_type = source_T;
-  constexpr ContainerTag containerTag = [&]() {
-    if (containerTag_V != ContainerTag::Static) {
-      return containerTag_V;
-    } else {
-      if (sizeof(source_T) < 4) {
-        return ContainerTag::Static;
-      } else {
-        return ContainerTag::Dynamic;
-      }
-    }
-  }();
 
   const auto& inputData = getMessage<source_type>();
   EncodeBuffer<source_type> encodeBuffer{inputData.size()};
@@ -147,7 +125,7 @@ void ransLiteralCompressionBenchmark(benchmark::State& st)
   encodeBuffer.literalsEnd = encodeBuffer.literals.data();
   DecodeBuffer<source_type> decodeBuffer{inputData.size()};
 
-  auto frequencyTable = makeFrequencyTable<containerTag>::fromSamples(gsl::span<const source_type>(inputData));
+  auto frequencyTable = makeFrequencyTable::fromSamples(gsl::span<const source_type>(inputData));
   auto renormedFrequencyTable = renormCutoffIncompressible<>(frequencyTable);
   auto encoder = makeEncoder<coderTag_V>::fromRenormed(renormedFrequencyTable);
 
@@ -185,74 +163,50 @@ void ransLiteralCompressionBenchmark(benchmark::State& st)
   st.counters["CompressionWRTEntropy"] = st.counters["CompressedSize"] / st.counters["LowerBound"];
 };
 
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::Compat>);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::Compat>);
-BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::Compat>);
-
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::Compat>);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::Compat>);
+BENCHMARK(ransCompressionBenchmark<uint8_t, CoderTag::Compat>);
+BENCHMARK(ransCompressionBenchmark<uint16_t, CoderTag::Compat>);
+BENCHMARK(ransCompressionBenchmark<uint32_t, CoderTag::Compat>);
 
 //########################################################################################
 
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::SingleStream>);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::SingleStream>);
-BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::SingleStream>);
-
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::SingleStream>);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::SingleStream>);
+BENCHMARK(ransCompressionBenchmark<uint8_t, CoderTag::SingleStream>);
+BENCHMARK(ransCompressionBenchmark<uint16_t, CoderTag::SingleStream>);
+BENCHMARK(ransCompressionBenchmark<uint32_t, CoderTag::SingleStream>);
 
 //########################################################################################
 
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::SSE>);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::SSE>);
-BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::SSE>);
-
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::SSE>);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::SSE>);
+BENCHMARK(ransCompressionBenchmark<uint8_t, CoderTag::SSE>);
+BENCHMARK(ransCompressionBenchmark<uint16_t, CoderTag::SSE>);
+BENCHMARK(ransCompressionBenchmark<uint32_t, CoderTag::SSE>);
 
 // //########################################################################################
 
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::AVX2>);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::AVX2>);
-BENCHMARK(ransCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::AVX2>);
-
-BENCHMARK(ransCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::AVX2>);
-BENCHMARK(ransCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::AVX2>);
+BENCHMARK(ransCompressionBenchmark<uint8_t, CoderTag::AVX2>);
+BENCHMARK(ransCompressionBenchmark<uint16_t, CoderTag::AVX2>);
+BENCHMARK(ransCompressionBenchmark<uint32_t, CoderTag::AVX2>);
 
 //########################################################################################
 
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::Compat>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::Compat>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::Compat>);
-
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::Compat>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::Compat>);
+BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, CoderTag::Compat>);
+BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, CoderTag::Compat>);
+BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, CoderTag::Compat>);
 
 //########################################################################################
 
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::SingleStream>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::SingleStream>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::SingleStream>);
-
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::SingleStream>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::SingleStream>);
+BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, CoderTag::SingleStream>);
+BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, CoderTag::SingleStream>);
+BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, CoderTag::SingleStream>);
 
 //########################################################################################
 
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::SSE>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::SSE>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::SSE>);
-
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::SSE>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::SSE>);
+BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, CoderTag::SSE>);
+BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, CoderTag::SSE>);
+BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, CoderTag::SSE>);
 
 //########################################################################################
 
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Dynamic, CoderTag::AVX2>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Dynamic, CoderTag::AVX2>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, ContainerTag::Dynamic, CoderTag::AVX2>);
-
-BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, ContainerTag::Static, CoderTag::AVX2>);
-BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, ContainerTag::Static, CoderTag::AVX2>);
+BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, CoderTag::AVX2>);
+BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, CoderTag::AVX2>);
+BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, CoderTag::AVX2>);
 
 BENCHMARK_MAIN();
