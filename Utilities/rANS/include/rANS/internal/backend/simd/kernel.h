@@ -238,7 +238,7 @@ inline __m128d uint64ToDouble(__m128i in) noexcept
 {
 #if !defined(NDEBUG)
   auto vec = store<uint64_t>(in);
-  for (auto i : vec) {
+  for (auto i : gsl::make_span(vec)) {
     assert(i < pow2(52));
   }
 #endif
@@ -256,7 +256,7 @@ inline __m256d uint64ToDouble(__m256i in) noexcept
 {
 #if !defined(NDEBUG)
   auto vec = store<uint64_t>(in);
-  for (auto i : vec) {
+  for (auto i : gsl::make_span(vec)) {
     assert(i < pow2(52));
   }
 #endif
@@ -270,7 +270,7 @@ inline __m128i doubleToUint64(__m128d in) noexcept
 {
 #if !defined(NDEBUG)
   auto vec = store(in);
-  for (auto i : vec) {
+  for (auto i : gsl::make_span(vec)) {
     assert(i < pow2(52));
   }
 #endif
@@ -286,7 +286,7 @@ inline __m256i doubleToUint64(__m256d in) noexcept
 {
 #if !defined(NDEBUG)
   auto vec = store(in);
-  for (auto i : vec) {
+  for (auto i : gsl::make_span(vec)) {
     assert(i < pow2(52));
   }
 #endif
@@ -341,7 +341,7 @@ inline __m128i ransEncode(__m128i state, __m128d frequency, __m128d cumulative, 
 {
 #if !defined(NDEBUG)
   auto vec = store<uint64_t>(state);
-  for (auto i : vec) {
+  for (auto i : gsl::make_span(vec)) {
     assert(i < pow2(52));
   }
 #endif
@@ -361,7 +361,7 @@ inline __m256i ransEncode(__m256i state, __m256d frequency, __m256d cumulative, 
 {
 #if !defined(NDEBUG)
   auto vec = store<uint64_t>(state);
-  for (auto i : vec) {
+  for (auto i : gsl::make_span(vec)) {
     assert(i < pow2(52));
   }
 #endif
