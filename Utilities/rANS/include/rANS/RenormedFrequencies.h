@@ -43,13 +43,15 @@ class RenormedFrequencyTable : public internal::FrequencyContainer<source_T>
   using pointer = typename base_type::pointer;
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
+  using iterator = typename base_type::iterator;
+  using const_reverse_iterator = typename base_type::const_reverse_iterator;
+  using reverse_iterator = typename base_type::reverse_iterator;
 
   RenormedFrequencyTable() : base_type(){};
 
-  inline RenormedFrequencyTable(container_type frequencies, source_type offset, size_t renormingBits, value_type nIncompressible) : mNIncompressible(nIncompressible)
+  inline RenormedFrequencyTable(container_type frequencies, size_t renormingBits, value_type nIncompressible) : mNIncompressible(nIncompressible)
   {
     this->mContainer = std::move(frequencies);
-    this->setOffset(offset);
     this->mNSamples = internal::pow2(renormingBits);
 
 #if !defined(NDEBUG)

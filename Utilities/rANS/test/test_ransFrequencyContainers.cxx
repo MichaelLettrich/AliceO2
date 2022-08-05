@@ -28,14 +28,13 @@
 
 using namespace o2::rans;
 
-using smallFrequencyTables_t = boost::mpl::vector<
+using frequencyTables_t = boost::mpl::vector<
   FrequencyTable<char>,
   FrequencyTable<uint8_t>,
   FrequencyTable<int8_t>,
   FrequencyTable<uint16_t>,
-  FrequencyTable<int16_t>>;
-
-using largeFrequencyTables_t = boost::mpl::vector<FrequencyTable<int32_t>>;
+  FrequencyTable<int16_t>,
+  FrequencyTable<int32_t>>;
 
 namespace std
 {
@@ -47,148 +46,45 @@ std::ostream& operator<<(std::ostream& os, const std::pair<key_T, value_T>& pair
 }
 } // namespace std
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(test_emptySmallTables, frequencyTable_T, smallFrequencyTables_t)
+BOOST_AUTO_TEST_CASE_TEMPLATE(test_emptyTables, frequencyTable_T, frequencyTables_t)
 {
 
   using source_type = typename frequencyTable_T::source_type;
   frequencyTable_T frequencyTable{};
 
-  const size_t tableSize = 1ul << (sizeof(source_type) * 8);
+  if constexpr (sizeof(source_type) < 4) {
+    const size_t tableSize = 1ul << (sizeof(source_type) * 8);
 
-  BOOST_CHECK_EQUAL(frequencyTable.empty(), true);
-  BOOST_CHECK_EQUAL(frequencyTable.size(), tableSize);
-  BOOST_CHECK(frequencyTable.begin() != frequencyTable.end());
-  BOOST_CHECK(frequencyTable.cbegin() != frequencyTable.cend());
-};
+    BOOST_CHECK_EQUAL(frequencyTable.empty(), true);
+    BOOST_CHECK_EQUAL(frequencyTable.size(), tableSize);
+    BOOST_CHECK(frequencyTable.begin() != frequencyTable.end());
+    BOOST_CHECK(frequencyTable.cbegin() != frequencyTable.cend());
+  } else {
+    using source_type = typename frequencyTable_T::source_type;
+    frequencyTable_T frequencyTable{};
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(test_emptyLargeTables, frequencyTable_T, largeFrequencyTables_t)
-{
+    BOOST_CHECK_EQUAL(frequencyTable.empty(), true);
 
-  using source_type = typename frequencyTable_T::source_type;
-  frequencyTable_T frequencyTable{};
-
-  BOOST_CHECK_EQUAL(frequencyTable.empty(), true);
-
-  BOOST_CHECK_EQUAL(frequencyTable.size(), 0);
-  BOOST_CHECK(frequencyTable.begin() == frequencyTable.end());
-  BOOST_CHECK(frequencyTable.cbegin() == frequencyTable.cend());
-};
-
-BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamplesSmall, frequencyTable_T, smallFrequencyTables_t)
-{
-  using source_type = typename frequencyTable_T::source_type;
-
-  const size_t tableSize = 1ul << (sizeof(source_type) * 8);
-
-  std::vector<source_type> samples{
-    static_cast<source_type>(-5),
-    static_cast<source_type>(-2),
-    static_cast<source_type>(1),
-    static_cast<source_type>(3),
-    static_cast<source_type>(5),
-    static_cast<source_type>(8),
-    static_cast<source_type>(-5),
-    static_cast<source_type>(5),
-    static_cast<source_type>(1),
-    static_cast<source_type>(1),
-    static_cast<source_type>(1),
-    static_cast<source_type>(14),
-    static_cast<source_type>(8),
-    static_cast<source_type>(8),
-    static_cast<source_type>(8),
-    static_cast<source_type>(8),
-    static_cast<source_type>(8),
-    static_cast<source_type>(8),
-    static_cast<source_type>(8),
-  };
-
-  std::unordered_map<source_type, uint32_t> results{{static_cast<source_type>(-5), 2},
-                                                    {static_cast<source_type>(-2), 1},
-                                                    {static_cast<source_type>(-1), 0},
-                                                    {static_cast<source_type>(0), 0},
-                                                    {static_cast<source_type>(1), 4},
-                                                    {static_cast<source_type>(2), 0},
-                                                    {static_cast<source_type>(3), 1},
-                                                    {static_cast<source_type>(4), 0},
-                                                    {static_cast<source_type>(5), 2},
-                                                    {static_cast<source_type>(8), 8},
-                                                    {static_cast<source_type>(14), 1}};
-
-  frequencyTable_T frequencyTable{};
-  frequencyTable.addSamples(samples.begin(), samples.end());
-
-  frequencyTable_T frequencyTable2{};
-  frequencyTable2.addSamples(samples);
-
-  BOOST_CHECK_EQUAL_COLLECTIONS(frequencyTable.begin(), frequencyTable.end(), frequencyTable2.begin(), frequencyTable2.end());
-
-  for (const auto [symbol, value] : results) {
-    BOOST_TEST_MESSAGE(fmt::format("testing symbol {}", symbol));
-    BOOST_CHECK_EQUAL(frequencyTable[symbol], value);
+    BOOST_CHECK_EQUAL(frequencyTable.size(), 0);
+    BOOST_CHECK(frequencyTable.begin() == frequencyTable.end());
+    BOOST_CHECK(frequencyTable.cbegin() == frequencyTable.cend());
   }
-
-  BOOST_CHECK_EQUAL(frequencyTable.empty(), false);
-
-  BOOST_CHECK_EQUAL(frequencyTable.size(), tableSize);
-  BOOST_CHECK_EQUAL(frequencyTable.getOffset(), std::numeric_limits<source_type>::min());
-
-  BOOST_CHECK(frequencyTable.begin() != frequencyTable.end());
-  BOOST_CHECK(frequencyTable.cbegin() != frequencyTable.cend());
-
-  // lets add more frequencies;
-  std::vector<source_type> samples2{
-    static_cast<source_type>(-10),
-    static_cast<source_type>(0),
-    static_cast<source_type>(50),
-    static_cast<source_type>(-10),
-    static_cast<source_type>(0),
-    static_cast<source_type>(50),
-    static_cast<source_type>(-10),
-    static_cast<source_type>(0),
-    static_cast<source_type>(50),
-    static_cast<source_type>(-10),
-    static_cast<source_type>(0),
-    static_cast<source_type>(50),
-    static_cast<source_type>(-10),
-    static_cast<source_type>(0),
-    static_cast<source_type>(50),
-    static_cast<source_type>(-10),
-    static_cast<source_type>(0),
-    static_cast<source_type>(50),
-  };
-
-  results[static_cast<source_type>(-10)] = 6;
-  results[static_cast<source_type>(0)] = 6;
-  results[static_cast<source_type>(50)] = 6;
-
-  frequencyTable.addSamples(samples2.begin(), samples2.end());
-
-  frequencyTable2.addSamples(samples2);
-
-  BOOST_CHECK_EQUAL_COLLECTIONS(frequencyTable.begin(), frequencyTable.end(), frequencyTable2.begin(), frequencyTable2.end());
-
-  for (const auto [symbol, value] : results) {
-    BOOST_CHECK_EQUAL(frequencyTable[symbol], value);
-  }
-
-  BOOST_CHECK_EQUAL(frequencyTable.empty(), false);
-  BOOST_CHECK_EQUAL(frequencyTable.size(), tableSize);
-
-  BOOST_CHECK(frequencyTable.begin() != frequencyTable.end());
-  BOOST_CHECK(frequencyTable.cbegin() != frequencyTable.cend());
-
-  BOOST_CHECK(frequencyTable.countNUsedAlphabetSymbols() == 10);
-  BOOST_CHECK(frequencyTable.getNumSamples() == samples.size() + samples2.size());
 };
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamplesLarge, frequencyTable_T, largeFrequencyTables_t)
+BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamples, frequencyTable_T, frequencyTables_t)
 {
   using source_type = typename frequencyTable_T::source_type;
 
   auto computeTableSize = [](const auto& resultsMap) {
-    const auto [minIter, maxIter] = std::minmax_element(std::begin(resultsMap), std::end(resultsMap), [](const auto& a, const auto& b) { return a.first < b.first; });
-    return maxIter->first - minIter->first + std::is_signed_v<source_type>;
+    if constexpr (sizeof(source_type) < 4) {
+      return 1ul << (sizeof(source_type) * 8);
+    } else {
+      const auto [minIter, maxIter] = std::minmax_element(std::begin(resultsMap), std::end(resultsMap), [](const auto& a, const auto& b) { return a.first < b.first; });
+      return maxIter->first - minIter->first + std::is_signed_v<source_type>;
+    }
   };
+
+  const size_t fixedSizeOffset = std::numeric_limits<source_type>::min();
 
   std::vector<source_type> samples{
     static_cast<source_type>(-5),
@@ -243,9 +139,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamplesLarge, frequencyTable_T, largeFrequ
 
   BOOST_CHECK_EQUAL(frequencyTable.size(), tableSize);
   if constexpr (std::is_signed_v<source_type>) {
-    BOOST_CHECK_EQUAL(frequencyTable.getOffset(), -5);
+    BOOST_CHECK_EQUAL(frequencyTable.getOffset(), sizeof(source_type) < 4 ? fixedSizeOffset : -5);
   } else {
-    BOOST_CHECK_EQUAL(frequencyTable.getOffset(), 0);
+    BOOST_CHECK_EQUAL(frequencyTable.getOffset(), sizeof(source_type) < 4 ? fixedSizeOffset : 0);
   }
 
   BOOST_CHECK(frequencyTable.begin() != frequencyTable.end());
@@ -293,9 +189,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamplesLarge, frequencyTable_T, largeFrequ
   BOOST_CHECK_EQUAL(frequencyTable.empty(), false);
   BOOST_CHECK_EQUAL(frequencyTable.size(), tableSize);
   if constexpr (std::is_signed_v<source_type>) {
-    BOOST_CHECK_EQUAL(frequencyTable.getOffset(), -10);
+    BOOST_CHECK_EQUAL(frequencyTable.getOffset(), sizeof(source_type) < 4 ? fixedSizeOffset : -10);
   } else {
-    BOOST_CHECK_EQUAL(frequencyTable.getOffset(), 0);
+    BOOST_CHECK_EQUAL(frequencyTable.getOffset(), sizeof(source_type) < 4 ? fixedSizeOffset : 0);
   }
 
   BOOST_CHECK(frequencyTable.begin() != frequencyTable.end());
@@ -305,21 +201,22 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamplesLarge, frequencyTable_T, largeFrequ
   BOOST_CHECK(frequencyTable.getNumSamples() == samples.size() + samples2.size());
 };
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSmall, frequencyTable_T, smallFrequencyTables_t)
+BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequencies, frequencyTable_T, frequencyTables_t)
 {
   using source_type = typename frequencyTable_T::source_type;
   using value_type = typename frequencyTable_T::value_type;
-  const size_t tableSize = 1ul << (sizeof(source_type) * 8);
   std::vector<value_type> frequencies{0, 1, 2, 3, 4, 5};
 
   std::unordered_map<source_type, uint32_t> results{
-    {static_cast<source_type>(0), 0},
     {static_cast<source_type>(1), 1},
     {static_cast<source_type>(2), 2},
     {static_cast<source_type>(3), 3},
     {static_cast<source_type>(4), 4},
     {static_cast<source_type>(5), 5},
   };
+
+  const size_t fixedtableSize = 1ul << (sizeof(source_type) * 8);
+  const size_t fixedSizeOffset = std::numeric_limits<source_type>::min();
 
   frequencyTable_T frequencyTable{};
   frequencyTable.addFrequencies(frequencies.begin(), frequencies.end(), 0);
@@ -334,8 +231,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSmall, frequencyTable_T, smallF
   }
 
   BOOST_CHECK_EQUAL(frequencyTable.empty(), false);
-  BOOST_CHECK_EQUAL(frequencyTable.size(), tableSize);
-  BOOST_CHECK_EQUAL(frequencyTable.getOffset(), std::numeric_limits<source_type>::min());
+  BOOST_CHECK_EQUAL(frequencyTable.size(), sizeof(source_type) < 4 ? fixedtableSize : 5);
+  BOOST_CHECK_EQUAL(frequencyTable.getOffset(), sizeof(source_type) < 4 ? fixedSizeOffset : 1);
   BOOST_CHECK(frequencyTable.begin() != frequencyTable.end());
   BOOST_CHECK(frequencyTable.cbegin() != frequencyTable.cend());
   BOOST_CHECK_EQUAL(frequencyTable.countNUsedAlphabetSymbols(), 5);
@@ -352,6 +249,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSmall, frequencyTable_T, smallF
     results[static_cast<source_type>(2 + -1)] += 4;
     results[static_cast<source_type>(11 + -1)] += 5;
 
+    BOOST_CHECK_EQUAL(frequencyTable.size(), sizeof(source_type) < 4 ? fixedtableSize : 12);
+    BOOST_CHECK_EQUAL(frequencyTable.getOffset(), sizeof(source_type) < 4 ? fixedSizeOffset : -1);
     BOOST_CHECK_EQUAL(frequencyTable.countNUsedAlphabetSymbols(), 7);
   } else {
     frequencyTable.addFrequencies(frequencies2.begin(), frequencies2.end(), 3);
@@ -361,81 +260,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSmall, frequencyTable_T, smallF
     results[static_cast<source_type>(2 + 3)] += 4;
     results[static_cast<source_type>(11 + 3)] += 5;
 
-    BOOST_CHECK_EQUAL(frequencyTable.countNUsedAlphabetSymbols(), 6);
-  }
-  BOOST_CHECK_EQUAL(frequencyTable.getNumSamples(), 27);
-  BOOST_CHECK_EQUAL_COLLECTIONS(frequencyTable.begin(), frequencyTable.end(), frequencyTable2.begin(), frequencyTable2.end());
-
-  for (const auto [symbol, value] : results) {
-    BOOST_CHECK_EQUAL(frequencyTable[symbol], value);
-  }
-
-  BOOST_CHECK_EQUAL(frequencyTable.empty(), false);
-  BOOST_CHECK_EQUAL(frequencyTable.size(), tableSize);
-  BOOST_CHECK(frequencyTable.begin() != frequencyTable.end());
-  BOOST_CHECK(frequencyTable.cbegin() != frequencyTable.cend());
-};
-
-BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesLarge, frequencyTable_T, largeFrequencyTables_t)
-{
-  using source_type = typename frequencyTable_T::source_type;
-  using value_type = typename frequencyTable_T::value_type;
-  std::vector<value_type> frequencies{0, 1, 2, 3, 4, 5};
-
-  std::unordered_map<source_type, uint32_t> results{
-    {static_cast<source_type>(1), 1},
-    {static_cast<source_type>(2), 2},
-    {static_cast<source_type>(3), 3},
-    {static_cast<source_type>(4), 4},
-    {static_cast<source_type>(5), 5},
-  };
-
-  size_t tableSize = 5;
-
-  frequencyTable_T frequencyTable{};
-  frequencyTable.addFrequencies(frequencies.begin(), frequencies.end(), 0);
-
-  frequencyTable_T frequencyTable2{};
-  frequencyTable2.addFrequencies(gsl::make_span(frequencies), 0);
-
-  BOOST_CHECK_EQUAL_COLLECTIONS(frequencyTable.begin(), frequencyTable.end(), frequencyTable2.begin(), frequencyTable2.end());
-
-  for (const auto [symbol, value] : results) {
-    BOOST_CHECK_EQUAL(frequencyTable[symbol], value);
-  }
-
-  BOOST_CHECK_EQUAL(frequencyTable.empty(), false);
-  BOOST_CHECK_EQUAL(frequencyTable.size(), tableSize);
-  BOOST_CHECK_EQUAL(frequencyTable.getOffset(), 1);
-  BOOST_CHECK(frequencyTable.begin() != frequencyTable.end());
-  BOOST_CHECK(frequencyTable.cbegin() != frequencyTable.cend());
-  BOOST_CHECK_EQUAL(frequencyTable.countNUsedAlphabetSymbols(), 5);
-  BOOST_CHECK_EQUAL(frequencyTable.getNumSamples(), 15);
-
-  // lets add more frequencies;
-  std::vector<value_type> frequencies2{3, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0};
-
-  if constexpr (std::is_signed_v<source_type>) {
-    frequencyTable.addFrequencies(frequencies2.begin(), frequencies2.end(), -1);
-    frequencyTable2.addFrequencies(gsl::make_span(frequencies2), -1);
-
-    results[static_cast<source_type>(0 + -1)] += 3;
-    results[static_cast<source_type>(2 + -1)] += 4;
-    results[static_cast<source_type>(11 + -1)] += 5;
-
-    BOOST_CHECK_EQUAL(frequencyTable.size(), 12);
-    BOOST_CHECK_EQUAL(frequencyTable.getOffset(), -1);
-    BOOST_CHECK_EQUAL(frequencyTable.countNUsedAlphabetSymbols(), 7);
-  } else {
-    frequencyTable.addFrequencies(frequencies2.begin(), frequencies2.end(), 3);
-    frequencyTable2.addFrequencies(gsl::make_span(frequencies2), 3);
-
-    results[static_cast<source_type>(0 + 3)] += 3;
-    results[static_cast<source_type>(2 + 3)] += 4;
-    results[static_cast<source_type>(11 + 3)] += 5;
-
-    BOOST_CHECK_EQUAL(frequencyTable.size(), 14);
-    BOOST_CHECK_EQUAL(frequencyTable.getOffset(), 1);
+    BOOST_CHECK_EQUAL(frequencyTable.size(), sizeof(source_type) < 4 ? fixedtableSize : 14);
+    BOOST_CHECK_EQUAL(frequencyTable.getOffset(), sizeof(source_type) < 4 ? fixedSizeOffset : 1);
     BOOST_CHECK_EQUAL(frequencyTable.countNUsedAlphabetSymbols(), 6);
   }
   BOOST_CHECK_EQUAL(frequencyTable.getNumSamples(), 27);
