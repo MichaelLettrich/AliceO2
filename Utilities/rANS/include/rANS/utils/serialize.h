@@ -106,7 +106,7 @@ template <typename container_T>
 count_t getFrequency(const container_T& container, typename container_T::source_type sourceSymbol)
 {
   const auto& ret = container[sourceSymbol];
-  if constexpr (isSymbolTableContainer_v<container_T>) {
+  if constexpr (isSymbolTable_v<container_T>) {
     return container.isEscapeSymbol(ret) ? 0 : ret.getFrequency();
   } else {
     return ret;
@@ -117,7 +117,7 @@ template <typename container_T>
 count_t getFrequency(const container_T& container, typename container_T::const_iterator iter)
 {
   const auto& ret = *iter;
-  if constexpr (isSymbolTableContainer_v<container_T>) {
+  if constexpr (isSymbolTable_v<container_T>) {
     return container.isEscapeSymbol(ret) ? 0 : ret.getFrequency();
   } else {
     return ret;
@@ -127,14 +127,14 @@ count_t getFrequency(const container_T& container, typename container_T::const_i
 template <typename container_T>
 count_t getIncompressibleFrequency(const container_T& container)
 {
-  if constexpr (isSymbolTableContainer_v<container_T>) {
+  if constexpr (isSymbolTable_v<container_T>) {
     container.getEscapeSymbol().getFrequency();
   } else {
     return 0;
   }
 };
 
-template <typename container_T, typename std::enable_if_t<getContainerTag_v<container_T> == ContainerTag::Dynamic, bool> = true>
+template <typename container_T>
 auto flattenContainer(const container_T& container) -> FlatContainer<typename container_T::source_type>
 {
   if (container.empty()) {
@@ -147,32 +147,6 @@ auto flattenContainer(const container_T& container) -> FlatContainer<typename co
   flattened.count.reserve(container.size());
 
   uint32_t index = container.getOffset();
-  for (auto iter = container.begin(); iter != container.end(); ++iter) {
-    const count_t count = getFrequency(container, iter);
-    if (count > 0) {
-      flattened.index.push_back(index);
-      flattened.count.push_back(count);
-    }
-    ++index;
-  };
-
-  return flattened;
-};
-
-template <typename container_T, typename std::enable_if_t<getContainerTag_v<container_T> == ContainerTag::Static, bool> = true>
-auto flattenContainer(const container_T& container) -> FlatContainer<typename container_T::source_type>
-{
-  using source_type = typename container_T::source_type;
-
-  if (container.empty()) {
-    return {};
-  }
-
-  FlatContainer<source_type> flattened;
-  flattened.index.reserve(container.size());
-  flattened.count.reserve(container.size());
-
-  source_type index = std::numeric_limits<source_type>::min();
   for (auto iter = container.begin(); iter != container.end(); ++iter) {
     const count_t count = getFrequency(container, iter);
     if (count > 0) {

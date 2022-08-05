@@ -20,7 +20,7 @@
 #include "rANSLegacy/rans.h"
 #include "rANSLegacy/LiteralSIMDEncoder.h"
 #include "rANSLegacy/LiteralSIMDDecoder.h"
-#include "rANS/StaticFrequencyTable.h"
+#include "rANS/FrequencyTable.h"
 
 namespace bpo = boost::program_options;
 

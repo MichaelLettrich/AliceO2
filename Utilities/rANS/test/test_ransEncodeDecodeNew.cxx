@@ -31,15 +31,7 @@
 
 using namespace o2::rans;
 
-struct Empty {
-  inline static const std::string Data{};
-
-  using iterator_type = decltype(Data.begin());
-};
-
-struct Full {
-
-  inline static const std::string Data = R"(Sed ut perspiciatis, unde omnis iste natus error sit voluptatem accusantium
+inline const std::string str = R"(Sed ut perspiciatis, unde omnis iste natus error sit voluptatem accusantium
 doloremque laudantium, totam rem aperiam eaque ipsa, quae ab illo inventore veritatis
 et quasi architecto beatae vitae dicta sunt, explicabo. nemo enim ipsam voluptatem,
 quia voluptas sit, aspernatur aut odit aut fugit, sed quia consequuntur magni dolores
@@ -51,75 +43,91 @@ commodi consequatur? quis autem vel eum iure reprehenderit, qui in ea voluptate 
 esse, quam nihil molestiae consequatur, vel illum, qui dolorem eum fugiat,
 quo voluptas nulla pariatur?)";
 
+template <typename T>
+struct Empty {
+  inline static std::vector<T> Data{};
+
+  using source_type = T;
   using iterator_type = decltype(Data.begin());
 };
 
-// template <typename T>
-// inline constexpr bool isIncompressibleOnlyTestCase = std::is_same_v<TestString<Empty, Full>, T>;
+template <typename T>
+struct Full {
 
-using string_types = boost::mp11::mp_list<Empty, Full>;
+ public:
+  inline static std::vector<T> Data{str.begin(), str.end()};
 
-using container_types = boost::mp11::mp_list<std::integral_constant<ContainerTag, ContainerTag::Dynamic>,
-                                             std::integral_constant<ContainerTag, ContainerTag::Static>>;
+  using source_type = T;
+  using iterator_type = decltype(Data.begin());
+};
+
+template <typename L>
+struct hasSameTemplateParam : std::is_same<typename boost::mp11::mp_at_c<L, 0>::source_type, typename boost::mp11::mp_at_c<L, 1>::source_type> {
+};
+
+using source_types = boost::mp11::mp_list<int8_t, int16_t, int32_t>;
+
+using testInput_templates = boost::mp11::mp_list<boost::mp11::mp_quote<Empty>, boost::mp11::mp_quote<Full>>;
+
+using testInputAll_types = boost::mp11::mp_product<boost::mp11::mp_invoke_q, testInput_templates, source_types>;
+using testInputProduct_types = boost::mp11::mp_product<boost::mp11::mp_list, testInputAll_types, testInputAll_types>;
+using testInput_types = boost::mp11::mp_copy_if<testInputProduct_types, hasSameTemplateParam>;
 
 using coder_types = boost::mp11::mp_list<std::integral_constant<CoderTag, CoderTag::Compat>,
                                          std::integral_constant<CoderTag, CoderTag::SingleStream>,
                                          std::integral_constant<CoderTag, CoderTag::SSE>,
                                          std::integral_constant<CoderTag, CoderTag::AVX2>>;
 
-using testCase_types = boost::mp11::mp_product<boost::mp11::mp_list, container_types, coder_types, string_types, string_types>;
-
-using ransSource_type = char;
-using ransCoder_type = uint64_t;
-using ransStream_type = uint32_t;
+using testCase_types = boost::mp11::mp_product<boost::mp11::mp_list, coder_types, testInput_types>;
 
 inline constexpr size_t NRansStreams = o2::rans::NStreams;
 inline constexpr size_t RansRenormingPrecision = 16;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_encodeDecode, test_types, testCase_types)
 {
-  using container_type = boost::mp11::mp_at_c<test_types, 0>;
-  using coder_type = boost::mp11::mp_at_c<test_types, 1>;
-  using dictString_type = boost::mp11::mp_at_c<test_types, 2>;
-  using encodeString_type = boost::mp11::mp_at_c<test_types, 3>;
+  using coder_type = boost::mp11::mp_at_c<test_types, 0>;
+  using testCase_types = boost::mp11::mp_at_c<test_types, 1>;
+  using dictString_type = boost::mp11::mp_at_c<testCase_types, 0>;
+  using encodeString_type = boost::mp11::mp_at_c<testCase_types, 1>;
+  using stream_type = uint32_t;
+  using source_type = typename dictString_type::source_type;
 
-  constexpr ContainerTag containerTag = container_type::value;
   constexpr CoderTag coderTag = coder_type::value;
-  const std::string& dictString = dictString_type::Data;
-  const std::string& encodeString = encodeString_type::Data;
+  const auto& dictString = dictString_type::Data;
+  const auto& encodeString = encodeString_type::Data;
 
   //TODO(milettri): renorming is not satisfactory.
   size_t precision = dictString.size() == 0 ? 0 : RansRenormingPrecision;
 
-  auto encoder = makeEncoder<coderTag>::template fromSamples<typename dictString_type::iterator_type, containerTag>(dictString.begin(), dictString.end(), precision);
+  auto encoder = makeEncoder<coderTag>::template fromSamples<>(dictString.begin(), dictString.end(), precision);
 
-  auto decoder = makeDecoder<>::fromSamples<typename dictString_type::iterator_type, containerTag>(dictString.begin(), dictString.end(), precision);
+  auto decoder = makeDecoder<>::fromSamples<>(dictString.begin(), dictString.end(), precision);
 
   if (dictString == encodeString) {
-    std::vector<ransStream_type> encodeBuffer(encodeString.size());
+    std::vector<stream_type> encodeBuffer(encodeString.size());
     auto encodeBufferEnd = encoder.process(encodeString.begin(), encodeString.end(), encodeBuffer.begin());
-    std::vector<ransStream_type> encodeBuffer2(encodeString.size());
-    auto encodeBuffer2End = encoder.process(gsl::span<const ransSource_type>(encodeString), gsl::make_span(encodeBuffer2));
+    std::vector<stream_type> encodeBuffer2(encodeString.size());
+    auto encodeBuffer2End = encoder.process(gsl::span<const source_type>(encodeString), gsl::make_span(encodeBuffer2));
 
     BOOST_CHECK_EQUAL_COLLECTIONS(encodeBuffer.begin(), encodeBufferEnd, encodeBuffer2.data(), encodeBuffer2End);
 
-    std::vector<ransSource_type> decodeBuffer(encodeString.size());
+    std::vector<source_type> decodeBuffer(encodeString.size());
     decoder.process(encodeBufferEnd, decodeBuffer.begin(), encodeString.size(), encoder.getNStreams());
 
     BOOST_CHECK_EQUAL_COLLECTIONS(decodeBuffer.begin(), decodeBuffer.end(), encodeString.begin(), encodeString.end());
   }
 
-  std::vector<ransSource_type> literals(encodeString.size());
-  std::vector<ransStream_type> encodeBuffer(encodeString.size());
+  std::vector<source_type> literals(encodeString.size());
+  std::vector<stream_type> encodeBuffer(encodeString.size());
   auto [encodeBufferEnd, literalBufferEnd] = encoder.process(encodeString.begin(), encodeString.end(), encodeBuffer.begin(), literals.begin());
-  std::vector<ransStream_type> encodeBuffer2(encodeString.size());
-  std::vector<ransSource_type> literals2(encodeString.size());
-  auto [encodeBuffer2End, literalBuffer2End] = encoder.process(gsl::span<const ransSource_type>(encodeString), gsl::make_span(encodeBuffer2), literals2.begin());
+  std::vector<stream_type> encodeBuffer2(encodeString.size());
+  std::vector<source_type> literals2(encodeString.size());
+  auto [encodeBuffer2End, literalBuffer2End] = encoder.process(gsl::span<const source_type>(encodeString), gsl::make_span(encodeBuffer2), literals2.begin());
 
   BOOST_CHECK_EQUAL_COLLECTIONS(encodeBuffer.begin(), encodeBufferEnd, encodeBuffer2.data(), encodeBuffer2End);
   BOOST_CHECK_EQUAL_COLLECTIONS(literals.begin(), literalBufferEnd, literals2.begin(), literalBuffer2End);
 
-  std::vector<ransSource_type> decodeBuffer(encodeString.size());
+  std::vector<source_type> decodeBuffer(encodeString.size());
   decoder.process(encodeBufferEnd, decodeBuffer.begin(), encodeString.size(), encoder.getNStreams(), literalBufferEnd);
 
   BOOST_CHECK_EQUAL_COLLECTIONS(decodeBuffer.begin(), decodeBuffer.end(), encodeString.begin(), encodeString.end());
