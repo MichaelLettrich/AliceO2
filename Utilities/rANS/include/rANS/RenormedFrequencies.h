@@ -19,22 +19,20 @@
 
 #include <fairlogger/Logger.h>
 
-#include "rANS/internal/StaticFrequencyContainer.h"
-#include "rANS/internal/DynamicFrequencyContainer.h"
+#include "rANS/internal/FrequencyContainer.h"
 
 namespace o2
 {
 namespace rans
 {
 
-template <class frequencyContainer_T>
-class RenormedFrequencyTable_Impl : public frequencyContainer_T
+template <typename source_T>
+class RenormedFrequencyTable : public internal::FrequencyContainer<source_T>
 {
-  using base_type = frequencyContainer_T;
+  using base_type = internal::FrequencyContainer<source_T>;
 
  public:
   using source_type = typename base_type::source_type;
-  using index_type = typename base_type::index_type;
   using value_type = typename base_type::value_type;
   using container_type = typename base_type::container_type;
   using size_type = typename base_type::size_type;
@@ -45,12 +43,12 @@ class RenormedFrequencyTable_Impl : public frequencyContainer_T
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
 
-  RenormedFrequencyTable_Impl() : base_type(){};
+  RenormedFrequencyTable() : base_type(){};
 
-  inline RenormedFrequencyTable_Impl(container_type frequencies, source_type offset, size_t renormingBits, value_type nIncompressible) : mNIncompressible(nIncompressible)
+  inline RenormedFrequencyTable(container_type frequencies, source_type offset, size_t renormingBits, value_type nIncompressible) : mNIncompressible(nIncompressible)
   {
     this->mContainer = std::move(frequencies);
-    this->mOffset = offset;
+    this->setOffset(offset);
     this->mNSamples = internal::pow2(renormingBits);
 
     // TODO(milettri): do some checks when nDebug is active;
@@ -64,21 +62,16 @@ class RenormedFrequencyTable_Impl : public frequencyContainer_T
 
   [[nodiscard]] inline bool hasIncompressibleSymbol() const noexcept { return mNIncompressible != 0; };
 
-  friend void swap(RenormedFrequencyTable_Impl& a, RenormedFrequencyTable_Impl& b) noexcept
+  friend void swap(RenormedFrequencyTable& a, RenormedFrequencyTable& b) noexcept
   {
     using std::swap;
-    swap(static_cast<typename RenormedFrequencyTable_Impl::base_type&>(a),
-         static_cast<typename RenormedFrequencyTable_Impl::base_type&>(b));
+    swap(static_cast<typename RenormedFrequencyTable::base_type&>(a),
+         static_cast<typename RenormedFrequencyTable::base_type&>(b));
   };
 
  private:
   value_type mNIncompressible{};
 };
-
-template <typename source_T>
-using RenormedStaticFrequencyTable = RenormedFrequencyTable_Impl<internal::StaticFrequencyContainer<source_T>>;
-template <typename source_T>
-using RenormedDynamicFrequencyTable = RenormedFrequencyTable_Impl<internal::DynamicFrequencyContainer<source_T>>;
 
 } // namespace rans
 } // namespace o2

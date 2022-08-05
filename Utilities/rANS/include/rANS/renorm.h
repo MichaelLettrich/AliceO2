@@ -22,8 +22,7 @@
 #include "rANS/definitions.h"
 
 #include "rANS/RenormedFrequencies.h"
-#include "rANS/StaticFrequencyTable.h"
-#include "rANS/DynamicFrequencyTable.h"
+#include "rANS/FrequencyTable.h"
 #include "rANS/internal/helper.h"
 
 namespace o2
@@ -113,53 +112,34 @@ inline constexpr size_t computeRenormingPrecision(size_t nUsedAlphabetSymbols)
 namespace renorm_impl
 {
 
-template <typename frequencyTable_T>
-inline size_t getIncompressibleSymbolFrequency(const frequencyTable_T&)
-{
-  return 0;
-}
-
 template <typename source_T>
-inline size_t getNUsedAlphabetSymbols(const DynamicFrequencyTable<source_T>& f)
+inline size_t getNUsedAlphabetSymbols(const FrequencyTable<source_T>& f)
 {
-  return f.computeNUsedAlphabetSymbols();
-}
-
-template <typename frequencyTable_T>
-inline size_t getNUsedAlphabetSymbols(const frequencyTable_T& f)
-{
-  if (f.empty()) {
-    return 0;
+  if constexpr (sizeof(source_T) <= 2) {
+    const size_t nUsedAlphabetSymbols = f.empty() ? 0 : f.size();
+    return nUsedAlphabetSymbols;
   } else {
-    return f.size();
+    return f.countNUsedAlphabetSymbols();
   }
-}
-
-template <typename frequencyTable_T>
-inline uint32_t getOffset(const frequencyTable_T& f)
-{
-  return f.getOffset();
 }
 
 } // namespace renorm_impl
 
-template <class frequencyTable_T>
-decltype(auto) renormCutoffIncompressible(frequencyTable_T unrenomredTable, uint8_t newPrecision = 0, uint8_t lowProbabilityCutoffBits = 3)
+template <typename source_T>
+RenormedFrequencyTable<source_T> renormCutoffIncompressible(FrequencyTable<source_T> unrenomredTable, uint8_t newPrecision = 0, uint8_t lowProbabilityCutoffBits = 3)
 {
   if (unrenomredTable.empty()) {
     LOG(warning) << "rescaling Frequency Table for empty message";
   }
 
-  using source_type = typename frequencyTable_T::source_type;
-  using index_type = typename frequencyTable_T::index_type;
-  using count_type = typename frequencyTable_T::value_type;
-  using difference_type = typename frequencyTable_T::difference_type;
-  using container_type = typename frequencyTable_T::container_type;
+  using source_type = source_T;
+  using count_type = typename FrequencyTable<source_T>::value_type;
+  using difference_type = typename FrequencyTable<source_T>::difference_type;
+  using container_type = typename FrequencyTable<source_T>::container_type;
   using iterator_type = typename container_type::iterator;
 
-  const source_type offset = renorm_impl::getOffset(unrenomredTable);
+  const source_type offset = unrenomredTable.getOffset();
   const double_t nSamples = unrenomredTable.getNumSamples();
-  const double_t nIncompressibleSymbols = renorm_impl::getIncompressibleSymbolFrequency(unrenomredTable);
   const count_type nUsedAlphabetSymbols = renorm_impl::getNUsedAlphabetSymbols(unrenomredTable);
 
   if (newPrecision == 0) {
@@ -170,7 +150,7 @@ decltype(auto) renormCutoffIncompressible(frequencyTable_T unrenomredTable, uint
   const double_t probabilityCutOffThreshold = 1 / static_cast<double_t>(1ul << (newPrecision + lowProbabilityCutoffBits));
 
   // scaling
-  double_t incompressibleSymbolProbability = nIncompressibleSymbols / nSamplesRescaled;
+  double_t incompressibleSymbolProbability = 0;
   count_type nSamplesRescaledUncorrected = 0;
   std::vector<iterator_type> correctableIndices;
   correctableIndices.reserve(nUsedAlphabetSymbols);
@@ -244,11 +224,7 @@ decltype(auto) renormCutoffIncompressible(frequencyTable_T unrenomredTable, uint
     throw std::runtime_error(fmt::format("rANS rescaling incomplete: {} corrections Remaining", nCorrections));
   }
 
-  if constexpr (std::is_same_v<frequencyTable_T, StaticFrequencyTable<source_type>>) {
-    return RenormedStaticFrequencyTable<source_type>(std::move(rescaledFrequencies), offset, newPrecision, incompressibleSymbolFrequency);
-  } else if constexpr (std::is_same_v<frequencyTable_T, DynamicFrequencyTable<source_type>>) {
-    return RenormedDynamicFrequencyTable<source_type>(std::move(rescaledFrequencies), offset, newPrecision, incompressibleSymbolFrequency);
-  }
+  return RenormedFrequencyTable<source_type>(std::move(rescaledFrequencies), offset, newPrecision, incompressibleSymbolFrequency);
 }
 
 } // namespace rans

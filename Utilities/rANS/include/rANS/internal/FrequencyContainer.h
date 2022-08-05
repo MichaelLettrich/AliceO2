@@ -21,6 +21,9 @@
 #include <string>
 
 #include "rANS/internal/ContainerInterface.h"
+#include "rANS/internal/helper.h"
+
+#include "fairlogger/Logger.h"
 
 namespace o2
 {
@@ -29,16 +32,14 @@ namespace rans
 namespace internal
 {
 
-template <class source_T, class index_T, class value_T, class container_T, class const_iterator_T, class derived_T>
-class FrequencyContainer : public ContainerInterface<source_T, index_T, value_T, container_T, const_iterator_T,
-                                                     FrequencyContainer<source_T, index_T, value_T, container_T, const_iterator_T, derived_T>>
+template <class source_T>
+class FrequencyContainerBase : public ContainerInterface<source_T, uint32_t, FrequencyContainerBase<source_T>>
 {
-  using base_type = ContainerInterface<source_T, index_T, value_T, container_T, const_iterator_T,
-                                       FrequencyContainer<source_T, index_T, value_T, container_T, const_iterator_T, derived_T>>;
+  using base_type = ContainerInterface<source_T, uint32_t, FrequencyContainerBase<source_T>>;
+  friend base_type;
 
  public:
   using source_type = typename base_type::source_type;
-  using index_type = typename base_type::index_type;
   using value_type = typename base_type::value_type;
   using container_type = typename base_type::container_type;
   using size_type = typename base_type::size_type;
@@ -50,32 +51,116 @@ class FrequencyContainer : public ContainerInterface<source_T, index_T, value_T,
   using const_iterator = typename base_type::const_iterator;
 
   // accessors
-  [[nodiscard]] inline const_iterator cbegin() const noexcept { return static_cast<const derived_T*>(this)->cbegin(); };
-
-  [[nodiscard]] inline const_iterator cend() const noexcept { return static_cast<const derived_T*>(this)->cend(); };
-
-  [[nodiscard]] inline value_type operator[](source_type sourceSymbol) const { static_cast<const derived_T*>(this)->operator[](sourceSymbol); };
-
-  [[nodiscard]] inline size_type size() const noexcept { return static_cast<const derived_T*>(this)->size(); };
+  [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const { return this->getSymbol(sourceSymbol); };
 
   [[nodiscard]] inline bool empty() const noexcept { return mNSamples == 0; };
 
-  [[nodiscard]] inline size_type computeNUsedAlphabetSymbols() const noexcept { return static_cast<const derived_T*>(this)->computeNUsedAlphabetSymbols(); };
-
   [[nodiscard]] inline size_type getNumSamples() const noexcept { return mNSamples; };
+
+  friend void swap(FrequencyContainerBase& a, FrequencyContainerBase& b) noexcept
+  {
+    using std::swap;
+    swap(a.mNSamples, b.mNSamples);
+    swap(static_cast<typename FrequencyContainerBase::base_type&>(a),
+         static_cast<typename FrequencyContainerBase::base_type&>(b));
+  };
+
+ protected:
+  inline bool isValidSymbol(const value_type& value) const noexcept
+  {
+    return value > 0;
+  };
+
+  [[nodiscard]] inline const_reference getSymbol(source_type sourceSymbol) const
+  {
+    assert(sourceSymbol - this->getOffset() < this->size());
+
+    // LOGP(info, "{} vs {}", fmt::ptr(this->mContainer.data() + sourceSymbol - this->getOffset()), fmt::ptr(this->mBegin + sourceSymbol));
+
+    return this->mBegin[sourceSymbol];
+  };
+
+  [[nodiscard]] inline reference getSymbol(source_type sourceSymbol)
+  {
+    return const_cast<reference>(static_cast<const FrequencyContainerBase&>(*this).getSymbol(sourceSymbol));
+  };
+
+  inline void setOffset(source_type newOffset) noexcept
+  {
+    this->mOffset = newOffset;
+    this->mBegin = this->mContainer.data() - this->getOffset();
+  };
+
+  FrequencyContainerBase() = default;
+  FrequencyContainerBase(size_type size, source_type offset) : base_type(size, offset){};
+
+  size_type mNSamples{};
+  pointer mBegin{};
+};
+
+template <typename source_T, class = void>
+class FrequencyContainer;
+
+template <typename source_T>
+class FrequencyContainer<source_T, std::enable_if_t<(sizeof(source_T) <= 2)>> : public FrequencyContainerBase<source_T>
+{
+  using base_type = FrequencyContainerBase<source_T>;
+
+ public:
+  using source_type = typename base_type::source_type;
+  using value_type = typename base_type::value_type;
+  using container_type = typename base_type::container_type;
+  using size_type = typename base_type::size_type;
+  using difference_type = typename base_type::difference_type;
+  using reference = typename base_type::reference;
+  using const_reference = typename base_type::const_reference;
+  using pointer = typename base_type::pointer;
+  using const_pointer = typename base_type::const_pointer;
+  using const_iterator = typename base_type::const_iterator;
+
+  [[nodiscard]] inline constexpr size_type size() const noexcept { return internal::pow2(internal::toBits(sizeof(source_type))); };
 
   friend void swap(FrequencyContainer& a, FrequencyContainer& b) noexcept
   {
     using std::swap;
-    swap(a.mNSamples, b.mNSamples);
+    swap(static_cast<typename FrequencyContainer::base_type&>(a),
+         static_cast<typename FrequencyContainer::base_type&>(b));
+  }
+
+ protected:
+  FrequencyContainer() : base_type()
+  {
+    this->mContainer.resize(this->size(), 0);
+    this->setOffset(std::numeric_limits<source_type>::min());
+  };
+};
+
+template <typename source_T>
+class FrequencyContainer<source_T, std::enable_if_t<(sizeof(source_T) == 4)>> : public FrequencyContainerBase<source_T>
+{
+  using base_type = FrequencyContainerBase<source_T>;
+
+ public:
+  using source_type = typename base_type::source_type;
+  using value_type = typename base_type::value_type;
+  using container_type = typename base_type::container_type;
+  using size_type = typename base_type::size_type;
+  using difference_type = typename base_type::difference_type;
+  using reference = typename base_type::reference;
+  using const_reference = typename base_type::const_reference;
+  using pointer = typename base_type::pointer;
+  using const_pointer = typename base_type::const_pointer;
+  using const_iterator = typename base_type::const_iterator;
+
+  friend void swap(FrequencyContainer& a, FrequencyContainer& b) noexcept
+  {
+    using std::swap;
     swap(static_cast<typename FrequencyContainer::base_type&>(a),
          static_cast<typename FrequencyContainer::base_type&>(b));
   };
 
  protected:
   FrequencyContainer() = default;
-
-  size_type mNSamples{};
 };
 
 } // namespace internal

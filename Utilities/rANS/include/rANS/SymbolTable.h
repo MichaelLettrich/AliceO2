@@ -14,8 +14,8 @@
 /// @since  2019-06-21
 /// @brief  Container for information needed to encode/decode a symbol of the alphabet
 
-#ifndef RANS_DYNAMICSYMBOLTABLE_H
-#define RANS_DYNAMICSYMBOLTABLE_H
+#ifndef RANS_SYMBOLTABLE_H
+#define RANS_SYMBOLTABLE_H
 
 #include <vector>
 #include <cstdint>
@@ -23,35 +23,25 @@
 #include <fairlogger/Logger.h>
 
 #include "rANS/definitions.h"
-#include "rANS/internal/Symbol.h"
 
-#include "rANS/internal/SymbolTableContainer.h"
+#include "rANS/internal/ContainerInterface.h"
 #include "rANS/RenormedFrequencies.h"
+#include "rANS/utils/HistogramView.h"
 
 namespace o2
 {
 namespace rans
 {
 
-template <class source_T, class value_T>
-class DynamicSymbolTable : public internal::SymbolTableContainer<source_T,
-                                                                 source_T,
-                                                                 value_T,
-                                                                 std::vector<value_T>,
-                                                                 const value_T*,
-                                                                 DynamicSymbolTable<source_T, value_T>>
+template <class source_T, class symbol_T>
+class SymbolTable : public internal::ContainerInterface<source_T, symbol_T, SymbolTable<source_T, symbol_T>>
 {
-  using base_type = internal::SymbolTableContainer<source_T,
-                                                   source_T,
-                                                   value_T,
-                                                   std::vector<value_T>,
-                                                   const value_T*,
-                                                   DynamicSymbolTable<source_T, value_T>>;
+  using base_type = internal::ContainerInterface<source_T, symbol_T, SymbolTable<source_T, symbol_T>>;
+  friend base_type;
 
  public:
   using source_type = typename base_type::source_type;
-  using index_type = typename base_type::index_type;
-  using value_type = typename base_type::value_type;
+  using symbol_type = typename base_type::value_type;
   using container_type = typename base_type::container_type;
   using size_type = typename base_type::size_type;
   using difference_type = typename base_type::difference_type;
@@ -61,13 +51,9 @@ class DynamicSymbolTable : public internal::SymbolTableContainer<source_T,
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
 
-  DynamicSymbolTable() = default;
+  SymbolTable() = default;
 
-  DynamicSymbolTable(const RenormedDynamicFrequencyTable<source_type>& renormedFrequencies);
-
-  [[nodiscard]] inline const_iterator cbegin() const noexcept { return this->data(); };
-
-  [[nodiscard]] inline const_iterator cend() const noexcept { return this->data() + this->size(); };
+  SymbolTable(const RenormedFrequencyTable<source_type>& renormedFrequencies);
 
   [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const noexcept
   {
@@ -85,7 +71,7 @@ class DynamicSymbolTable : public internal::SymbolTableContainer<source_T,
     const size_type index = static_cast<size_type>(sourceSymbol - this->getOffset());
     // static cast to unsigned: idx < 0 => (uint)idx > MAX_INT => idx > mIndex.size()
     if (index < this->size()) {
-      return &(this->mContainer[index]);
+      return this->mContainer.data() + index;
     } else {
       return nullptr;
     }
@@ -96,36 +82,48 @@ class DynamicSymbolTable : public internal::SymbolTableContainer<source_T,
     return mStartAddress + sourceSymbol;
   };
 
-  [[nodiscard]] inline const_pointer data() const noexcept { return this->mContainer.data(); };
-
   [[nodiscard]] inline size_type size() const noexcept { return mSize; };
 
-  [[nodiscard]] inline size_type computeNUsedAlphabetSymbols() const noexcept
-  {
-    return std::count_if(this->begin(), this->end(), [this](const_reference v) { return !this->isEscapeSymbol(v); });
-  };
+  [[nodiscard]] inline const_reference getEscapeSymbol() const noexcept { return mEscapeSymbol; };
 
-  friend void swap(DynamicSymbolTable& a, DynamicSymbolTable& b) noexcept
+  [[nodiscard]] inline bool isEscapeSymbol(const_reference symbol) const noexcept { return symbol == mEscapeSymbol; };
+
+  [[nodiscard]] inline bool isEscapeSymbol(source_type sourceSymbol) const noexcept { return this->operator[](sourceSymbol) == mEscapeSymbol; };
+
+  [[nodiscard]] inline size_type getPrecision() const noexcept { return mSymbolTablePrecision; };
+
+  friend void swap(SymbolTable& a, SymbolTable& b) noexcept
   {
     using std::swap;
-    swap(static_cast<typename DynamicSymbolTable::base_type&>(a),
-         static_cast<typename DynamicSymbolTable::base_type&>(b));
+    swap(static_cast<typename SymbolTable::base_type&>(a),
+         static_cast<typename SymbolTable::base_type&>(b));
     swap(a.mSize, b.mSize);
     swap(a.mStartAddress, b.mStartAddress);
-  };
+    swap(a.mEscapeSymbol, b.mEscapeSymbol);
+    swap(a.mSymbolTablePrecision, b.mSymbolTablePrecision);
+  }
 
  protected:
+  [[nodiscard]] inline bool isValidSymbol(const symbol_type& value) const noexcept
+  {
+    return !this->isEscapeSymbol(value);
+  };
+
   size_t mSize = 0;
   const_pointer mStartAddress = {};
-}; // namespace rans
+  symbol_type mEscapeSymbol{};
+  size_type mSymbolTablePrecision{};
+};
 
 template <class source_T, class value_T>
-DynamicSymbolTable<source_T, value_T>::DynamicSymbolTable(const RenormedDynamicFrequencyTable<source_type>& frequencyTable)
+SymbolTable<source_T, value_T>::SymbolTable(const RenormedFrequencyTable<source_type>& frequencyTable)
 {
   using count_type = typename value_T::value_type;
 
-  this->mContainer.reserve(frequencyTable.size());
-  this->mOffset = frequencyTable.getOffset();
+  auto frequencyTableView = utils::trim(utils::HistogramView(frequencyTable.begin(), frequencyTable.end(), frequencyTable.getOffset()));
+
+  this->mContainer.reserve(frequencyTableView.size());
+  this->mOffset = frequencyTableView.getOffset();
   this->mSymbolTablePrecision = frequencyTable.getRenormingBits();
   this->mEscapeSymbol = [&]() -> value_T {
     const count_type symbolFrequency = frequencyTable.getIncompressibleSymbolFrequency();
@@ -134,7 +132,7 @@ DynamicSymbolTable<source_T, value_T>::DynamicSymbolTable(const RenormedDynamicF
   }();
 
   count_type cumulatedFrequency = 0;
-  for (const auto symbolFrequency : frequencyTable) {
+  for (const auto symbolFrequency : frequencyTableView) {
     if (symbolFrequency) {
       this->mContainer.emplace_back(symbolFrequency, cumulatedFrequency, this->getPrecision());
       cumulatedFrequency += symbolFrequency;
@@ -143,16 +141,10 @@ DynamicSymbolTable<source_T, value_T>::DynamicSymbolTable(const RenormedDynamicF
     }
   }
   mSize = this->mContainer.size();
-  mStartAddress = this->mContainer.data() + this->getOffset();
-};
-
-template <typename source_T, class symbol_T>
-inline DynamicSymbolTable<source_T, symbol_T> makeSymbolTable(RenormedDynamicFrequencyTable<source_T> table)
-{
-  return {std::move(table)};
+  mStartAddress = this->mContainer.data() - this->getOffset();
 };
 
 } // namespace rans
 } // namespace o2
 
-#endif /* RANS_DYNAMICSYMBOLTABLE_H */
+#endif /* RANS_SYMBOLTABLE_H */
