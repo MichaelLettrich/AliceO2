@@ -19,8 +19,9 @@
 
 #include <cstdint>
 #include <string>
-#include <vector>
 #include <algorithm>
+
+#include "rANS/internal/ShiftedVector.h"
 
 namespace o2
 {
@@ -36,40 +37,50 @@ class ContainerInterface
  public:
   using source_type = source_T;
   using value_type = value_T;
-  using container_type = std::vector<value_type>;
-  using size_type = size_t;
-  using difference_type = std::ptrdiff_t;
-  using reference = value_type&;
-  using const_reference = const value_type&;
-  using pointer = value_type*;
-  using const_pointer = const value_type*;
-  using const_iterator = const value_type*;
+  using container_type = ShiftedVector<source_type, value_type>;
+  using size_type = typename container_type::size_type;
+  using difference_type = typename container_type::difference_type;
+  using reference = typename container_type::reference;
+  using const_reference = typename container_type::const_reference;
+  using pointer = typename container_type::pointer;
+  using const_pointer = typename container_type::const_pointer;
+  using const_iterator = typename container_type::const_iterator;
+  using iterator = const_iterator;
+  using const_reverse_iterator = typename container_type::const_reverse_iterator;
+  using reverse_iterator = const_reverse_iterator;
 
   // accessors
-  [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const { return static_cast<const derived_T*>(this)->operator[](sourceSymbol); };
+  [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const { return this->mContainer[sourceSymbol]; };
 
   [[nodiscard]] inline const_pointer data() const noexcept { return this->mContainer.data(); };
 
-  [[nodiscard]] inline const_iterator cbegin() const noexcept { return this->data(); };
+  [[nodiscard]] inline const_iterator cbegin() const noexcept { return this->mContainer.cbegin(); };
 
-  [[nodiscard]] inline const_iterator cend() const noexcept { return this->data() + this->size(); };
+  [[nodiscard]] inline const_iterator cend() const noexcept { return this->mContainer.cend(); };
 
-  [[nodiscard]] inline const_iterator begin() const noexcept { return cbegin(); };
+  [[nodiscard]] inline const_iterator begin() const noexcept { return this->mContainer.begin(); };
 
-  [[nodiscard]] inline const_iterator end() const noexcept { return cend(); };
+  [[nodiscard]] inline const_iterator end() const noexcept { return this->mContainer.end(); };
+
+  [[nodiscard]] inline const_reverse_iterator crbegin() const noexcept { return std::reverse_iterator{this->cend()}; };
+
+  [[nodiscard]] inline const_reverse_iterator crend() const noexcept { return std::reverse_iterator{this->cbegin()}; };
+
+  [[nodiscard]] inline const_reverse_iterator rbegin() const noexcept { return crbegin(); };
+
+  [[nodiscard]] inline const_reverse_iterator rend() const noexcept { return crend(); };
 
   [[nodiscard]] inline size_type size() const noexcept { return this->mContainer.size(); };
 
-  [[nodiscard]] inline bool empty() const noexcept { return mContainer.empty(); };
+  [[nodiscard]] inline bool empty() const noexcept { return this->mContainer.empty(); };
 
-  [[nodiscard]] inline source_type getOffset() const noexcept { return mOffset; };
+  [[nodiscard]] inline source_type getOffset() const noexcept { return this->mContainer.getOffset(); };
 
   [[nodiscard]] inline container_type release() && noexcept { return std::move(this->mContainer); };
 
   friend void swap(ContainerInterface& a, ContainerInterface& b) noexcept
   {
     using std::swap;
-    swap(a.mOffset, b.mOffset);
     swap(a.mContainer, b.mContainer);
   };
 
@@ -85,9 +96,8 @@ class ContainerInterface
   };
 
   ContainerInterface() = default;
-  ContainerInterface(size_type size, source_type offset) : mOffset(offset), mContainer(size){};
+  ContainerInterface(size_type size, source_type offset) : mContainer{size, offset} {};
 
-  source_type mOffset{};
   container_type mContainer{};
 };
 } // namespace internal

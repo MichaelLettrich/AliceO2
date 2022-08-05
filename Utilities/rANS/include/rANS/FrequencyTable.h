@@ -196,6 +196,9 @@ class FrequencyTable<source_T, std::enable_if_t<sizeof(source_T) == 4>> : public
   using pointer = typename containerBase_type::pointer;
   using const_pointer = typename containerBase_type::const_pointer;
   using const_iterator = typename containerBase_type::const_iterator;
+  using iterator = typename containerBase_type::iterator;
+  using const_reverse_iterator = typename containerBase_type::const_reverse_iterator;
+  using reverse_iterator = typename containerBase_type::reverse_iterator;
 
   FrequencyTable() = default;
 
@@ -276,9 +279,9 @@ inline auto FrequencyTable<source_T, std::enable_if_t<sizeof(source_T) == 4>>::a
 
   auto addQWord = [&, this](uint64_t in64) {
     uint64_t i = in64;
-    ++this->mContainer[static_cast<source_type>(i) - offset];
+    ++this->mContainer[static_cast<source_type>(i)];
     i = in64 >> 32;
-    ++this->mContainer[static_cast<source_type>(i) - offset];
+    ++this->mContainer[static_cast<source_type>(i)];
   };
 
   if (end - nUnroll > begin) {
@@ -294,7 +297,7 @@ inline auto FrequencyTable<source_T, std::enable_if_t<sizeof(source_T) == 4>>::a
 
   while (iter != end) {
     ++this->mNSamples;
-    ++this->mContainer[(*iter++) - offset];
+    ++this->mContainer[*iter++];
   }
   return *this;
 };
@@ -308,7 +311,8 @@ auto FrequencyTable<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addSampl
   } else {
     this->resize(min, max);
     // add new symbols
-    std::for_each(begin, end, [this](source_type symbol) { ++this->getSymbol(symbol);
+    std::for_each(begin, end, [this](source_type symbol) { 
+      ++this->mContainer[symbol];
           ++this->mNSamples; });
   }
   return *this;
@@ -324,7 +328,7 @@ auto FrequencyTable<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addFrequ
     return frequency;
   };
 
-  auto thisHistogram = utils::HistogramView{this->mContainer.begin(), this->mContainer.end(), this->getOffset()};
+  auto thisHistogram = utils::HistogramView{this->mContainer.begin(), this->mContainer.end(), this->mContainer.getOffset()};
   auto addedHistogram = utils::trim(utils::HistogramView{begin, end, offset});
   if (addedHistogram.empty()) {
     LOG(warning) << "Passed empty FrequencyTable to " << __func__; // RS this is ok for empty columns
@@ -334,14 +338,13 @@ auto FrequencyTable<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addFrequ
     const symbol_t newMax = std::max(thisHistogram.getMax(), addedHistogram.getMax());
 
     if (thisHistogram.empty()) {
-      this->mContainer = histogram_t(addedHistogram.size());
+      this->mContainer = container_type(addedHistogram.size(), addedHistogram.getOffset());
       std::transform(addedHistogram.begin(), addedHistogram.end(), this->mContainer.begin(), [this, frequencyCountingDecorator](count_t frequency) {
         return frequencyCountingDecorator(frequency);
       });
-      this->setOffset(addedHistogram.getOffset());
     } else {
       const symbol_t newSize = newMax - newMin + 1;
-      histogram_t newFreequencyTable(newSize, 0);
+      typename container_type::container_type newFreequencyTable(newSize, 0);
       auto newHistogram = utils::HistogramView{newFreequencyTable.begin(), newFreequencyTable.end(), newMin};
       auto histogramOverlap = utils::intersection(newHistogram, thisHistogram);
       assert(!histogramOverlap.empty());
@@ -355,8 +358,7 @@ auto FrequencyTable<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addFrequ
                      histogramOverlap.begin(), histogramOverlap.begin(),
                      [this, frequencyCountingDecorator](const count_t& a, const count_t& b) { return frequencyCountingDecorator(a) + b; });
 
-      this->mContainer = std::move(newFreequencyTable);
-      this->setOffset(newHistogram.getOffset());
+      this->mContainer = container_type{std::move(newFreequencyTable), static_cast<source_type>(newHistogram.getOffset())};
     }
   }
 
@@ -383,14 +385,12 @@ auto FrequencyTable<source_T, std::enable_if_t<sizeof(source_T) == 4>>::resize(s
   this->mNSamples = 0;
 
   if (this->mContainer.empty()) {
-    this->mContainer.resize(newSize, 0);
-    this->setOffset(min);
+    this->mContainer = container_type{newSize, min};
     return *this;
   } else {
     container_type oldFrequencyTable = std::move(this->mContainer);
     auto oldHistogram = utils::HistogramView{oldFrequencyTable.begin(), oldFrequencyTable.end(), oldOffset};
-    this->mContainer = histogram_t(newSize, 0);
-    this->setOffset(min);
+    this->mContainer = container_type{newSize, min};
     return this->addFrequencies(oldHistogram.begin(), oldHistogram.end(), oldHistogram.getMin());
   }
 }
@@ -415,6 +415,9 @@ class FrequencyTable<source_T, std::enable_if_t<sizeof(source_T) <= 2>> : public
   using pointer = typename containerBase_type::pointer;
   using const_pointer = typename containerBase_type::const_pointer;
   using const_iterator = typename containerBase_type::const_iterator;
+  using iterator = typename containerBase_type::iterator;
+  using const_reverse_iterator = typename containerBase_type::const_reverse_iterator;
+  using reverse_iterator = typename containerBase_type::reverse_iterator;
 
   FrequencyTable() = default;
 
@@ -449,7 +452,7 @@ auto FrequencyTable<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addSampl
   } else {
     std::for_each(begin, end, [this](const source_type& symbol) { 
       ++this->mNSamples;
-      ++this->getSymbol(symbol); });
+       ++this->mContainer[symbol]; });
   }
   return *this;
 }
@@ -470,25 +473,24 @@ auto FrequencyTable<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addSampl
 
   if constexpr (sizeof(source_type) == 1) {
 
-    alignas(64) value_type histogramsData[3][256]{0}; // align to cache-line
-    pointer histograms[4]{histogramsData[0] - this->getOffset(),
-                          histogramsData[1] - this->getOffset(),
-                          histogramsData[2] - this->getOffset(),
-                          this->mBegin};
+    std::array<internal::ShiftedVector<source_type, value_type>, 3> histograms{
+      {{this->mContainer.size(), this->mContainer.getOffset()},
+       {this->mContainer.size(), this->mContainer.getOffset()},
+       {this->mContainer.size(), this->mContainer.getOffset()}}};
 
     auto addQWord = [&, this](uint64_t in64) {
       uint64_t i = in64;
-      ++histograms[0][static_cast<source_type>(static_cast<uint8_t>(i))];
+      ++histograms[0][static_cast<source_type>(i)];
       ++histograms[1][static_cast<source_type>(static_cast<uint16_t>(i) >> 8)];
       i >>= 16;
-      ++histograms[2][static_cast<source_type>(static_cast<uint8_t>(i))];
-      ++histograms[3][static_cast<source_type>(static_cast<uint16_t>(i) >> 8)];
+      ++histograms[2][static_cast<source_type>(i)];
+      ++this->mContainer[static_cast<source_type>(static_cast<uint16_t>(i) >> 8)];
       i = in64 >>= 32;
-      ++histograms[0][static_cast<source_type>(static_cast<uint8_t>(i))];
+      ++histograms[0][static_cast<source_type>(i)];
       ++histograms[1][static_cast<source_type>(static_cast<uint16_t>(i) >> 8)];
       i >>= 16;
-      ++histograms[2][static_cast<source_type>(static_cast<uint8_t>(i))];
-      ++histograms[3][static_cast<source_type>(static_cast<uint16_t>(i) >> 8)];
+      ++histograms[2][static_cast<source_type>(i)];
+      ++this->mContainer[static_cast<source_type>(static_cast<uint16_t>(i) >> 8)];
     };
 
     if (end - nUnroll > begin) {
@@ -502,28 +504,26 @@ auto FrequencyTable<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addSampl
 
     while (iter != end) {
       ++this->mNSamples;
-      ++this->getSymbol(*iter++);
+      ++this->mContainer[*iter++];
     }
 
 #pragma gcc unroll(3)
     for (size_t j = 0; j < 3; ++j) {
 #pragma omp simd
       for (size_t i = 0; i < 256; ++i) {
-        this->mContainer.data()[i] += histogramsData[j][i];
+        this->mContainer(i) += histograms[j](i);
       }
     }
   } else {
-    container_type histogram(this->size(), 0);
-    pointer histograms[2]{histogram.data() - this->getOffset(),
-                          this->mBegin};
+    container_type histogram{this->mContainer.size(), this->mContainer.getOffset()};
 
     auto addQWord = [&, this](uint64_t in64) {
       uint64_t i = in64;
-      ++histograms[0][static_cast<source_type>(static_cast<uint16_t>(i))];
-      ++histograms[1][static_cast<source_type>(static_cast<uint32_t>(i) >> 16)];
+      ++histogram[static_cast<source_type>(i)];
+      ++this->mContainer[static_cast<source_type>(static_cast<uint32_t>(i) >> 16)];
       i = in64 >> 32;
-      ++histograms[0][static_cast<source_type>(static_cast<uint16_t>(i))];
-      ++histograms[1][static_cast<source_type>(static_cast<uint32_t>(i) >> 16)];
+      ++histogram[static_cast<source_type>(i)];
+      ++this->mContainer[static_cast<source_type>(static_cast<uint32_t>(i) >> 16)];
     };
 
     if (end - nUnroll > begin) {
@@ -537,7 +537,7 @@ auto FrequencyTable<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addSampl
 
     while (iter != end) {
       ++this->mNSamples;
-      ++this->getSymbol(*iter++);
+      ++this->mContainer[*iter++];
     }
 
 #pragma omp simd
@@ -556,7 +556,7 @@ auto FrequencyTable<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addFrequ
   // bounds check
   utils::HistogramView addedHistogram{begin, end, offset};
   utils::HistogramView<typename container_type::iterator> thisHistogram{};
-  thisHistogram = utils::HistogramView{this->mContainer.begin(), this->mContainer.end(), this->getOffset()};
+  thisHistogram = utils::HistogramView{this->mContainer.begin(), this->mContainer.end(), this->mContainer.getOffset()};
   const bool invalidBounds = (utils::leftOffset(thisHistogram, addedHistogram) < 0) || (utils::rightOffset(thisHistogram, addedHistogram) > 0);
 
   if (invalidBounds) {
@@ -570,7 +570,7 @@ auto FrequencyTable<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addFrequ
   auto iter = addedHistogram.begin();
   for (source_type i = addedHistogram.getOffset(); i < static_cast<source_type>(addedHistogram.getOffset() + addedHistogram.size()); ++i) {
     this->mNSamples += *iter;
-    this->getSymbol(i) += *iter;
+    this->mContainer[i] += *iter;
     ++iter;
   };
   return *this;

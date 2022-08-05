@@ -50,6 +50,9 @@ class SymbolTable : public internal::ContainerInterface<source_T, symbol_T, Symb
   using pointer = typename base_type::pointer;
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
+  using iterator = typename base_type::iterator;
+  using const_reverse_iterator = typename base_type::const_reverse_iterator;
+  using reverse_iterator = typename base_type::reverse_iterator;
 
   SymbolTable() = default;
 
@@ -60,7 +63,7 @@ class SymbolTable : public internal::ContainerInterface<source_T, symbol_T, Symb
     const size_type index = static_cast<size_type>(sourceSymbol - this->getOffset());
     // static cast to unsigned: idx < 0 => (uint)idx > MAX_INT => idx > mIndex.size()
     if (index < this->size()) {
-      return this->mContainer[index];
+      return this->mContainer[sourceSymbol];
     } else {
       return this->getEscapeSymbol();
     }
@@ -79,7 +82,7 @@ class SymbolTable : public internal::ContainerInterface<source_T, symbol_T, Symb
 
   [[nodiscard]] inline const_pointer lookupUnsafe(source_type sourceSymbol) const
   {
-    return mStartAddress + sourceSymbol;
+    return &this->mContainer[sourceSymbol];
   };
 
   [[nodiscard]] inline size_type size() const noexcept { return mSize; };
@@ -98,7 +101,6 @@ class SymbolTable : public internal::ContainerInterface<source_T, symbol_T, Symb
     swap(static_cast<typename SymbolTable::base_type&>(a),
          static_cast<typename SymbolTable::base_type&>(b));
     swap(a.mSize, b.mSize);
-    swap(a.mStartAddress, b.mStartAddress);
     swap(a.mEscapeSymbol, b.mEscapeSymbol);
     swap(a.mSymbolTablePrecision, b.mSymbolTablePrecision);
   }
@@ -110,7 +112,6 @@ class SymbolTable : public internal::ContainerInterface<source_T, symbol_T, Symb
   };
 
   size_t mSize = 0;
-  const_pointer mStartAddress = {};
   symbol_type mEscapeSymbol{};
   size_type mSymbolTablePrecision{};
 };
@@ -123,7 +124,6 @@ SymbolTable<source_T, value_T>::SymbolTable(const RenormedFrequencyTable<source_
   auto frequencyTableView = utils::trim(utils::HistogramView(frequencyTable.begin(), frequencyTable.end(), frequencyTable.getOffset()));
 
   this->mContainer.reserve(frequencyTableView.size());
-  this->mOffset = frequencyTableView.getOffset();
   this->mSymbolTablePrecision = frequencyTable.getRenormingBits();
   this->mEscapeSymbol = [&]() -> value_T {
     const count_type symbolFrequency = frequencyTable.getIncompressibleSymbolFrequency();
@@ -140,8 +140,8 @@ SymbolTable<source_T, value_T>::SymbolTable(const RenormedFrequencyTable<source_
       this->mContainer.push_back(this->mEscapeSymbol);
     }
   }
+  this->mContainer.setOffset(frequencyTableView.getOffset());
   mSize = this->mContainer.size();
-  mStartAddress = this->mContainer.data() - this->getOffset();
 };
 
 } // namespace rans
