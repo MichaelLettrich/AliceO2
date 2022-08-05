@@ -17,8 +17,7 @@
 
 #include "rANSLegacy/rans.h"
 #include "rANSLegacy/FrequencyTable.h"
-#include "rANS/StaticFrequencyTable.h"
-#include "rANS/DynamicFrequencyTable.h"
+#include "rANS/FrequencyTable.h"
 #include "rANS/RenormedFrequencies.h"
 #include "rANSLegacy/RenormedFrequencyTable.h"
 #include "rANS/renorm.h"
@@ -28,7 +27,6 @@ namespace bpo = boost::program_options;
 #ifdef ENABLE_VTUNE_PROFILER
 __itt_domain* dynamicDomain = __itt_domain_create("dynamicDomain");
 __itt_domain* staticDomain = __itt_domain_create("staticDomain");
-__itt_domain* hashDomain = __itt_domain_create("hashDomain");
 __itt_domain* oldDomain = __itt_domain_create("oldDomain");
 
 __itt_string_handle* frequencyTask = __itt_string_handle_create("FrequencyTable");
@@ -328,7 +326,7 @@ double_t computeBandwidth(size_t sizeBytes, double_t timerMS)
 };
 
 template <typename source_T>
-void buildDynamicFrequencyTable(const std::vector<source_T>& inputData, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
+void buildOldFrequencyTable(const std::vector<source_T>& inputData, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
 {
   using namespace o2;
   ranslegacy::internal::RANSTimer timer{};
@@ -364,7 +362,7 @@ void buildDynamicFrequencyTable(const std::vector<source_T>& inputData, rapidjso
 };
 
 template <typename source_T>
-void buildBoundedDynamicFrequencyTable(const std::vector<source_T>& inputData, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
+void buildNewFrequencyTable(const std::vector<source_T>& inputData, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
 {
   using namespace o2;
   ranslegacy::internal::RANSTimer timer{};
@@ -373,7 +371,7 @@ void buildBoundedDynamicFrequencyTable(const std::vector<source_T>& inputData, r
   timer.start();
 
   __itt_task_begin(dynamicDomain, __itt_null, __itt_null, frequencyTask);
-  auto frequencyTable = rans::DynamicFrequencyTable<source_T>{};
+  auto frequencyTable = rans::FrequencyTable<source_T>{};
   frequencyTable.addSamples(gsl::make_span(inputData));
   __itt_task_end(dynamicDomain);
 
@@ -400,46 +398,6 @@ void buildBoundedDynamicFrequencyTable(const std::vector<source_T>& inputData, r
 };
 
 template <typename source_T>
-void buildStaticFrequencyTable(const std::vector<source_T>& inputData, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
-{
-  using namespace o2;
-  rans::internal::RANSTimer timer{};
-  double_t timeMs = 0;
-
-  timer.start();
-
-  __itt_task_begin(staticDomain, __itt_null, __itt_null, frequencyTask);
-  auto frequencyTable = rans::StaticFrequencyTable<source_T>{};
-  frequencyTable.addSamples(gsl::make_span(inputData));
-  __itt_task_end(staticDomain);
-
-  timer.stop();
-  writer.Key("FrequencyTable");
-  timeMs = timer.getDurationMS();
-  writer.Double(timeMs);
-  LOGP(info, "\t\tBuilt frequency table in {} ms ( {} MiB/s)", timeMs, computeBandwidth<source_T>(inputData.size(), timeMs));
-  writer.Key("Renorm");
-  try {
-    timer.start();
-    __itt_task_begin(staticDomain, __itt_null, __itt_null, renormTask);
-    auto renormedFrequencyTable = rans::renormCutoffIncompressible(std::move(frequencyTable));
-    __itt_task_end(staticDomain);
-    timer.stop();
-    timeMs = timer.getDurationMS();
-    writer.Double(timeMs);
-  } catch (...) {
-    LOGP(warning, "failed to renorm");
-    timeMs = 0;
-    writer.String("NaN");
-  }
-  LOGP(info, "\t\tRenormed in {} ms ( {} MiB/s)", timeMs, computeBandwidth<source_T>(inputData.size(), timeMs));
-};
-
-template <typename source_T,
-          bool dynamicEnable = false,
-          bool boundedDynamicEnable = false,
-          bool staticEnable = false,
-          bool hashEnable = false>
 void processColumn(const std::string& name, const std::vector<source_T>& inputData, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
 {
   using namespace o2;
@@ -454,28 +412,16 @@ void processColumn(const std::string& name, const std::vector<source_T>& inputDa
   LOG(info) << "##########################";
   LOGP(info, "processing: {} (nItems: {}, size: {} MiB)", name, inputData.size(), inputData.size() * sizeof(source_T) / 1024.0 / 1024.0);
 
-  writer.Key("DynamicFrequencyTable");
-  LOGP(info, "DynamicFrequencyTable");
+  writer.Key("OldFrequencyTable");
+  LOGP(info, "OldFrequencyTable");
   writer.StartObject();
-  if constexpr (dynamicEnable) {
-    buildDynamicFrequencyTable<source_T>(inputData, writer);
-  }
+  buildOldFrequencyTable<source_T>(inputData, writer);
   writer.EndObject();
 
-  writer.Key("DynamicBoundedFrequencyTable");
-  LOGP(info, "DynamicBoundedFrequencyTable");
+  writer.Key("NewFrequencyTable");
+  LOGP(info, "NewFrequencyTable");
   writer.StartObject();
-  if constexpr (boundedDynamicEnable) {
-    buildBoundedDynamicFrequencyTable<source_T>(inputData, writer);
-  }
-  writer.EndObject();
-
-  writer.Key("StaticFrequencyTable");
-  LOGP(info, "StaticFrequencyTable");
-  writer.StartObject();
-  if constexpr (staticEnable) {
-    buildStaticFrequencyTable<source_T>(inputData, writer);
-  }
+  buildNewFrequencyTable<source_T>(inputData, writer);
   writer.EndObject();
 
   writer.EndObject(); // Timing
@@ -553,29 +499,29 @@ int main(int argc, char* argv[])
 #ifdef ENABLE_VTUNE_PROFILER
   __itt_resume();
 #endif
-  processColumn<uint16_t, true, true, true, true>("qTotA", compressedClusters.qTotA, writer);
-  processColumn<uint16_t, true, true, true, true>("qMaxA", compressedClusters.qMaxA, writer);
-  processColumn<uint8_t, true, true, true, true>("flagsA", compressedClusters.flagsA, writer);
-  processColumn<uint8_t, true, true, true, true>("rowDiffA", compressedClusters.rowDiffA, writer);
-  processColumn<uint8_t, true, true, true, true>("sliceLegDiffA", compressedClusters.sliceLegDiffA, writer);
-  processColumn<uint16_t, true, true, true, true>("padResA", compressedClusters.padResA, writer);
-  processColumn<uint32_t, true, true, false, true>("timeResA", compressedClusters.timeResA, writer);
-  processColumn<uint8_t, true, true, true, true>("sigmaPadA", compressedClusters.sigmaPadA, writer);
-  processColumn<uint8_t, true, true, true, true>("sigmaTimeA", compressedClusters.sigmaTimeA, writer);
-  processColumn<uint8_t, true, true, true, true>("qPtA", compressedClusters.qPtA, writer);
-  processColumn<uint8_t, true, true, true, true>("rowA", compressedClusters.rowA, writer);
-  processColumn<uint8_t, true, true, true, true>("sliceA", compressedClusters.sliceA, writer);
-  processColumn<uint32_t, true, true, false, true>("timeA", compressedClusters.timeA, writer);
-  processColumn<uint16_t, true, true, true, true>("padA", compressedClusters.padA, writer);
-  processColumn<uint16_t, true, true, true, true>("qTotU", compressedClusters.qTotU, writer);
-  processColumn<uint16_t, true, true, true, true>("qMaxU", compressedClusters.qMaxU, writer);
-  processColumn<uint8_t, true, true, true, true>("flagsU", compressedClusters.flagsU, writer);
-  processColumn<uint16_t, true, true, true, true>("padDiffU", compressedClusters.padDiffU, writer);
-  processColumn<uint32_t, true, true, false, true>("timeDiffU", compressedClusters.timeDiffU, writer);
-  processColumn<uint8_t, true, true, true, true>("sigmaPadU", compressedClusters.sigmaPadU, writer);
-  processColumn<uint8_t, true, true, true, true>("sigmaTimeU", compressedClusters.sigmaTimeU, writer);
-  processColumn<uint16_t, true, true, true, true>("nTrackClusters", compressedClusters.nTrackClusters, writer);
-  processColumn<uint32_t, true, true, false, true>("nSliceRowClusters", compressedClusters.nSliceRowClusters, writer);
+  processColumn<uint16_t>("qTotA", compressedClusters.qTotA, writer);
+  processColumn<uint16_t>("qMaxA", compressedClusters.qMaxA, writer);
+  processColumn<uint8_t>("flagsA", compressedClusters.flagsA, writer);
+  processColumn<uint8_t>("rowDiffA", compressedClusters.rowDiffA, writer);
+  processColumn<uint8_t>("sliceLegDiffA", compressedClusters.sliceLegDiffA, writer);
+  processColumn<uint16_t>("padResA", compressedClusters.padResA, writer);
+  processColumn<uint32_t>("timeResA", compressedClusters.timeResA, writer);
+  processColumn<uint8_t>("sigmaPadA", compressedClusters.sigmaPadA, writer);
+  processColumn<uint8_t>("sigmaTimeA", compressedClusters.sigmaTimeA, writer);
+  processColumn<uint8_t>("qPtA", compressedClusters.qPtA, writer);
+  processColumn<uint8_t>("rowA", compressedClusters.rowA, writer);
+  processColumn<uint8_t>("sliceA", compressedClusters.sliceA, writer);
+  processColumn<uint32_t>("timeA", compressedClusters.timeA, writer);
+  processColumn<uint16_t>("padA", compressedClusters.padA, writer);
+  processColumn<uint16_t>("qTotU", compressedClusters.qTotU, writer);
+  processColumn<uint16_t>("qMaxU", compressedClusters.qMaxU, writer);
+  processColumn<uint8_t>("flagsU", compressedClusters.flagsU, writer);
+  processColumn<uint16_t>("padDiffU", compressedClusters.padDiffU, writer);
+  processColumn<uint32_t>("timeDiffU", compressedClusters.timeDiffU, writer);
+  processColumn<uint8_t>("sigmaPadU", compressedClusters.sigmaPadU, writer);
+  processColumn<uint8_t>("sigmaTimeU", compressedClusters.sigmaTimeU, writer);
+  processColumn<uint16_t>("nTrackClusters", compressedClusters.nTrackClusters, writer);
+  processColumn<uint32_t>("nSliceRowClusters", compressedClusters.nSliceRowClusters, writer);
 
 #ifdef ENABLE_VTUNE_PROFILER
   __itt_pause();

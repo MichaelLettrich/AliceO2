@@ -17,13 +17,9 @@
 #ifndef INCLUDE_RANS_TYPETRAITS_H_
 #define INCLUDE_RANS_TYPETRAITS_H_
 
-#include "rANS/StaticFrequencyTable.h"
-#include "rANS/DynamicFrequencyTable.h"
-
+#include "rANS/FrequencyTable.h"
 #include "rANS/RenormedFrequencies.h"
-
-#include "rANS/StaticSymbolTable.h"
-#include "rANS/DynamicSymbolTable.h"
+#include "rANS/SymbolTable.h"
 
 #include "rANS/internal/SingleStreamEncodeCommand.h"
 #include "rANS/internal/SIMDEncodeCommand.h"
@@ -38,9 +34,6 @@ namespace o2
 namespace rans
 {
 
-enum class ContainerTag : uint8_t { Dynamic,
-                                    Static };
-
 enum class CoderTag : uint8_t { Compat,
                                 SingleStream,
                                 SSE,
@@ -51,35 +44,6 @@ inline constexpr size_t RenormingLowerBound = 20;
 
 inline constexpr size_t LegacyNStreams = 2;
 inline constexpr size_t LegacyRenormingLowerBound = 31;
-
-template <typename T>
-struct getContainerTag;
-
-template <typename source_T>
-struct getContainerTag<StaticFrequencyTable<source_T>> : public std::integral_constant<ContainerTag, ContainerTag::Dynamic> {
-};
-template <typename source_T>
-struct getContainerTag<DynamicFrequencyTable<source_T>> : public std::integral_constant<ContainerTag, ContainerTag::Dynamic> {
-};
-template <typename source_T>
-struct getContainerTag<RenormedStaticFrequencyTable<source_T>> : public std::integral_constant<ContainerTag, ContainerTag::Static> {
-};
-template <typename source_T>
-struct getContainerTag<RenormedDynamicFrequencyTable<source_T>> : public std::integral_constant<ContainerTag, ContainerTag::Dynamic> {
-};
-template <typename source_T, typename symbol_T>
-struct getContainerTag<StaticSymbolTable<source_T, symbol_T>> : public std::integral_constant<ContainerTag, ContainerTag::Static> {
-};
-template <typename source_T, typename symbol_T>
-struct getContainerTag<DynamicSymbolTable<source_T, symbol_T>> : public std::integral_constant<ContainerTag, ContainerTag::Dynamic> {
-};
-
-template <class encoderCommand_T, class symbolTable_T, size_t nStreams_V>
-struct getContainerTag<EncoderFacade<encoderCommand_T, symbolTable_T, nStreams_V>> : public getContainerTag<symbolTable_T> {
-};
-
-template <typename T>
-inline constexpr ContainerTag getContainerTag_v = getContainerTag<T>::value;
 
 template <typename T>
 struct getCoderTag;
@@ -107,66 +71,30 @@ struct getCoderTag<EncoderFacade<encoderCommand_T, symbolTable_T, nStreams_V>> :
 template <typename T>
 inline constexpr CoderTag getCoderTag_v = getCoderTag<T>::value;
 
-template <ContainerTag tag_V>
-struct ContainerTraits {
+template <typename T>
+struct isSymbolTable : std::false_type {
 };
 
-template <>
-struct ContainerTraits<ContainerTag::Dynamic> {
-
-  template <typename source_T>
-  using frequencyTable_type = DynamicFrequencyTable<source_T>;
-  template <typename source_T>
-  using renormedFrequencyTable_type = RenormedDynamicFrequencyTable<source_T>;
-  template <typename source_T, class symbol_T>
-  using symbolTable_type = DynamicSymbolTable<source_T, symbol_T>;
-};
-
-template <>
-struct ContainerTraits<ContainerTag::Static> {
-
-  template <typename source_T>
-  using frequencyTable_type = StaticFrequencyTable<source_T>;
-  template <typename source_T>
-  using renormedFrequencyTable_type = RenormedStaticFrequencyTable<source_T>;
-  template <typename source_T, class symbol_T>
-  using symbolTable_type = StaticSymbolTable<source_T, symbol_T>;
+template <typename source_T, typename value_T>
+struct isSymbolTable<SymbolTable<source_T, value_T>> : std::true_type {
 };
 
 template <typename T>
-struct isSymbolTableContainer : public std::is_base_of<internal::SymbolTableContainer<typename T::source_type,
-                                                                                      typename T::index_type,
-                                                                                      typename T::value_type,
-                                                                                      typename T::container_type,
-                                                                                      typename T::const_iterator, T>,
-                                                       T> {
-};
-
-template <typename T>
-inline constexpr bool isSymbolTableContainer_v = isSymbolTableContainer<T>::value;
+inline constexpr bool isSymbolTable_v = isSymbolTable<T>::value;
 
 template <typename T>
 struct isFrequencyTable : std::false_type {
 };
 
 template <typename source_T>
-struct isFrequencyTable<DynamicFrequencyTable<source_T>> : std::true_type {
-};
-
-template <typename source_T>
-struct isFrequencyTable<StaticFrequencyTable<source_T>> : std::true_type {
+struct isFrequencyTable<FrequencyTable<source_T>> : std::true_type {
 };
 
 template <typename T>
 inline constexpr bool isFrequencyTable_v = isFrequencyTable<T>::value;
 
 template <typename T>
-struct isFrequencyContainer : public std::is_base_of<internal::FrequencyContainer<typename T::source_type,
-                                                                                  typename T::index_type,
-                                                                                  typename T::value_type,
-                                                                                  typename T::container_type,
-                                                                                  typename T::const_iterator, T>,
-                                                     T> {
+struct isFrequencyContainer : public std::is_base_of<internal::FrequencyContainer<typename T::source_type, T>, T> {
 };
 
 template <typename T>
@@ -177,11 +105,7 @@ struct isRenormedFrequencyTable : std::false_type {
 };
 
 template <typename source_T>
-struct isRenormedFrequencyTable<RenormedStaticFrequencyTable<source_T>> : std::true_type {
-};
-
-template <typename source_T>
-struct isRenormedFrequencyTable<RenormedDynamicFrequencyTable<source_T>> : std::true_type {
+struct isRenormedFrequencyTable<RenormedFrequencyTable<source_T>> : std::true_type {
 };
 
 template <typename T>
@@ -229,24 +153,13 @@ struct CoderTraits<CoderTag::AVX2> {
   using type = internal::AVXEncoderCommand<lowerBound_V>;
 };
 
-template <typename source_T>
-inline constexpr ContainerTag getPreferedContainerTag()
-{
-  if constexpr (sizeof(source_T) < 4) {
-    return ContainerTag::Static;
-  } else {
-    return ContainerTag::Dynamic;
-  }
-};
-
-template <ContainerTag tag_V>
 struct makeFrequencyTable {
 
   template <typename source_IT>
   [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end)
   {
     using source_type = typename std::iterator_traits<source_IT>::value_type;
-    using frequencyTable_type = typename ContainerTraits<tag_V>::template frequencyTable_type<source_type>;
+    using frequencyTable_type = FrequencyTable<source_type>;
 
     frequencyTable_type f{};
     f.addSamples(begin, end);
@@ -257,7 +170,7 @@ struct makeFrequencyTable {
   [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range)
   {
     using source_type = typename std::remove_cv_t<source_T>;
-    using frequencyTable_type = typename ContainerTraits<tag_V>::template frequencyTable_type<source_type>;
+    using frequencyTable_type = FrequencyTable<source_type>;
 
     frequencyTable_type f;
     f.addSamples(range);
@@ -272,39 +185,38 @@ class makeEncoder
   using this_type = makeEncoder<coderTag_V, nStreams_V, renormingLowerBound_V>;
 
  public:
-  template <typename renormedFrequencyTable_T>
-  [[nodiscard]] inline static constexpr decltype(auto) fromRenormed(const renormedFrequencyTable_T& renormed)
+  template <typename source_T>
+  [[nodiscard]] inline static constexpr decltype(auto) fromRenormed(const RenormedFrequencyTable<source_T>& renormed)
   {
-    constexpr ContainerTag containerTag = getContainerTag_v<renormedFrequencyTable_T>;
     constexpr CoderTag coderTag = coderTag_V;
-    using source_type = typename renormedFrequencyTable_T::source_type;
+    using source_type = source_T;
     using symbol_type = typename SymbolTraits<coderTag>::type;
     using coder_command = typename CoderTraits<coderTag>::template type<this_type::RenormingLowerBound>;
-    using symbolTable_type = typename ContainerTraits<containerTag>::template symbolTable_type<source_type, symbol_type>;
+    using symbolTable_type = SymbolTable<source_type, symbol_type>;
     using encoderType = EncoderFacade<coder_command, symbolTable_type, this_type::NStreams>;
 
     return encoderType{renormed};
   };
 
-  template <typename frequencyTable_T>
-  [[nodiscard]] inline static decltype(auto) fromFrequencyTable(frequencyTable_T&& frequencyTable, size_t renormingPrecision = 0)
+  template <typename source_T>
+  [[nodiscard]] inline static decltype(auto) fromFrequencyTable(FrequencyTable<source_T>&& frequencyTable, size_t renormingPrecision = 0)
   {
-    const auto renormedFrequencies = renormCutoffIncompressible(std::forward<frequencyTable_T>(frequencyTable), renormingPrecision);
+    const auto renormedFrequencies = renormCutoffIncompressible(std::forward<FrequencyTable<source_T>>(frequencyTable), renormingPrecision);
     return this_type::fromRenormed(renormedFrequencies);
   };
 
-  template <typename source_IT, ContainerTag containerTag_V = getPreferedContainerTag<typename std::iterator_traits<source_IT>::value_type>()>
+  template <typename source_IT>
   [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end, size_t renormingPrecision = 0)
   {
-    auto frequencyTable = makeFrequencyTable<containerTag_V>::template fromSamples(begin, end);
+    auto frequencyTable = makeFrequencyTable::fromSamples(begin, end);
 
     return this_type::fromFrequencyTable(std::move(frequencyTable), renormingPrecision);
   };
 
-  template <typename source_T, ContainerTag containerTag_V = getPreferedContainerTag<source_T>()>
+  template <typename source_T>
   [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range, size_t renormingPrecision = 0)
   {
-    auto frequencyTable = makeFrequencyTable<containerTag_V>::template fromSamples(range);
+    auto frequencyTable = makeFrequencyTable::template fromSamples(range);
     return this_type::fromFrequencyTable(std::move(frequencyTable), renormingPrecision);
   };
 
@@ -320,37 +232,36 @@ class makeDecoder
   using this_type = makeDecoder;
 
  public:
-  template <typename renormedFrequencyTable_T>
-  [[nodiscard]] inline static constexpr decltype(auto) fromRenormed(const renormedFrequencyTable_T& renormed)
+  template <typename source_T>
+  [[nodiscard]] inline static constexpr decltype(auto) fromRenormed(const RenormedFrequencyTable<source_T>& renormed)
   {
-    constexpr ContainerTag containerTag = getContainerTag_v<renormedFrequencyTable_T>;
-    using source_type = typename renormedFrequencyTable_T::source_type;
+    using source_type = source_T;
     using coder_type = internal::Decoder<RenormingLowerBound>;
     using symbol_type = typename coder_type::symbol_type;
-    using symbolTable_type = typename ContainerTraits<containerTag>::template symbolTable_type<source_type, symbol_type>;
+    using symbolTable_type = SymbolTable<source_type, symbol_type>;
     using decoder_type = DecoderFacade<coder_type, symbolTable_type>;
 
     return decoder_type{renormed};
   };
 
-  template <typename frequencyTable_T>
-  [[nodiscard]] inline static decltype(auto) fromFrequencyTable(frequencyTable_T&& frequencyTable, size_t renormingPrecision = 0)
+  template <typename source_T>
+  [[nodiscard]] inline static decltype(auto) fromFrequencyTable(FrequencyTable<source_T>&& frequencyTable, size_t renormingPrecision = 0)
   {
-    const auto renormedFrequencies = renormCutoffIncompressible(std::forward<frequencyTable_T>(frequencyTable), renormingPrecision);
+    const auto renormedFrequencies = renormCutoffIncompressible(std::forward<FrequencyTable<source_T>>(frequencyTable), renormingPrecision);
     return this_type::fromRenormed(renormedFrequencies);
   };
 
-  template <typename source_IT, ContainerTag containerTag_V = getPreferedContainerTag<typename std::iterator_traits<source_IT>::value_type>()>
+  template <typename source_IT>
   [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end, size_t renormingPrecision = 0)
   {
-    auto frequencyTable = makeFrequencyTable<containerTag_V>::template fromSamples(begin, end);
+    auto frequencyTable = makeFrequencyTable::fromSamples(begin, end);
     return this_type::fromFrequencyTable(std::move(frequencyTable), renormingPrecision);
   };
 
-  template <typename source_T, ContainerTag containerTag_V = getPreferedContainerTag<source_T>()>
+  template <typename source_T>
   [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range, size_t renormingPrecision = 0)
   {
-    auto frequencyTable = makeFrequencyTable<containerTag_V>::template fromSamples(range);
+    auto frequencyTable = makeFrequencyTable::fromSamples(range);
     return this_type::fromFrequencyTable(std::move(frequencyTable), renormingPrecision);
   };
 };

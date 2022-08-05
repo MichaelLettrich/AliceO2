@@ -22,27 +22,20 @@
 #include <boost/mpl/vector.hpp>
 #include <gsl/span>
 
-#include "rANS/StaticFrequencyTable.h"
-#include "rANS/DynamicFrequencyTable.h"
+#include "rANS/FrequencyTable.h"
 #include "rANS/renorm.h"
 #include "rANSLegacy/renorm.h"
 
 using namespace o2::rans;
 
-using staticFrequencyTables_t = boost::mpl::vector<
-  StaticFrequencyTable<char>,
-  StaticFrequencyTable<uint8_t>,
-  StaticFrequencyTable<int8_t>,
-  StaticFrequencyTable<uint16_t>,
-  StaticFrequencyTable<int16_t>>;
+using smallFrequencyTables_t = boost::mpl::vector<
+  FrequencyTable<char>,
+  FrequencyTable<uint8_t>,
+  FrequencyTable<int8_t>,
+  FrequencyTable<uint16_t>,
+  FrequencyTable<int16_t>>;
 
-using dynamicFrequencyTables_t = boost::mpl::vector<
-  DynamicFrequencyTable<char>,
-  DynamicFrequencyTable<uint8_t>,
-  DynamicFrequencyTable<int8_t>,
-  DynamicFrequencyTable<uint16_t>,
-  DynamicFrequencyTable<int16_t>,
-  DynamicFrequencyTable<int32_t>>;
+using largeFrequencyTables_t = boost::mpl::vector<FrequencyTable<int32_t>>;
 
 namespace std
 {
@@ -54,7 +47,7 @@ std::ostream& operator<<(std::ostream& os, const std::pair<key_T, value_T>& pair
 }
 } // namespace std
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(test_emptyStaticTables, frequencyTable_T, staticFrequencyTables_t)
+BOOST_AUTO_TEST_CASE_TEMPLATE(test_emptySmallTables, frequencyTable_T, smallFrequencyTables_t)
 {
 
   using source_type = typename frequencyTable_T::source_type;
@@ -68,7 +61,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_emptyStaticTables, frequencyTable_T, staticFr
   BOOST_CHECK(frequencyTable.cbegin() != frequencyTable.cend());
 };
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(test_emptyDynamicTables, frequencyTable_T, dynamicFrequencyTables_t)
+BOOST_AUTO_TEST_CASE_TEMPLATE(test_emptyLargeTables, frequencyTable_T, largeFrequencyTables_t)
 {
 
   using source_type = typename frequencyTable_T::source_type;
@@ -81,7 +74,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_emptyDynamicTables, frequencyTable_T, dynamic
   BOOST_CHECK(frequencyTable.cbegin() == frequencyTable.cend());
 };
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamplesStatic, frequencyTable_T, staticFrequencyTables_t)
+BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamplesSmall, frequencyTable_T, smallFrequencyTables_t)
 {
   using source_type = typename frequencyTable_T::source_type;
 
@@ -184,11 +177,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamplesStatic, frequencyTable_T, staticFre
   BOOST_CHECK(frequencyTable.begin() != frequencyTable.end());
   BOOST_CHECK(frequencyTable.cbegin() != frequencyTable.cend());
 
-  BOOST_CHECK(frequencyTable.computeNUsedAlphabetSymbols() == 10);
+  BOOST_CHECK(frequencyTable.countNUsedAlphabetSymbols() == 10);
   BOOST_CHECK(frequencyTable.getNumSamples() == samples.size() + samples2.size());
 };
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamplesDynamic, frequencyTable_T, dynamicFrequencyTables_t)
+BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamplesLarge, frequencyTable_T, largeFrequencyTables_t)
 {
   using source_type = typename frequencyTable_T::source_type;
 
@@ -308,11 +301,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamplesDynamic, frequencyTable_T, dynamicF
   BOOST_CHECK(frequencyTable.begin() != frequencyTable.end());
   BOOST_CHECK(frequencyTable.cbegin() != frequencyTable.cend());
 
-  BOOST_CHECK(frequencyTable.computeNUsedAlphabetSymbols() == 10);
+  BOOST_CHECK(frequencyTable.countNUsedAlphabetSymbols() == 10);
   BOOST_CHECK(frequencyTable.getNumSamples() == samples.size() + samples2.size());
 };
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesStatic, frequencyTable_T, staticFrequencyTables_t)
+BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSmall, frequencyTable_T, smallFrequencyTables_t)
 {
   using source_type = typename frequencyTable_T::source_type;
   using value_type = typename frequencyTable_T::value_type;
@@ -345,7 +338,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesStatic, frequencyTable_T, stati
   BOOST_CHECK_EQUAL(frequencyTable.getOffset(), std::numeric_limits<source_type>::min());
   BOOST_CHECK(frequencyTable.begin() != frequencyTable.end());
   BOOST_CHECK(frequencyTable.cbegin() != frequencyTable.cend());
-  BOOST_CHECK_EQUAL(frequencyTable.computeNUsedAlphabetSymbols(), 5);
+  BOOST_CHECK_EQUAL(frequencyTable.countNUsedAlphabetSymbols(), 5);
   BOOST_CHECK_EQUAL(frequencyTable.getNumSamples(), 15);
 
   // lets add more frequencies;
@@ -359,7 +352,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesStatic, frequencyTable_T, stati
     results[static_cast<source_type>(2 + -1)] += 4;
     results[static_cast<source_type>(11 + -1)] += 5;
 
-    BOOST_CHECK_EQUAL(frequencyTable.computeNUsedAlphabetSymbols(), 7);
+    BOOST_CHECK_EQUAL(frequencyTable.countNUsedAlphabetSymbols(), 7);
   } else {
     frequencyTable.addFrequencies(frequencies2.begin(), frequencies2.end(), 3);
     frequencyTable2.addFrequencies(gsl::make_span(frequencies2), 3);
@@ -368,7 +361,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesStatic, frequencyTable_T, stati
     results[static_cast<source_type>(2 + 3)] += 4;
     results[static_cast<source_type>(11 + 3)] += 5;
 
-    BOOST_CHECK_EQUAL(frequencyTable.computeNUsedAlphabetSymbols(), 6);
+    BOOST_CHECK_EQUAL(frequencyTable.countNUsedAlphabetSymbols(), 6);
   }
   BOOST_CHECK_EQUAL(frequencyTable.getNumSamples(), 27);
   BOOST_CHECK_EQUAL_COLLECTIONS(frequencyTable.begin(), frequencyTable.end(), frequencyTable2.begin(), frequencyTable2.end());
@@ -383,7 +376,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesStatic, frequencyTable_T, stati
   BOOST_CHECK(frequencyTable.cbegin() != frequencyTable.cend());
 };
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesDynamic, frequencyTable_T, dynamicFrequencyTables_t)
+BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesLarge, frequencyTable_T, largeFrequencyTables_t)
 {
   using source_type = typename frequencyTable_T::source_type;
   using value_type = typename frequencyTable_T::value_type;
@@ -416,7 +409,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesDynamic, frequencyTable_T, dyna
   BOOST_CHECK_EQUAL(frequencyTable.getOffset(), 1);
   BOOST_CHECK(frequencyTable.begin() != frequencyTable.end());
   BOOST_CHECK(frequencyTable.cbegin() != frequencyTable.cend());
-  BOOST_CHECK_EQUAL(frequencyTable.computeNUsedAlphabetSymbols(), 5);
+  BOOST_CHECK_EQUAL(frequencyTable.countNUsedAlphabetSymbols(), 5);
   BOOST_CHECK_EQUAL(frequencyTable.getNumSamples(), 15);
 
   // lets add more frequencies;
@@ -432,7 +425,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesDynamic, frequencyTable_T, dyna
 
     BOOST_CHECK_EQUAL(frequencyTable.size(), 12);
     BOOST_CHECK_EQUAL(frequencyTable.getOffset(), -1);
-    BOOST_CHECK_EQUAL(frequencyTable.computeNUsedAlphabetSymbols(), 7);
+    BOOST_CHECK_EQUAL(frequencyTable.countNUsedAlphabetSymbols(), 7);
   } else {
     frequencyTable.addFrequencies(frequencies2.begin(), frequencies2.end(), 3);
     frequencyTable2.addFrequencies(gsl::make_span(frequencies2), 3);
@@ -443,7 +436,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesDynamic, frequencyTable_T, dyna
 
     BOOST_CHECK_EQUAL(frequencyTable.size(), 14);
     BOOST_CHECK_EQUAL(frequencyTable.getOffset(), 1);
-    BOOST_CHECK_EQUAL(frequencyTable.computeNUsedAlphabetSymbols(), 6);
+    BOOST_CHECK_EQUAL(frequencyTable.countNUsedAlphabetSymbols(), 6);
   }
   BOOST_CHECK_EQUAL(frequencyTable.getNumSamples(), 27);
   BOOST_CHECK_EQUAL_COLLECTIONS(frequencyTable.begin(), frequencyTable.end(), frequencyTable2.begin(), frequencyTable2.end());
@@ -458,8 +451,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesDynamic, frequencyTable_T, dyna
 };
 
 using frequencyContainer_t = boost::mpl::vector<
-  StaticFrequencyTable<uint8_t>,
-  DynamicFrequencyTable<uint8_t>,
+  FrequencyTable<uint8_t>,
+  FrequencyTable<uint32_t>,
   o2::ranslegacy::FrequencyTable>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_renormIncompressible, frequencyTable_T, frequencyContainer_t)
@@ -473,7 +466,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_renormIncompressible, frequencyTable_T, frequ
     if constexpr (std::is_same_v<frequencyTable_T, o2::ranslegacy::FrequencyTable>) {
       return o2::ranslegacy::renormCutoffIncompressible<>(std::move(frequencyTable), scaleBits, 1);
     } else {
-      return o2::rans::renormCutoffIncompressible<frequencyTable_T>(std::move(frequencyTable), scaleBits, 1);
+      return o2::rans::renormCutoffIncompressible(std::move(frequencyTable), scaleBits, 1);
     } }();
 
   const o2::rans::histogram_t rescaledFrequencies{1, 2, 1, 3, 2, 3, 3, 5, 6, 7, 8, 9, 10, 11, 13, 11, 12, 10, 14, 13, 10, 13, 12, 8, 12, 7, 8, 6, 7, 5, 4, 3, 4, 2, 2, 1, 2, 1, 1};
