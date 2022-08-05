@@ -50,9 +50,6 @@ class FrequencyContainerBase : public ContainerInterface<source_T, uint32_t, Fre
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
 
-  // accessors
-  [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const { return this->getSymbol(sourceSymbol); };
-
   [[nodiscard]] inline bool empty() const noexcept { return mNSamples == 0; };
 
   [[nodiscard]] inline size_type getNumSamples() const noexcept { return mNSamples; };
@@ -71,31 +68,10 @@ class FrequencyContainerBase : public ContainerInterface<source_T, uint32_t, Fre
     return value > 0;
   };
 
-  [[nodiscard]] inline const_reference getSymbol(source_type sourceSymbol) const
-  {
-    assert(sourceSymbol - this->getOffset() < this->size());
-
-    // LOGP(info, "{} vs {}", fmt::ptr(this->mContainer.data() + sourceSymbol - this->getOffset()), fmt::ptr(this->mBegin + sourceSymbol));
-
-    return this->mBegin[sourceSymbol];
-  };
-
-  [[nodiscard]] inline reference getSymbol(source_type sourceSymbol)
-  {
-    return const_cast<reference>(static_cast<const FrequencyContainerBase&>(*this).getSymbol(sourceSymbol));
-  };
-
-  inline void setOffset(source_type newOffset) noexcept
-  {
-    this->mOffset = newOffset;
-    this->mBegin = this->mContainer.data() - this->getOffset();
-  };
-
   FrequencyContainerBase() = default;
   FrequencyContainerBase(size_type size, source_type offset) : base_type(size, offset){};
 
   size_type mNSamples{};
-  pointer mBegin{};
 };
 
 template <typename source_T, class = void>
@@ -128,11 +104,7 @@ class FrequencyContainer<source_T, std::enable_if_t<(sizeof(source_T) <= 2)>> : 
   }
 
  protected:
-  FrequencyContainer() : base_type()
-  {
-    this->mContainer.resize(this->size(), 0);
-    this->setOffset(std::numeric_limits<source_type>::min());
-  };
+  FrequencyContainer() : base_type{this->size(), std::numeric_limits<source_type>::min()} {};
 };
 
 template <typename source_T>

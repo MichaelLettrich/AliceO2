@@ -170,6 +170,7 @@ RenormedFrequencyTable<source_T> renormCutoffIncompressible(FrequencyTable<sourc
 
   for (auto frequencyIter = rescaledFrequencies.begin(); frequencyIter != rescaledFrequencies.end(); ++frequencyIter) {
     const count_type frequency = *frequencyIter;
+    // LOGP(info, "freq: {}", frequency);
     if (frequency > 0) {
       const double_t symbolProbability = static_cast<double_t>(frequency) / nSamples;
       if (symbolProbability < probabilityCutOffThreshold) {
@@ -224,7 +225,7 @@ RenormedFrequencyTable<source_T> renormCutoffIncompressible(FrequencyTable<sourc
     throw std::runtime_error(fmt::format("rANS rescaling incomplete: {} corrections Remaining", nCorrections));
   }
 
-  return RenormedFrequencyTable<source_type>(std::move(rescaledFrequencies), offset, newPrecision, incompressibleSymbolFrequency);
+  return RenormedFrequencyTable<source_type>(std::move(rescaledFrequencies), newPrecision, incompressibleSymbolFrequency);
 }
 
 } // namespace rans

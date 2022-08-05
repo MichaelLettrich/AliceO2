@@ -45,10 +45,9 @@ class RenormedFrequencyTable : public internal::FrequencyContainer<source_T>
 
   RenormedFrequencyTable() : base_type(){};
 
-  inline RenormedFrequencyTable(container_type frequencies, source_type offset, size_t renormingBits, value_type nIncompressible) : mNIncompressible(nIncompressible)
+  inline RenormedFrequencyTable(container_type frequencies, size_t renormingBits, value_type nIncompressible) : mNIncompressible(nIncompressible)
   {
     this->mContainer = std::move(frequencies);
-    this->setOffset(offset);
     this->mNSamples = internal::pow2(renormingBits);
 
     // TODO(milettri): do some checks when nDebug is active;
