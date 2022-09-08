@@ -306,3 +306,85 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_renormIncompressible, frequencyTable_T, frequ
     BOOST_CHECK_EQUAL_COLLECTIONS(renormedFrequencyTable.begin() + 6, renormedFrequencyTable.begin() + 6 + rescaledFrequencies.size(), rescaledFrequencies.begin(), rescaledFrequencies.end());
   }
 }
+
+BOOST_AUTO_TEST_CASE(test_computeMetrics)
+{
+  std::vector<uint32_t> frequencies{9, 0, 8, 0, 7, 0, 6, 0, 5, 0, 4, 0, 3, 0, 2, 0, 1};
+  FrequencyTable<uint32_t> frequencyTable{frequencies.begin(), frequencies.end(), 0};
+  const float eps = 1e-4;
+
+  DatasetMetrics<uint32_t> correctMetrics;
+  correctMetrics.min = 0;
+  correctMetrics.max = 16;
+  correctMetrics.alphabetRangeBits = 4;
+  correctMetrics.nUsedAlphabetSymbols = 9;
+  correctMetrics.entropy = 2.957295041922758;
+  correctMetrics.symbolLengthDistribution[2] = 4;
+  correctMetrics.symbolLengthDistribution[3] = 3;
+  correctMetrics.symbolLengthDistribution[4] = 1;
+  correctMetrics.symbolLengthDistribution[5] = 1;
+  correctMetrics.weightedSymbolLengthDistribution[2] = 0.66666666;
+  correctMetrics.weightedSymbolLengthDistribution[3] = 0.26666666;
+  correctMetrics.weightedSymbolLengthDistribution[4] = 0.04444444;
+  correctMetrics.weightedSymbolLengthDistribution[5] = 0.02222222;
+
+  const auto metrics = computeDatasetMetrics(frequencyTable);
+
+  BOOST_CHECK_EQUAL(metrics.min, correctMetrics.min);
+  BOOST_CHECK_EQUAL(metrics.max, correctMetrics.max);
+  BOOST_CHECK_EQUAL(metrics.alphabetRangeBits, correctMetrics.alphabetRangeBits);
+  BOOST_CHECK_EQUAL(metrics.nUsedAlphabetSymbols, correctMetrics.nUsedAlphabetSymbols);
+  BOOST_CHECK_CLOSE(metrics.entropy, correctMetrics.entropy, eps);
+
+  uint32_t sumUnweighted = 0;
+  float_t sumWeighted = 0;
+  for (size_t i = 0; i < 32; ++i) {
+    BOOST_TEST_MESSAGE(fmt::format("checking length: {}", i));
+    BOOST_CHECK_EQUAL(correctMetrics.symbolLengthDistribution[i], metrics.symbolLengthDistribution[i]);
+    BOOST_CHECK_CLOSE(correctMetrics.weightedSymbolLengthDistribution[i], metrics.weightedSymbolLengthDistribution[i], eps);
+
+    sumUnweighted += metrics.symbolLengthDistribution[i];
+    sumWeighted += metrics.weightedSymbolLengthDistribution[i];
+  }
+
+  BOOST_CHECK_EQUAL(preferPacking(correctMetrics), false);
+  BOOST_CHECK_EQUAL(computeRenormingPrecision(correctMetrics), MinRenormThreshold);
+
+  BOOST_CHECK_EQUAL(sumUnweighted, correctMetrics.nUsedAlphabetSymbols);
+  BOOST_CHECK_CLOSE(sumWeighted, 1.0f, eps);
+}
+
+BOOST_AUTO_TEST_CASE(test_RenormingPrecision)
+{
+  DatasetMetrics<uint32_t> metrics{};
+  BOOST_CHECK_EQUAL(preferPacking(metrics), true);
+
+  metrics.weightedSymbolLengthDistribution[31] = 1.0f;
+  BOOST_CHECK_EQUAL(computeRenormingPrecision(metrics), MaxRenormThreshold);
+
+  metrics.weightedSymbolLengthDistribution[31] = 0.0f;
+  metrics.weightedSymbolLengthDistribution[1] = 0.2f;
+  metrics.weightedSymbolLengthDistribution[5] = 0.2f;
+  metrics.weightedSymbolLengthDistribution[9] = 0.4f;
+  metrics.weightedSymbolLengthDistribution[12] = 0.1f;
+  metrics.weightedSymbolLengthDistribution[15] = 0.1f;
+  BOOST_CHECK_EQUAL(computeRenormingPrecision(metrics), 17);
+}
+
+BOOST_AUTO_TEST_CASE(test_PackingDecision)
+{
+  DatasetMetrics<uint32_t> metrics{};
+  BOOST_CHECK_EQUAL(preferPacking(metrics), true);
+
+  metrics.entropy = 1.0f;
+  metrics.alphabetRangeBits = 1;
+  BOOST_CHECK_EQUAL(preferPacking(metrics), true);
+
+  metrics.entropy = 1.8f;
+  metrics.alphabetRangeBits = 2;
+  BOOST_CHECK_EQUAL(preferPacking(metrics), false);
+
+  metrics.entropy = 3.14f;
+  metrics.alphabetRangeBits = 16;
+  BOOST_CHECK_EQUAL(preferPacking(metrics), false);
+}
