@@ -34,60 +34,97 @@ template <typename source_T>
 struct DatasetMetrics {
   source_T min{};
   source_T max{};
+  uint32_t alphabetRangeBits{};
   uint32_t nUsedAlphabetSymbols{};
   float_t entropy{};
-  std::array<uint32_t, 32> symbolLengthDistribution;
-  std::array<float_t, 32> weightedSymbolLengthDistribution;
+  std::array<uint32_t, 32> symbolLengthDistribution{{}};
+  std::array<float_t, 32> weightedSymbolLengthDistribution{{}};
 };
 
-template <typename frequencyTable_T>
-DatasetMetrics<typename frequencyTable_T::source_T> computeDatasetMetrics(const frequencyTable_T& container)
+template <typename source_T>
+DatasetMetrics<source_T> computeDatasetMetrics(const FrequencyTable<source_T>& frequencyTable)
 {
-  using source_type = typename frequencyTable_T::source_T;
+  using source_type = source_T;
   DatasetMetrics<source_type> metrics{};
 
-  for (auto iter = container.begin(); iter != container.end(); ++iter) {
+  const auto trimmedFrequencyView = utils::trim(utils::HistogramView{frequencyTable.begin(), frequencyTable.end()});
+  metrics.min = trimmedFrequencyView.getMin();
+  metrics.max = trimmedFrequencyView.getMax();
+  assert(metrics.max >= metrics.min);
+  metrics.alphabetRangeBits = internal::log2UInt(metrics.max - metrics.min);
+
+  for (auto iter = trimmedFrequencyView.begin(); iter != trimmedFrequencyView.end(); ++iter) {
     auto frequency = *iter;
     if (frequency) {
       ++metrics.nUsedAlphabetSymbols;
 
-      const float_t probability = static_cast<float_t>(frequency) / static_cast<float_t>(container.getNumSamples());
+      const float_t probability = static_cast<float_t>(frequency) / static_cast<float_t>(frequencyTable.getNumSamples());
       const float_t length = std::log2(probability);
 
       metrics.entropy -= probability * length;
-      ++metrics.symbolLengthDistribution[static_cast<uint32_t>(length)];
-      metrics.weightedSymbolLengthDistribution[static_cast<uint32_t>(length)] += static_cast<float_t>(frequency) * probability;
+      ++metrics.symbolLengthDistribution[static_cast<uint32_t>(-length)];
+      metrics.weightedSymbolLengthDistribution[static_cast<uint32_t>(-length)] += probability;
     }
   }
-
-  // normalize weightedSymbolLengthDistribution
-  for (float& elem : metrics.weightedSymbolLengthDistribution) {
-    elem /= static_cast<float_t>(container.getNumSamples());
-  }
-
   return metrics;
 }
 
 template <typename source_T>
-inline constexpr bool shouldBePacked(const DatasetMetrics<source_T>& metrics, float_t threshold = 0.1) noexcept
+inline constexpr bool preferPacking(const DatasetMetrics<source_T>& metrics, float_t threshold = 0.1) noexcept
 {
-  constexpr float_t alphabetRangeBits = internal::numBitsForNSymbols(metrics.max - metrics.min);
-
-  return alphabetRangeBits / metrics.entropy > (1.0f + threshold);
+  if (metrics.entropy == 0) {
+    return true;
+  } else {
+    const float_t ratio = static_cast<float_t>(metrics.alphabetRangeBits) / static_cast<float_t>(metrics.entropy);
+    return ratio < (1.0f + threshold);
+  }
 };
 
 template <typename source_T>
-inline constexpr size_t computeRenormingPrecision(const DatasetMetrics<source_T>& metrics, float_t precision = 0.999) noexcept
+inline constexpr size_t computeRenormingPrecision(const DatasetMetrics<source_T>& metrics, float_t cutoffPrecision = 0.999) noexcept
 {
-  if constexpr (sizeof(source_T) == 1) {
-    return MinRenormThreshold;
-  } else {
-    size_t computedRenormingBits = [&]() {
-      size_t computedRenormingBits = 0;
-      for (size_t i = 0; i < metrics.symbolLengthDistribution.size(); ++i) {
-      }
-    }();
-  }
+  size_t computedRenormingBits = [&]() -> size_t {
+    float_t cumulatedPrecision = 0;
+    size_t renormingBits = 0;
+    for (; renormingBits < metrics.weightedSymbolLengthDistribution.size() && cumulatedPrecision < cutoffPrecision; ++renormingBits) {
+      cumulatedPrecision += metrics.weightedSymbolLengthDistribution[renormingBits];
+    }
+
+    if (cumulatedPrecision == 0) {
+      return 0;
+    } else {
+      return renormingBits;
+    }
+  }();
+
+  // select renorming from [MinThreshold, MaxThreshold]
+  return std::max(MinRenormThreshold, std::min(MaxRenormThreshold, computedRenormingBits + 1));
+};
+
+template <typename source_T>
+size_t estimateEncodeBufferBytes(const DatasetMetrics<source_T>& metrics, const FrequencyTable<source_T>& frequencyTable, float_t safetyMargin = 1.2f)
+{
+  float_t estimatedSize = metrics.entropy * frequencyTable.getNumSamples(); //min Size in Bits, based on entropy
+  estimatedSize *= safetyMargin;                                            // add safety margin;
+  return internal::toBytes(std::ceil(estimatedSize));
+};
+
+template <typename source_T>
+size_t estimateDictBytes(const DatasetMetrics<source_T>& metrics, float_t safetyMargin = 1.2f)
+{
+
+  auto computeDeltaCodedSize = [](uint64_t x) -> uint64_t {
+    return internal::log2UInt(x) + 2ul * internal::log2UInt(internal::log2UInt(x) + 1ul) + 1ul;
+  };
+
+  constexpr size_t maxBitsFrequency = computeDeltaCodedSize(MaxRenormThreshold);
+  constexpr size_t maxBitsDelta = computeDeltaCodedSize(internal::toBits(sizeof(source_T)));
+  constexpr size_t generalOverhead = 0;
+
+  float_t estimatedSize = (maxBitsFrequency + maxBitsDelta) * metrics.nUsedAlphabetSymbols;
+  estimatedSize += generalOverhead;
+  estimatedSize *= safetyMargin;
+  return internal::toBytes(std::ceil(estimatedSize));
 };
 
 template <typename source_T>
@@ -100,10 +137,10 @@ inline constexpr size_t computeRenormingPrecision(size_t nUsedAlphabetSymbols)
   if constexpr (sizeof(source_T) == 1) {
     return 14;
   } else {
-    const uint8_t minBits = internal::log2UInt(nUsedAlphabetSymbols);
-    const uint8_t estimate = minBits * 3u / 2u;
-    const uint8_t maxThreshold = std::max(minBits, MaxRenormThreshold);
-    const uint8_t minThreshold = std::max(estimate, MinRenormThreshold);
+    const size_t minBits = internal::log2UInt(nUsedAlphabetSymbols);
+    const size_t estimate = minBits * 3u / 2u;
+    const size_t maxThreshold = std::max(minBits, MaxRenormThreshold);
+    const size_t minThreshold = std::max(estimate, MinRenormThreshold);
 
     return std::min(minThreshold, maxThreshold);
   };
