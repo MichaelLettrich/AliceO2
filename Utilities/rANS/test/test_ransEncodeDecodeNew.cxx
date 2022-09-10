@@ -26,8 +26,9 @@
 
 #include <gsl/span>
 
-#include "rANS/typetraits.h"
-#include "rANS/renorm.h"
+#include "rANS/factory.h"
+#include "rANS/histogram.h"
+#include "rANS/encode.h"
 
 using namespace o2::rans;
 
@@ -80,7 +81,7 @@ using coder_types = boost::mp11::mp_list<std::integral_constant<CoderTag, CoderT
 
 using testCase_types = boost::mp11::mp_product<boost::mp11::mp_list, coder_types, testInput_types>;
 
-inline constexpr size_t NRansStreams = o2::rans::NStreams;
+inline constexpr size_t NRansStreams = o2::rans::internal::NStreams;
 inline constexpr size_t RansRenormingPrecision = 16;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_encodeDecode, test_types, testCase_types)
