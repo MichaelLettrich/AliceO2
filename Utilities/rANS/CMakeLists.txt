@@ -13,7 +13,7 @@ o2_add_library(rANS
                TARGETVARNAME targetName
                SOURCES src/FrequencyTable.cxx
                        src/RenormedFrequencyTable.cxx
-               PUBLIC_LINK_LIBRARIES FairLogger::FairLogger Microsoft.GSL::GSL absl::flat_hash_map)
+               PUBLIC_LINK_LIBRARIES FairLogger::FairLogger Microsoft.GSL::GSL)
 #target_compile_definitions(${targetName} PUBLIC O2_RANS_PRINT_PROCESSED_DATA)
 target_compile_options(${targetName} PUBLIC -mavx2 -mfma -march=native)
 if(${ENABLE_VTUNE_PROFILER})
@@ -21,16 +21,9 @@ if(${ENABLE_VTUNE_PROFILER})
   target_link_libraries(${targetName} PUBLIC PkgConfig::Vtune)
 endif()
 
-o2_add_test(SIMDEncoder
-            NAME SIMDEncoder
-            SOURCES test/test_SIMDKernel.cxx
-            PUBLIC_LINK_LIBRARIES O2::rANS
-            COMPONENT_NAME rANS
-            LABELS utils)
-
-o2_add_test(SIMDTypes
-            NAME SIMDTypes
-            SOURCES test/test_SIMDTypes.cxx
+o2_add_test(Utils
+            NAME Utils
+            SOURCES test/test_ransUtils.cxx
             PUBLIC_LINK_LIBRARIES O2::rANS
             COMPONENT_NAME rANS
             LABELS utils)
@@ -42,9 +35,30 @@ o2_add_test(Iterators
             COMPONENT_NAME rANS
             LABELS utils)
 
-o2_add_test(Packer
-            NAME Packer
-            SOURCES test/test_ransPacker.cxx
+o2_add_test(Pack
+            NAME Pack
+            SOURCES test/test_ransPack.cxx
+            PUBLIC_LINK_LIBRARIES O2::rANS
+            COMPONENT_NAME rANS
+            LABELS utils)
+
+o2_add_test(SIMDEncoderKernels
+            NAME SIMDEncoderKernels
+            SOURCES test/test_ransSIMDEncoderKernels.cxx
+            PUBLIC_LINK_LIBRARIES O2::rANS
+            COMPONENT_NAME rANS
+            LABELS utils)
+
+o2_add_test(SIMD
+            NAME SIMD
+            SOURCES test/test_ransSIMD.cxx
+            PUBLIC_LINK_LIBRARIES O2::rANS
+            COMPONENT_NAME rANS
+            LABELS utils)
+
+o2_add_test(AlignedArray
+            NAME AlignedArray
+            SOURCES test/test_ransAlignedArray.cxx
             PUBLIC_LINK_LIBRARIES O2::rANS
             COMPONENT_NAME rANS
             LABELS utils)
@@ -63,10 +77,10 @@ o2_add_test(FrequencyTable
             COMPONENT_NAME rANS
             LABELS utils)
 
-o2_add_test(FrequencyContainers
-            NAME FrequencyContainers
-            TARGETVARNAME testFrequencyContainers
-            SOURCES test/test_ransFrequencyContainers.cxx
+o2_add_test(Histograms
+            NAME Histograms
+            TARGETVARNAME testHistograms
+            SOURCES test/test_ransHistograms.cxx
             PUBLIC_LINK_LIBRARIES O2::rANS
             COMPONENT_NAME rANS
             LABELS utils)
@@ -102,14 +116,6 @@ o2_add_test(EncodeDecode
 o2_add_test(EncodeDecodeNew
             NAME EncodeDecodeNew
             SOURCES test/test_ransEncodeDecodeNew.cxx
-            PUBLIC_LINK_LIBRARIES O2::rANS
-            COMPONENT_NAME rANS
-            LABELS utils)
-
-
-o2_add_test(EncodeDecodeLargeScale
-            NAME EncodeDecodeLargeScale
-            SOURCES test/test_ransEncodeDecodeLargeScale.cxx
             PUBLIC_LINK_LIBRARIES O2::rANS
             COMPONENT_NAME rANS
             LABELS utils)
