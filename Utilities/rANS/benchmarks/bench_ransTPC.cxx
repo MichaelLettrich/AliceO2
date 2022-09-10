@@ -4,8 +4,6 @@
 #include <iterator>
 #include <iostream>
 
-#include <absl/container/flat_hash_map.h>
-
 #ifdef ENABLE_VTUNE_PROFILER
 #include <ittnotify.h>
 #endif
@@ -20,7 +18,6 @@
 #include "rANSLegacy/rans.h"
 #include "rANSLegacy/LiteralSIMDEncoder.h"
 #include "rANSLegacy/LiteralSIMDDecoder.h"
-#include "rANS/FrequencyTable.h"
 
 namespace bpo = boost::program_options;
 

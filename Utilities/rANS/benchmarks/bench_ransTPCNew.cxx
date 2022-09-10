@@ -16,9 +16,10 @@
 #include "rANSLegacy/LiteralSIMDEncoder.h"
 #include "rANSLegacy/LiteralSIMDDecoder.h"
 #include "rANSLegacy/LiteralDecoder.h"
-#include "rANS/typetraits.h"
-#include "rANS/renorm.h"
-#include "rANS/utils/serialize.h"
+
+#include "rANS/factory.h"
+#include "rANS/histogram.h"
+#include "rANS/serialize.h"
 
 #include "helpers.h"
 
@@ -33,7 +34,7 @@ using ransCoder_type = uint64_t;
 using ransStream_type = uint32_t;
 
 template <typename source_T>
-using decoder_type = o2::ranslegacy::LiteralSIMDDecoder<ransCoder_type, ransStream_type, source_T, NStreams, 1>;
+using decoder_type = o2::ranslegacy::LiteralSIMDDecoder<ransCoder_type, ransStream_type, source_T, internal::NStreams, 1>;
 // using decoder_type = o2::ranslegacy::LiteralDecoder<ransCoder_type, ransStream_type, source_T>;
 
 using coder_types = boost::mp11::mp_list<std::integral_constant<CoderTag, CoderTag::Compat>,
@@ -90,26 +91,26 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
 
   LOGP(info, "processing: {} (nItems: {}, size: {} MiB)", name, inputData.size(), inputData.size() * sizeof(source_type) / 1024.0 / 1024.0);
   timer.start();
-  auto frequencyTable = makeFrequencyTable::fromSamples(gsl::span<const source_type>(inputData));
+  auto histogram = makeHistogram::fromSamples(gsl::span<const source_type>(inputData));
   timer.stop();
   // writerFrequencies.Key(name.c_str());
-  // utils::toJSON(frequencyTable, writerFrequencies);
+  // toJSON(histogram, writerFrequencies);
 
   writer.Key("FrequencyTable");
   writer.Double(timer.getDurationMS());
   LOGP(info, "Built Frequency Table in {} ms", timer.getDurationMS());
 
-  auto tmpFreqTable = frequencyTable;
+  auto tmpFreqTable = histogram;
   timer.start();
-  auto renormedFrequencyTable = renormCutoffIncompressible<>(std::move(tmpFreqTable));
+  auto renormedHistogram = renormCutoffIncompressible<>(std::move(tmpFreqTable));
   timer.stop();
   // writerRenormed.Key(name.c_str());
-  // utils::toJSON(renormedFrequencyTable, writerRenormed);
+  // toJSON(renormedFrequencyTable, writerRenormed);
   writer.Key("Renorming");
   writer.Double(timer.getDurationMS());
   LOGP(info, "Renormed Frequency Table in {} ms", timer.getDurationMS());
   timer.start();
-  auto encoder = makeEncoder<coderTag_V>::fromRenormed(renormedFrequencyTable);
+  auto encoder = makeEncoder<coderTag_V>::fromRenormed(renormedHistogram);
   timer.stop();
   writer.Key("Encoder");
   writer.Double(timer.getDurationMS());
@@ -126,16 +127,16 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
   writer.Key("Encoding");
   writer.Double(timer.getDurationMS());
   LOGP(info, "Encoded {} Bytes in {} ms", inputData.size() * sizeof(source_type), timer.getDurationMS());
-  std::vector<uint8_t> dict(frequencyTable.size() * sizeof(uint32_t), 0);
+  std::vector<uint8_t> dict(histogram.size() * sizeof(uint32_t), 0);
   timer.start();
-  auto dictEnd = utils::toCompressedBinary(renormedFrequencyTable, dict.data());
+  auto dictEnd = toCompressedBinary(renormedHistogram, dict.data());
   timer.stop();
   writer.Key("Dict");
   writer.Double(timer.getDurationMS());
   LOGP(info, "Serialized Dict of {} Bytes in {} ms", std::distance(dict.data(), dictEnd), timer.getDurationMS());
 
   auto decoderFrequencyTable = o2::ranslegacy::makeFrequencyTableFromSamples(inputData.begin(), inputData.end());
-  auto decoderRenormed = o2::ranslegacy::renormCutoffIncompressible(decoderFrequencyTable, renormedFrequencyTable.getRenormingBits());
+  auto decoderRenormed = o2::ranslegacy::renormCutoffIncompressible(decoderFrequencyTable, renormedHistogram.getRenormingBits());
   decoder_type<source_type> decoder{decoderRenormed};
   encodeBuffer.literals.resize(std::distance(encodeBuffer.literals.data(), encodeBuffer.literalsEnd));
   const auto literalsSize = encodeBuffer.literals.size();

@@ -17,10 +17,9 @@
 
 #include "rANSLegacy/rans.h"
 #include "rANSLegacy/FrequencyTable.h"
-#include "rANS/FrequencyTable.h"
-#include "rANS/RenormedFrequencies.h"
 #include "rANSLegacy/RenormedFrequencyTable.h"
-#include "rANS/renorm.h"
+#include "rANS/histogram.h"
+#include "rANS/factory.h"
 
 namespace bpo = boost::program_options;
 
@@ -364,15 +363,14 @@ void buildOldFrequencyTable(const std::vector<source_T>& inputData, rapidjson::W
 template <typename source_T>
 void buildNewFrequencyTable(const std::vector<source_T>& inputData, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
 {
-  using namespace o2;
-  ranslegacy::internal::RANSTimer timer{};
+  using namespace o2::rans;
+  internal::RANSTimer timer{};
   double_t timeMs = 0;
 
   timer.start();
 
   __itt_task_begin(dynamicDomain, __itt_null, __itt_null, frequencyTask);
-  auto frequencyTable = rans::FrequencyTable<source_T>{};
-  frequencyTable.addSamples(gsl::make_span(inputData));
+  auto histogram = makeHistogram::fromSamples(gsl::make_span(inputData));
   __itt_task_end(dynamicDomain);
 
   timer.stop();
@@ -384,7 +382,7 @@ void buildNewFrequencyTable(const std::vector<source_T>& inputData, rapidjson::W
   try {
     timer.start();
     __itt_task_begin(dynamicDomain, __itt_null, __itt_null, renormTask);
-    auto renormedFrequencyTable = rans::renormCutoffIncompressible(std::move(frequencyTable));
+    auto renormedHistogram = renormCutoffIncompressible(std::move(histogram));
     __itt_task_end(dynamicDomain);
     timer.stop();
     timeMs = timer.getDurationMS();

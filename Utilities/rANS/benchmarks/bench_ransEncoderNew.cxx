@@ -10,9 +10,8 @@
 #include "rANSLegacy/rans.h"
 #include "rANSLegacy/LiteralSIMDDecoder.h"
 
-#include "rANS/typetraits.h"
-#include "rANS/renorm.h"
-#include "rANSLegacy/renorm.h"
+#include "rANS/factory.h"
+#include "rANS/histogram.h"
 
 #ifdef ENABLE_VTUNE_PROFILER
 #include <ittnotify.h>
@@ -26,7 +25,7 @@ using ransCoder_type = uint64_t;
 using ransStream_type = uint32_t;
 
 template <typename source_T>
-using decoder_type = o2::ranslegacy::LiteralSIMDDecoder<ransCoder_type, ransStream_type, source_T, NStreams, 1>;
+using decoder_type = o2::ranslegacy::LiteralSIMDDecoder<ransCoder_type, ransStream_type, source_T, internal::NStreams, 1>;
 
 inline constexpr size_t MessageSize = 1ull << 22;
 
@@ -78,9 +77,9 @@ void ransCompressionBenchmark(benchmark::State& st)
   EncodeBuffer<source_type> encodeBuffer{inputData.size()};
   DecodeBuffer<source_type> decodeBuffer{inputData.size()};
 
-  auto frequencyTable = makeFrequencyTable::fromSamples(gsl::span<const source_type>(inputData));
-  auto renormedFrequencyTable = renormCutoffIncompressible<>(frequencyTable, 0, 10);
-  auto encoder = makeEncoder<coderTag_V>::fromRenormed(renormedFrequencyTable);
+  auto histogram = makeHistogram::fromSamples(gsl::span<const source_type>(inputData));
+  auto renormedHistogram = renormCutoffIncompressible<>(std::move(histogram), 0, 10);
+  auto encoder = makeEncoder<coderTag_V>::fromRenormed(renormedHistogram);
 
 #ifdef ENABLE_VTUNE_PROFILER
   __itt_resume();
@@ -93,7 +92,7 @@ void ransCompressionBenchmark(benchmark::State& st)
 #endif
 
   auto decoderFrequencyTable = o2::ranslegacy::makeFrequencyTableFromSamples<>(inputData.begin(), inputData.end());
-  auto decoderRenormed = o2::ranslegacy::renormCutoffIncompressible(decoderFrequencyTable, renormedFrequencyTable.getRenormingBits(), 10);
+  auto decoderRenormed = o2::ranslegacy::renormCutoffIncompressible(decoderFrequencyTable, renormedHistogram.getRenormingBits(), 10);
   decoder_type<source_type> decoder{decoderRenormed};
   decoder.process(encodeBuffer.encodeBufferEnd, decodeBuffer.buffer.data(), inputData.size(), encodeBuffer.literals);
   if (!(decodeBuffer == inputData)) {
@@ -125,9 +124,9 @@ void ransLiteralCompressionBenchmark(benchmark::State& st)
   encodeBuffer.literalsEnd = encodeBuffer.literals.data();
   DecodeBuffer<source_type> decodeBuffer{inputData.size()};
 
-  auto frequencyTable = makeFrequencyTable::fromSamples(gsl::span<const source_type>(inputData));
-  auto renormedFrequencyTable = renormCutoffIncompressible<>(frequencyTable);
-  auto encoder = makeEncoder<coderTag_V>::fromRenormed(renormedFrequencyTable);
+  auto histogram = makeHistogram::fromSamples(gsl::span<const source_type>(inputData));
+  auto renormedHistogram = renormCutoffIncompressible<>(histogram);
+  auto encoder = makeEncoder<coderTag_V>::fromRenormed(renormedHistogram);
 
 #ifdef ENABLE_VTUNE_PROFILER
   __itt_resume();
@@ -141,7 +140,7 @@ void ransLiteralCompressionBenchmark(benchmark::State& st)
 #endif
 
   auto decoderFrequencyTable = o2::ranslegacy::makeFrequencyTableFromSamples<>(inputData.begin(), inputData.end());
-  auto decoderRenormed = o2::ranslegacy::renormCutoffIncompressible(decoderFrequencyTable, renormedFrequencyTable.getRenormingBits());
+  auto decoderRenormed = o2::ranslegacy::renormCutoffIncompressible(decoderFrequencyTable, renormedHistogram.getRenormingBits());
   encodeBuffer.literals.resize(std::distance(encodeBuffer.literals.data(), encodeBuffer.literalsEnd));
   decoder_type<source_type> decoder{decoderRenormed};
   decoder.process(encodeBuffer.encodeBufferEnd, decodeBuffer.buffer.data(), inputData.size(), encodeBuffer.literals);

@@ -1,6 +1,6 @@
 
-#ifndef INCLUDE_RANS_BENCHMARKS_HELPERS_
-#define INCLUDE_RANS_BENCHMARKS_HELPERS_
+#ifndef RANS_BENCHMARKS_HELPERS_H_
+#define RANS_BENCHMARKS_HELPERS_H_
 
 #ifdef ENABLE_VTUNE_PROFILER
 #include <ittnotify.h>
@@ -334,4 +334,4 @@ struct DecodeBuffer {
   std::vector<source_T> buffer{};
 };
 
-#endif /* INCLUDE_RANS_BENCHMARKS_HELPERS_ */
+#endif /* RANS_BENCHMARKS_HELPERS_H_ */
