@@ -23,7 +23,7 @@
 #include <gsl/span>
 
 #include "rANS/histogram.h"
-#include "rANSLegacy/renorm.h"
+#include "rANS/compat.h"
 
 using namespace o2::rans;
 
@@ -275,35 +275,39 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequencies, histogram_T, histogram_t)
   BOOST_CHECK(histogram.cbegin() != histogram.cend());
 };
 
-using countincContainer_t = boost::mpl::vector<
+using countingContainer_t = boost::mpl::vector<
   Histogram<uint8_t>,
-  Histogram<uint32_t>,
-  o2::ranslegacy::FrequencyTable>;
+  Histogram<uint32_t>>;
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(test_renormIncompressible, histogram_T, countincContainer_t)
+BOOST_AUTO_TEST_CASE_TEMPLATE(test_renormIncompressible, histogram_T, countingContainer_t)
 {
   std::vector<uint32_t> frequencies{1, 1, 2, 2, 2, 2, 6, 8, 4, 10, 8, 14, 10, 19, 26, 30, 31, 35, 41, 45, 51, 44, 47, 39, 58, 52, 42, 53, 50, 34, 50, 30, 32, 24, 30, 20, 17, 12, 16, 6, 8, 5, 6, 4, 4, 2, 2, 2, 1};
   histogram_T histogram{frequencies.begin(), frequencies.end(), static_cast<uint8_t>(0)};
 
   const size_t scaleBits = 8;
 
-  auto renormedHistogram = [&]() -> decltype(auto) {
-    if constexpr (std::is_same_v<histogram_T, o2::ranslegacy::FrequencyTable>) {
-      return o2::ranslegacy::renormCutoffIncompressible<>(std::move(histogram), scaleBits, 1);
-    } else {
-      return o2::rans::renormCutoffIncompressible(std::move(histogram), scaleBits, 1);
-    } }();
+  auto renormedHistogram = renormCutoffIncompressible(std::move(histogram), scaleBits, 1);
 
   const std::vector<uint32_t> rescaledFrequencies{1, 2, 1, 3, 2, 3, 3, 5, 6, 7, 8, 9, 10, 11, 13, 11, 12, 10, 14, 13, 10, 13, 12, 8, 12, 7, 8, 6, 7, 5, 4, 3, 4, 2, 2, 1, 2, 1, 1};
   BOOST_CHECK_EQUAL(renormedHistogram.isRenormedTo(scaleBits), true);
   BOOST_CHECK_EQUAL(renormedHistogram.getNumSamples(), 1 << scaleBits);
   BOOST_CHECK_EQUAL(renormedHistogram.getIncompressibleSymbolFrequency(), 4);
+  BOOST_CHECK_EQUAL_COLLECTIONS(renormedHistogram.begin() + 6, renormedHistogram.begin() + 6 + rescaledFrequencies.size(), rescaledFrequencies.begin(), rescaledFrequencies.end());
+}
 
-  if constexpr (std::is_same_v<histogram_T, o2::ranslegacy::FrequencyTable>) {
-    BOOST_CHECK_EQUAL_COLLECTIONS(renormedHistogram.begin(), renormedHistogram.end(), rescaledFrequencies.begin(), rescaledFrequencies.end());
-  } else {
-    BOOST_CHECK_EQUAL_COLLECTIONS(renormedHistogram.begin() + 6, renormedHistogram.begin() + 6 + rescaledFrequencies.size(), rescaledFrequencies.begin(), rescaledFrequencies.end());
-  }
+BOOST_AUTO_TEST_CASE_TEMPLATE(test_renormLegacy, histogram_T, countingContainer_t)
+{
+  std::vector<uint32_t> frequencies{1, 1, 2, 2, 2, 2, 6, 8, 4, 10, 8, 14, 10, 19, 26, 30, 31, 35, 41, 45, 51, 44, 47, 39, 58, 52, 42, 53, 50, 34, 50, 30, 32, 24, 30, 20, 17, 12, 16, 6, 8, 5, 6, 4, 4, 2, 2, 2, 1};
+  histogram_T histogram{frequencies.begin(), frequencies.end(), static_cast<uint8_t>(0)};
+
+  const size_t scaleBits = 8;
+
+  auto renormedHistogram = compat::renorm(std::move(histogram), scaleBits);
+  const std::vector<uint32_t> rescaledFrequencies{1, 1, 1, 2, 1, 2, 1, 2, 2, 2, 2, 3, 3, 4, 6, 7, 7, 9, 9, 11, 12, 10, 11, 9, 13, 12, 10, 13, 11, 8, 12, 7, 7, 6, 7, 4, 4, 3, 4, 1, 2, 1, 2, 2, 2, 1, 2, 1, 1};
+  BOOST_CHECK_EQUAL(renormedHistogram.isRenormedTo(scaleBits), true);
+  BOOST_CHECK_EQUAL(renormedHistogram.getNumSamples(), 1 << scaleBits);
+  BOOST_CHECK_EQUAL(renormedHistogram.getIncompressibleSymbolFrequency(), 2);
+  BOOST_CHECK_EQUAL_COLLECTIONS(renormedHistogram.begin(), renormedHistogram.begin() + rescaledFrequencies.size(), rescaledFrequencies.begin(), rescaledFrequencies.end());
 }
 
 BOOST_AUTO_TEST_CASE(test_computeMetrics)
