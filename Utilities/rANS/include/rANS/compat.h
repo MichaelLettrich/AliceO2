@@ -18,7 +18,20 @@
 
 #include <numeric>
 
-#include "rANS/histogram.h"
+#include "rANS/internal/common/typetraits.h"
+
+#include "rANS/internal/containers/Histogram.h"
+#include "rANS/internal/containers/RenormedHistogram.h"
+#include "rANS/internal/containers/SymbolTable.h"
+#include "rANS/internal/containers/Symbol.h"
+
+#include "rANS/internal/encode/Encoder.h"
+#include "rANS/internal/encode/SingleStreamEncoderImpl.h"
+
+#include "rANS/internal/decode/Decoder.h"
+#include "rANS/internal/decode/DecoderImpl.h"
+
+#include "rANS/factory.h"
 
 namespace o2::rans::compat
 {
@@ -132,6 +145,99 @@ RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, size_t newPrec
 
   return RenormedHistogram<source_T>{std::move(rescaledFrequencies), newPrecision, incompressibleSymbolFrequency};
 };
+
+class makeEncoder
+{
+
+ public:
+  template <typename source_T>
+  [[nodiscard]] inline static constexpr decltype(auto) fromRenormed(const RenormedHistogram<source_T>& renormed)
+  {
+    using namespace o2::rans::internal;
+    using source_type = source_T;
+    using symbol_type = internal::PrecomputedSymbol;
+    using coder_command = SingleStreamEncoderImpl<mRenormingLowerBound>;
+    using symbolTable_type = SymbolTable<source_type, symbol_type>;
+    using encoderType = Encoder<coder_command, symbolTable_type, mNstreams>;
+
+    return encoderType{renormed};
+  };
+
+  template <typename source_T>
+  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T>&& histogram, size_t renormingPrecision = 0)
+  {
+    const auto renormedHistogram = renorm(std::forward<Histogram<source_T>>(histogram), renormingPrecision);
+    return makeEncoder::fromRenormed(renormedHistogram);
+  };
+
+  template <typename source_IT>
+  [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end, size_t renormingPrecision = 0)
+  {
+    auto histogram = o2::rans::makeHistogram::fromSamples(begin, end);
+
+    return makeEncoder::fromHistogram(std::move(histogram), renormingPrecision);
+  };
+
+  template <typename source_T>
+  [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range, size_t renormingPrecision = 0)
+  {
+    auto histogram = makeHistogram::template fromSamples(range);
+    return makeEncoder::fromHistogram(std::move(histogram), renormingPrecision);
+  };
+
+ private:
+  static constexpr CoderTag mCoderTag = CoderTag::SingleStream;
+  static constexpr size_t mNstreams = o2::rans::internal::LegacyNStreams;
+  static constexpr size_t mRenormingLowerBound = o2::rans::internal::LegacyRenormingLowerBound;
+};
+
+class makeDecoder
+{
+
+  using this_type = makeDecoder;
+
+ public:
+  template <typename source_T>
+  [[nodiscard]] inline static constexpr decltype(auto) fromRenormed(const RenormedHistogram<source_T>& renormed)
+  {
+    using namespace internal;
+
+    using source_type = source_T;
+    using coder_type = DecoderImpl<mRenormingLowerBound>;
+    using symbol_type = typename coder_type::symbol_type;
+    using symbolTable_type = SymbolTable<source_type, symbol_type>;
+    using decoder_type = Decoder<coder_type, symbolTable_type>;
+
+    return decoder_type{renormed};
+  };
+
+  template <typename source_T>
+  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T>&& histogram, size_t renormingPrecision = 0)
+  {
+    const auto renormedHistogram = renorm(std::forward<Histogram<source_T>>(histogram), renormingPrecision);
+    return this_type::fromRenormed(renormedHistogram);
+  };
+
+  template <typename source_IT>
+  [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end, size_t renormingPrecision = 0)
+  {
+    auto histogram = makeHistogram::fromSamples(begin, end);
+    return this_type::fromHistogram(std::move(histogram), renormingPrecision);
+  };
+
+  template <typename source_T>
+  [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range, size_t renormingPrecision = 0)
+  {
+    auto histogram = makeHistogram::fromSamples(range);
+    return this_type::fromHistogram(std::move(histogram), renormingPrecision);
+  };
+
+ private:
+  static constexpr CoderTag mCoderTag = CoderTag::SingleStream;
+  static constexpr size_t mNstreams = o2::rans::internal::LegacyNStreams;
+  static constexpr size_t mRenormingLowerBound = o2::rans::internal::LegacyRenormingLowerBound;
+};
+
 } // namespace o2::rans::compat
 
 #endif /* RANS_COMPAT_H_ */
