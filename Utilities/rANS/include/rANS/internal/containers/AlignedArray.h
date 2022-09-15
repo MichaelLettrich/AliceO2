@@ -243,7 +243,7 @@ class HexFormatingFunctor
   template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
   inline std::string operator()(const T& value)
   {
-    return fmt::format("{:#0x}, ", value);
+    return fmt::format("{:#0x}", value);
   }
 };
 

@@ -11,54 +11,8 @@
 #include <rapidjson/istreamwrapper.h>
 #include <rapidjson/ostreamwrapper.h>
 
-#include "rANSLegacy/rans.h"
-
 #include <algorithm>
 #include <execution>
-
-template <typename source_T>
-double_t computeExpectedCodewordLength(const o2::ranslegacy::FrequencyTable& frequencies, const o2::ranslegacy::RenormedFrequencyTable& rescaled)
-{
-
-  using symbol_t = o2::ranslegacy::symbol_t;
-  using count_t = o2::ranslegacy::count_t;
-  double_t expectedCodewordLength = 0;
-  count_t trueIncompressibleFrequency = frequencies.getIncompressibleSymbolFrequency();
-
-  auto getRescaledFrequency = [&rescaled](symbol_t sourceSymbol) {
-    if (sourceSymbol >= rescaled.getMinSymbol() && sourceSymbol <= rescaled.getMaxSymbol()) {
-      return rescaled[sourceSymbol];
-    } else {
-      return static_cast<count_t>(0);
-    }
-  };
-
-  // all "normal symbols"
-  for (symbol_t sourceSymbol = frequencies.getMinSymbol(); sourceSymbol <= frequencies.getMaxSymbol(); ++sourceSymbol) {
-
-    const count_t frequency = frequencies[sourceSymbol];
-    if (frequency) {
-      const count_t rescaledFrequency = getRescaledFrequency(sourceSymbol);
-
-      const double_t trueProbability = static_cast<double_t>(frequency) / frequencies.getNumSamples();
-
-      if (rescaledFrequency) {
-        const double_t rescaledProbability = static_cast<double_t>(rescaledFrequency) / rescaled.getNumSamples();
-        expectedCodewordLength -= trueProbability * std::log2(rescaledProbability);
-      } else {
-        trueIncompressibleFrequency += frequency;
-      }
-    }
-  }
-  // incompressibleSymbol:
-  const double_t trueProbability = static_cast<double_t>(trueIncompressibleFrequency) / frequencies.getNumSamples();
-  const double_t rescaledProbability = static_cast<double_t>(rescaled.getIncompressibleSymbolFrequency()) / rescaled.getNumSamples();
-
-  expectedCodewordLength -= trueProbability * std::log2(rescaledProbability);
-  expectedCodewordLength += trueProbability * std::log2(o2::ranslegacy::internal::toBits(sizeof(source_T)));
-
-  return expectedCodewordLength;
-};
 
 struct TPCCompressedClusters {
 
