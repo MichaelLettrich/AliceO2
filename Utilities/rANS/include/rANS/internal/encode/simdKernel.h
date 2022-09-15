@@ -427,7 +427,7 @@ inline StreamOutResult<SIMDWidth::SSE> streamOut(const __m128i* __restrict__ sta
   const uint32_t id = _mm_movemask_ps(_mm_castsi128_ps(cmpFused));
 
   __m128i permutationMask = load(SSEStreamOutLUT[id]);
-  auto streamOutVec = _mm_shuffle_epi8(statesFused, permutationMask);
+  __m128i streamOutVec = _mm_shuffle_epi8(statesFused, permutationMask);
 
   return {static_cast<uint32_t>(_mm_popcnt_u32(id)), streamOutVec};
 };
@@ -453,7 +453,7 @@ inline StreamOutResult<SIMDWidth::AVX> streamOut(const __m256i* __restrict__ sta
   permutationMask = _mm256_and_si256(permutationMask, load(mask));
   constexpr epi32_t<SIMDWidth::AVX> shift{28u, 24u, 20u, 16u, 12u, 8u, 4u, 0u};
   permutationMask = _mm256_srlv_epi32(permutationMask, load(shift));
-  auto streamOutVec = _mm256_permutevar8x32_epi32(statesFused, permutationMask);
+  __m256i streamOutVec = _mm256_permutevar8x32_epi32(statesFused, permutationMask);
 
   return {static_cast<uint32_t>(_mm_popcnt_u32(id)), streamOutVec};
 };
@@ -495,12 +495,13 @@ inline output_IT ransRenorm(const __m128i* __restrict__ state, const __m128i* __
 
   auto [nStreamOutWords, streamOutResult] = streamOut(state, cmp);
   if constexpr (std::is_pointer_v<output_IT>) {
-    _mm_storeu_si128(reinterpret_cast<__m128i*>(outputIter + 1), streamOutResult);
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(outputIter), streamOutResult);
     outputIter += nStreamOutWords;
   } else {
     auto result = store<uint32_t>(streamOutResult);
     for (size_t i = 0; i < nStreamOutWords; ++i) {
-      *(++outputIter) = result(i);
+      *outputIter = result(i);
+      ++outputIter;
     }
   }
 
@@ -509,7 +510,7 @@ inline output_IT ransRenorm(const __m128i* __restrict__ state, const __m128i* __
 
 #ifdef __AVX2__
 template <typename output_IT, uint64_t lowerBound_V, uint8_t streamBits_V>
-inline output_IT ransRenorm(const __m256i* __restrict__ state, const __m128i* __restrict__ frequency, uint8_t symbolTablePrecisionBits, output_IT outputIter, __m256i* __restrict__ newState) noexcept
+inline output_IT ransRenorm(const __m256i* state, const __m128i* __restrict__ frequency, uint8_t symbolTablePrecisionBits, output_IT outputIter, __m256i* __restrict__ newState) noexcept
 {
   __m256i maxState[2];
   __m256i cmp[2];
@@ -526,12 +527,13 @@ inline output_IT ransRenorm(const __m256i* __restrict__ state, const __m128i* __
 
   auto [nStreamOutWords, streamOutResult] = streamOut(state, cmp);
   if constexpr (std::is_pointer_v<output_IT>) {
-    _mm256_storeu_si256(reinterpret_cast<__m256i*>(outputIter + 1), streamOutResult);
+    _mm256_storeu_si256(reinterpret_cast<__m256i*>(outputIter), streamOutResult);
     outputIter += nStreamOutWords;
   } else {
     auto result = store<uint32_t>(streamOutResult);
     for (size_t i = 0; i < nStreamOutWords; ++i) {
-      *(++outputIter) = result(i);
+      *outputIter = result(i);
+      ++outputIter;
     }
   }
 

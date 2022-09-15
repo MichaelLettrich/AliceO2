@@ -20,6 +20,7 @@
 
 #include "rANS/internal/containers/RenormedHistogram.h"
 #include "rANS/internal/containers/Histogram.h"
+#include "rANS/internal/containers/HistogramView.h"
 #include "rANS/internal/common/utils.h"
 
 namespace o2::rans
@@ -42,8 +43,8 @@ struct DatasetMetrics {
   std::array<float_t, 32> weightedSymbolLengthDistribution{{}};
 };
 
-template <typename source_T>
-DatasetMetrics<source_T> computeDatasetMetrics(const Histogram<source_T>& frequencyTable)
+template <typename source_T, template <class> class Histogram_T>
+DatasetMetrics<source_T> computeDatasetMetrics(const Histogram_T<source_T>& frequencyTable)
 {
   using namespace internal;
   using source_type = source_T;
@@ -53,7 +54,7 @@ DatasetMetrics<source_T> computeDatasetMetrics(const Histogram<source_T>& freque
   metrics.min = trimmedFrequencyView.getMin();
   metrics.max = trimmedFrequencyView.getMax();
   assert(metrics.max >= metrics.min);
-  metrics.alphabetRangeBits = log2UInt(metrics.max - metrics.min);
+  metrics.alphabetRangeBits = log2UInt(static_cast<uint32_t>(metrics.max - metrics.min));
 
   for (auto iter = trimmedFrequencyView.begin(); iter != trimmedFrequencyView.end(); ++iter) {
     auto frequency = *iter;
@@ -70,6 +71,55 @@ DatasetMetrics<source_T> computeDatasetMetrics(const Histogram<source_T>& freque
   }
   return metrics;
 }
+
+template <typename source_T>
+double_t computeExpectedCodewordLength(const Histogram<source_T>& histogram, const RenormedHistogram<source_T>& rescaledHistogram)
+{
+  using namespace internal;
+  using value_type = typename Histogram<source_T>::value_type;
+
+  HistogramView histogramView{histogram.begin(), histogram.end(), histogram.getOffset()};
+  HistogramView renormedView{rescaledHistogram.begin(), rescaledHistogram.end(), rescaledHistogram.getOffset()};
+
+  auto getRescaledFrequency = [&renormedView](source_T sourceSymbol) -> value_type {
+    if (sourceSymbol >= renormedView.getMin() && sourceSymbol <= renormedView.getMax()) {
+      return renormedView[sourceSymbol];
+    } else {
+      return static_cast<value_type>(0);
+    }
+  };
+
+  double_t expectedCodewordLength = 0;
+  value_type trueIncompressibleFrequency = 0;
+
+  assert(histogram.countNUsedAlphabetSymbols() >= rescaledHistogram.countNUsedAlphabetSymbols());
+
+  // all "normal symbols"
+  for (value_type sourceSymbol = histogramView.getMin(); sourceSymbol <= histogramView.getMax(); ++sourceSymbol) {
+
+    const value_type frequency = histogramView[sourceSymbol];
+    if (frequency) {
+      const value_type rescaledFrequency = getRescaledFrequency(sourceSymbol);
+
+      const double_t trueProbability = static_cast<double_t>(frequency) / histogram.getNumSamples();
+
+      if (rescaledFrequency) {
+        const double_t rescaledProbability = static_cast<double_t>(rescaledFrequency) / rescaledHistogram.getNumSamples();
+        expectedCodewordLength -= trueProbability * std::log2(rescaledProbability);
+      } else {
+        trueIncompressibleFrequency += frequency;
+      }
+    }
+  }
+  // incompressibleSymbol:
+  const double_t trueProbability = static_cast<double_t>(trueIncompressibleFrequency) / histogram.getNumSamples();
+  const double_t rescaledProbability = static_cast<double_t>(rescaledHistogram.getIncompressibleSymbolFrequency()) / rescaledHistogram.getNumSamples();
+
+  expectedCodewordLength -= trueProbability * std::log2(rescaledProbability);
+  expectedCodewordLength += trueProbability * std::log2(toBits(sizeof(source_T)));
+
+  return expectedCodewordLength;
+};
 
 template <typename source_T>
 inline constexpr bool preferPacking(const DatasetMetrics<source_T>& metrics, float_t threshold = 0.1) noexcept

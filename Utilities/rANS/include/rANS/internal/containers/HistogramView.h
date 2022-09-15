@@ -19,6 +19,7 @@
 #include <iterator>
 #include <algorithm>
 #include <ostream>
+#include <iterator>
 
 #include <fairlogger/Logger.h>
 
@@ -32,6 +33,11 @@ class HistogramView
 {
  public:
   using size_type = size_t;
+  using value_type = typename std::iterator_traits<Hist_IT>::value_type;
+  using reference = value_type&;
+  using const_reference = const value_type&;
+  using pointer = value_type*;
+  using const_pointer = const value_type*;
   using difference_type = std::ptrdiff_t;
   using iterator = Hist_IT;
   using reverse_iterator = std::reverse_iterator<iterator>;
@@ -68,6 +74,21 @@ class HistogramView
     os << fmt::format("HistogramView: size {}, offset {}", view.size(), view.getOffset());
     return os;
   };
+
+  [[nodiscard]] inline const value_type& operator[](difference_type idx) const
+  {
+    auto iter = advanceIter(mBegin, idx - this->getOffset());
+
+    assert(iter >= this->begin());
+    assert(iter < this->end());
+    return *iter;
+  }
+
+  [[nodiscard]] inline const_pointer data() const
+  {
+    assert(mBegin != mEnd);
+    return &(*mBegin);
+  }
 
  private:
   iterator mBegin{};

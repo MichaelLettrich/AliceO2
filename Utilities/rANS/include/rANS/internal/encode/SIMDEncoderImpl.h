@@ -181,14 +181,12 @@ Stream_IT SIMDEncoderImpl<streamingLowerBound_V, simdWidth_V>::putSymbol(Stream_
 
 template <size_t streamingLowerBound_V, simd::SIMDWidth simdWidth_V>
 template <typename Stream_IT>
-Stream_IT SIMDEncoderImpl<streamingLowerBound_V, simdWidth_V>::flushState(state_type& state, Stream_IT iter)
+Stream_IT SIMDEncoderImpl<streamingLowerBound_V, simdWidth_V>::flushState(state_type& state, Stream_IT streamPosition)
 {
-  Stream_IT streamPosition = iter;
-
-  ++streamPosition;
   *streamPosition = static_cast<stream_type>(state >> 32);
   ++streamPosition;
   *streamPosition = static_cast<stream_type>(state >> 0);
+  ++streamPosition;
 
   state = 0;
   return streamPosition;
@@ -200,8 +198,8 @@ inline auto SIMDEncoderImpl<streamingLowerBound_V, simdWidth_V>::renorm(state_ty
 {
   state_type maxState = ((LowerBound >> mSymbolTablePrecision) << StreamBits) * frequency; // this turns into a shift.
   if (state >= maxState) {
-    ++outputIter;
     *outputIter = static_cast<stream_type>(state);
+    ++outputIter;
     state >>= StreamBits;
     assert(state < maxState);
   }

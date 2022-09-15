@@ -36,7 +36,7 @@ class ReverseSymbolLookupTable
   using size_type = std::size_t;
   using difference_type = std::ptrdiff_t;
   using container_type = std::vector<source_type>;
-  using iterator_type = source_type*;
+  using iterator_type = const source_type*;
 
   // TODO(milettri): fix once ROOT cling respects the standard http://wg21.link/p1286r2
   inline ReverseSymbolLookupTable() noexcept {}; // NOLINT

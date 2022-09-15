@@ -49,7 +49,7 @@ inline std::pair<source_T, source_T> minmaxImpl(const source_T* begin, const sou
 };
 
 template <>
-std::pair<uint32_t, uint32_t> minmaxImpl<uint32_t>(const uint32_t* begin, const uint32_t* end)
+inline std::pair<uint32_t, uint32_t> minmaxImpl<uint32_t>(const uint32_t* begin, const uint32_t* end)
 {
   constexpr size_t ElemsPerLane = 4;
   constexpr size_t nUnroll = 2 * ElemsPerLane;
@@ -105,7 +105,7 @@ std::pair<uint32_t, uint32_t> minmaxImpl<uint32_t>(const uint32_t* begin, const 
 };
 
 template <>
-std::pair<int32_t, int32_t> minmaxImpl<int32_t>(const int32_t* begin, const int32_t* end)
+inline std::pair<int32_t, int32_t> minmaxImpl<int32_t>(const int32_t* begin, const int32_t* end)
 {
   constexpr size_t ElemsPerLane = 4;
   constexpr size_t nUnroll = 2 * ElemsPerLane;
@@ -221,7 +221,7 @@ class Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>> : public inte
 
   inline Histogram& resize(size_type newSize)
   {
-    return resize(this->getMinSymbol(), this->getMinSymbol() + newSize);
+    return resize(this->getOffset(), this->getOffset() + newSize);
   };
 
   friend void swap(Histogram& a, Histogram& b) noexcept
@@ -556,6 +556,7 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addFrequencie
 
   // bounds check
   HistogramView addedHistogramView{begin, end, offset};
+  addedHistogramView = trim(addedHistogramView);
   HistogramView<typename container_type::iterator> thisHistogramView{};
   thisHistogramView = HistogramView{this->mContainer.begin(), this->mContainer.end(), this->mContainer.getOffset()};
   const bool invalidBounds = (getLeftOffset(thisHistogramView, addedHistogramView) < 0) || (getRightOffset(thisHistogramView, addedHistogramView) > 0);
@@ -568,12 +569,12 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addFrequencie
                                          thisHistogramView.getMax()));
   }
 
-  auto iter = addedHistogramView.begin();
-  for (source_type i = addedHistogramView.getOffset(); i < static_cast<source_type>(addedHistogramView.getOffset() + addedHistogramView.size()); ++i) {
-    this->mNSamples += *iter;
-    this->mContainer[i] += *iter;
-    ++iter;
-  };
+  source_type idx = addedHistogramView.getOffset();
+  for (freq_IT iter = addedHistogramView.begin(); iter != addedHistogramView.end(); ++iter) {
+    auto frequency = *iter;
+    this->mNSamples += frequency;
+    this->mContainer[idx++] += frequency;
+  }
   return *this;
 }
 
