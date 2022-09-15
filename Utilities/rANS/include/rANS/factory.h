@@ -80,9 +80,16 @@ class makeEncoder
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T>&& histogram, size_t renormingPrecision = 0)
+  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T>& histogram, size_t renormingPrecision = 0)
   {
-    const auto renormedHistogram = renormCutoffIncompressible(std::forward<Histogram<source_T>>(histogram), renormingPrecision);
+    const auto renormedHistogram = renormCutoffIncompressible(histogram, renormingPrecision);
+    return this_type::fromRenormed(renormedHistogram);
+  };
+
+  template <typename source_T>
+  [[nodiscard]] inline static decltype(auto) fromHistogram(const Histogram<source_T>&& histogram, size_t renormingPrecision = 0)
+  {
+    const auto renormedHistogram = renormCutoffIncompressible(std::move(histogram), renormingPrecision);
     return this_type::fromRenormed(renormedHistogram);
   };
 
@@ -106,11 +113,11 @@ class makeEncoder
   static constexpr size_t RenormingLowerBound = renormingLowerBound_V;
 };
 
-template <size_t nStreams_V = internal::NStreams, size_t renormingLowerBound_V = internal::RenormingLowerBound>
+template <size_t renormingLowerBound_V = internal::RenormingLowerBound>
 class makeDecoder
 {
 
-  using this_type = makeDecoder;
+  using this_type = makeDecoder<renormingLowerBound_V>;
 
  public:
   template <typename source_T>
@@ -119,7 +126,7 @@ class makeDecoder
     using namespace internal;
 
     using source_type = source_T;
-    using coder_type = DecoderImpl<RenormingLowerBound>;
+    using coder_type = DecoderImpl<renormingLowerBound_V>;
     using symbol_type = typename coder_type::symbol_type;
     using symbolTable_type = SymbolTable<source_type, symbol_type>;
     using decoder_type = Decoder<coder_type, symbolTable_type>;

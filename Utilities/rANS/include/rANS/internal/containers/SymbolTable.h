@@ -107,19 +107,24 @@ class SymbolTable : public internal::Container<source_T, symbol_T, SymbolTable<s
     return !this->isEscapeSymbol(value);
   };
 
-  size_t mSize = 0;
   symbol_type mEscapeSymbol{};
+  size_type mSize{};
   size_type mSymbolTablePrecision{};
 };
 
 template <class source_T, class value_T>
 SymbolTable<source_T, value_T>::SymbolTable(const RenormedHistogram<source_type>& histogram)
 {
+  using namespace internal;
   using count_type = typename value_T::value_type;
 
-  auto histogramView = internal::trim(internal::HistogramView(histogram.begin(), histogram.end(), histogram.getOffset()));
+  auto histogramView = trim(HistogramView(histogram.begin(), histogram.end(), histogram.getOffset()));
 
-  this->mContainer.reserve(histogramView.size());
+  // one cacheline worth of padding in the back of the container to ensure SIMD reads do not cause out of bounds reads
+  constexpr size_t padding = nBytesTo<symbol_type>(toBytes(512));
+
+  this->mContainer.reserve(histogramView.size() + padding);
+  this->mContainer.setOffset(histogramView.getOffset());
   this->mSymbolTablePrecision = histogram.getRenormingBits();
   this->mEscapeSymbol = [&]() -> value_T {
     const count_type symbolFrequency = histogram.getIncompressibleSymbolFrequency();
@@ -136,7 +141,6 @@ SymbolTable<source_T, value_T>::SymbolTable(const RenormedHistogram<source_type>
       this->mContainer.push_back(this->mEscapeSymbol);
     }
   }
-  this->mContainer.setOffset(histogramView.getOffset());
   mSize = this->mContainer.size();
 };
 

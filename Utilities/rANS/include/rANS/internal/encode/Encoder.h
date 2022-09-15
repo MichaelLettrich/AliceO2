@@ -36,12 +36,12 @@ namespace encoderImpl
 {
 
 template <typename stream_IT, typename literals_IT = std::nullptr_t>
-[[nodiscard]] inline constexpr decltype(auto) makeReturn(stream_IT streamPos, literals_IT literalsPos = nullptr) noexcept
+[[nodiscard]] inline constexpr decltype(auto) makeReturn(stream_IT streamEnd, literals_IT literalsEnd = nullptr) noexcept
 {
   if constexpr (std::is_null_pointer_v<literals_IT>) {
-    return streamPos;
+    return streamEnd;
   } else {
-    return std::make_pair(streamPos, literalsPos);
+    return std::make_pair(streamEnd, literalsEnd);
   }
 };
 
@@ -174,9 +174,6 @@ decltype(auto) Encoder<encoder_T, symbolTable_T, nStreams_V>::process(source_IT 
   for (size_t i = coders.size(); i-- > 0;) {
     outputIter = coders[i].flush(outputIter);
   }
-
-  // first iterator past the range so that sizes, distances and iterators work correctly.
-  ++outputIter;
 
   return makeReturn(outputIter, symbolMapper.getIncompressibleIterator());
 }

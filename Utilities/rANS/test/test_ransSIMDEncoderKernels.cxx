@@ -26,6 +26,7 @@
 #include <boost/mpl/list.hpp>
 
 #include "rANS/internal/encode/simdKernel.h"
+#include "rANS/internal/common/typetraits.h"
 
 using namespace o2::rans::internal::simd;
 using namespace o2::rans::internal;
@@ -183,9 +184,9 @@ struct SSERenormFixture {
 
   SSERenormFixture() = default;
 
-  static constexpr size_t LowerBoundBits = 20;
-  static constexpr size_t LowerBound = 1ull << LowerBoundBits;
-  static constexpr uint8_t SymbolTablePrecisionBits = 16;
+  static constexpr size_t LowerBoundBits = o2::rans::internal::RenormingLowerBound;
+  static constexpr size_t LowerBound = pow2(LowerBoundBits);
+  static constexpr size_t SymbolTablePrecisionBits = 16;
   static constexpr size_t StreamBits = o2::rans::internal::toBits(sizeof(stream_t));
 
   uint64_t computeLimitState(count_t frequency)
@@ -198,7 +199,8 @@ struct SSERenormFixture {
   {
     ransState_t maxState = ((LowerBound >> SymbolTablePrecisionBits) << StreamBits) * frequency;
     if (state >= maxState) {
-      *(++outputIter) = static_cast<stream_t>(state);
+      *outputIter = static_cast<stream_t>(state);
+      ++outputIter;
       state >>= StreamBits;
       assert(state < maxState);
     }
@@ -219,6 +221,7 @@ struct SSERenormFixture {
 
     __m128i frequenciesVec[2];
     __m128i statesVec[2];
+    __m128i newStatesVec[2];
 
     frequenciesVec[0] = load(frequencies[0]);
     frequenciesVec[1] = load(frequencies[1]);
@@ -229,25 +232,20 @@ struct SSERenormFixture {
     stream_iterator newstreamOutIter = ransRenorm<stream_iterator, LowerBound, StreamBits>(statesVec,
                                                                                            frequenciesVec,
                                                                                            SymbolTablePrecisionBits,
-                                                                                           --streamOutBuffer.begin(), statesVec);
+                                                                                           streamOutBuffer.begin(), newStatesVec);
 
-    epi64_t<SIMDWidth::SSE, 2> newStates;
-    store(statesVec[0], newStates[0]);
-    store(statesVec[1], newStates[1]);
+    epi64_t<SIMDWidth::SSE, 2> newStates(0);
+    store(newStatesVec[0], newStates[0]);
+    store(newStatesVec[1], newStates[1]);
 
-    auto controlIter = --controlBuffer.begin();
+    auto controlIter = controlBuffer.begin();
     epi64_t<SIMDWidth::SSE, 2> controlStates;
     for (size_t i = nElems; i-- > 0;) {
       std::tie(controlStates(i), controlIter) = renorm(states(i), controlIter, compactfrequencies(i));
     }
-    LOG(trace) << "newStates" << asHex(newStates);
-    LOG(trace) << "controlStates" << asHex(controlStates);
     for (size_t i = 0; i < nElems; ++i) {
-      LOG(trace) << fmt::format("[{}]: {:#x}; {:#x}", i, streamOutBuffer[i], controlBuffer[i]);
+      LOG(trace) << fmt::format("[{}]: {:#0x}; {:#0x}", i, streamOutBuffer[i], controlBuffer[i]);
     }
-
-    LOGP(info, "s [{},{},{},{}]", streamOutBuffer[0], streamOutBuffer[1], streamOutBuffer[2], streamOutBuffer[3]);
-    LOGP(info, "c [{},{},{},{}]", controlBuffer[0], controlBuffer[1], controlBuffer[2], controlBuffer[3]);
 
     BOOST_CHECK_EQUAL_COLLECTIONS(gsl::make_span(newStates).begin(), gsl::make_span(newStates).end(), gsl::make_span(controlStates).begin(), gsl::make_span(controlStates).end());
     BOOST_CHECK_EQUAL_COLLECTIONS(streamOutBuffer.begin(), streamOutBuffer.end(), controlBuffer.begin(), controlBuffer.end());

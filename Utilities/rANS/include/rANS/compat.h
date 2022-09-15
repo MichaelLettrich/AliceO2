@@ -40,17 +40,17 @@ namespace compatImpl
 {
 inline constexpr uint32_t MinRenormThreshold = 10;
 inline constexpr uint32_t MaxRenormThreshold = 20;
+} // namespace compatImpl
 
-size_t computeRenormingPrecision(size_t nUsedAlphabetSymbols)
+inline size_t computeRenormingPrecision(size_t nUsedAlphabetSymbols)
 {
   const uint32_t minBits = o2::rans::internal::log2UInt(nUsedAlphabetSymbols);
   const uint32_t estimate = minBits * 3u / 2u;
-  const uint32_t maxThreshold = std::max(minBits, MaxRenormThreshold);
-  const uint32_t minThreshold = std::max(estimate, MinRenormThreshold);
+  const uint32_t maxThreshold = std::max(minBits, compatImpl::MaxRenormThreshold);
+  const uint32_t minThreshold = std::max(estimate, compatImpl::MinRenormThreshold);
 
   return std::min(minThreshold, maxThreshold);
 };
-} // namespace compatImpl
 
 template <typename source_T>
 RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, size_t newPrecision = 0)
@@ -66,11 +66,11 @@ RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, size_t newPrec
   size_t nUsedAlphabetSymbols = histogram.countNUsedAlphabetSymbols();
 
   if (newPrecision == 0) {
-    newPrecision = compatImpl::computeRenormingPrecision(nUsedAlphabetSymbols);
+    newPrecision = computeRenormingPrecision(nUsedAlphabetSymbols);
   }
 
-  std::vector<uint64_t> cumulativeFrequencies(histogram.size() + 2);
-  const size_t alphabetSize = histogram.size() + 1;
+  const size_t alphabetSize = histogram.size() + 1;              // +1 for incompressible symbol
+  std::vector<uint64_t> cumulativeFrequencies(alphabetSize + 1); // +1 to store total cumulative frequencies
   cumulativeFrequencies[0] = 0;
   std::inclusive_scan(histogram.begin(), histogram.end(), ++cumulativeFrequencies.begin(), std::plus<>(), 0ull);
   cumulativeFrequencies.back() = histogram.getNumSamples() + IncompressibleSymbolFrequency;
@@ -97,7 +97,7 @@ RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, size_t newPrec
 
   // resample distribution based on cumulative frequencies
   const count_t newCumulatedFrequency = pow2(newPrecision);
-  size_t nSamples = histogram.getNumSamples() + 1;
+  size_t nSamples = histogram.getNumSamples() + IncompressibleSymbolFrequency;
   assert(newCumulatedFrequency >= nUsedAlphabetSymbols);
   size_t needsShift = 0;
   for (size_t i = 0; i < sortIdx.size(); i++) {
@@ -137,9 +137,10 @@ RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, size_t newPrec
 
   typename RenormedHistogram<source_T>::container_type rescaledFrequencies(histogram.size(), histogram.getOffset());
 
+  assert(cumulativeFrequencies.size() == histogram.size() + 2);
   // calculate updated frequencies
-  for (size_t i = 0; i < histogram.size(); i++) {
-    rescaledFrequencies[i] = getFrequency(i);
+  for (size_t i = 0; i < histogram.size(); ++i) {
+    rescaledFrequencies(i) = getFrequency(i);
   }
   const typename RenormedHistogram<source_T>::value_type incompressibleSymbolFrequency = getFrequency(histogram.size());
 
@@ -164,9 +165,16 @@ class makeEncoder
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T>&& histogram, size_t renormingPrecision = 0)
+  [[nodiscard]] inline static decltype(auto) fromHistogram(const Histogram<source_T>& histogram, size_t renormingPrecision = 0)
   {
-    const auto renormedHistogram = renorm(std::forward<Histogram<source_T>>(histogram), renormingPrecision);
+    const auto renormedHistogram = renorm(histogram, renormingPrecision);
+    return makeEncoder::fromRenormed(renormedHistogram);
+  };
+
+  template <typename source_T>
+  [[nodiscard]] inline static decltype(auto) fromHistogram(const Histogram<source_T>&& histogram, size_t renormingPrecision = 0)
+  {
+    const auto renormedHistogram = renorm(std::move(histogram), renormingPrecision);
     return makeEncoder::fromRenormed(renormedHistogram);
   };
 
@@ -237,6 +245,47 @@ class makeDecoder
   static constexpr size_t mNstreams = o2::rans::internal::LegacyNStreams;
   static constexpr size_t mRenormingLowerBound = o2::rans::internal::LegacyRenormingLowerBound;
 };
+
+template <typename source_T>
+inline size_t getAlphabetRangeBits(const Histogram<source_T>& histogram) noexcept
+{
+  using namespace o2::rans::internal;
+  const auto view = trim(HistogramView{histogram.begin(), histogram.end(), histogram.getOffset()});
+  return internal::numBitsForNSymbols(view.size());
+};
+
+template <typename source_T>
+inline size_t getAlphabetRangeBits(const RenormedHistogram<source_T>& histogram) noexcept
+{
+  using namespace o2::rans::internal;
+  const auto view = trim(HistogramView{histogram.begin(), histogram.end(), histogram.getOffset()});
+  return internal::numBitsForNSymbols(view.size() + histogram.hasIncompressibleSymbol());
+};
+
+template <typename source_T, typename symbol_T>
+inline size_t getAlphabetRangeBits(const SymbolTable<source_T, symbol_T>& symbolTable) noexcept
+{
+  const bool hasIncompressibleSymbol = symbolTable.getEscapeSymbol().getFrequency() > 0;
+  return internal::numBitsForNSymbols(symbolTable.size() + hasIncompressibleSymbol);
+};
+
+inline size_t calculateMaxBufferSize(size_t num, size_t rangeBits)
+{
+  constexpr size_t sizeofStreamT = sizeof(uint32_t);
+  //  // RS: w/o safety margin the o2-test-ctf-io produces an overflow in the Encoder::process
+  //  constexpr size_t SaferyMargin = 16;
+  //  return std::ceil(1.20 * (num * rangeBits * 1.0) / (sizeofStreamT * 8.0)) + SaferyMargin;
+  return num * sizeofStreamT;
+}
+
+template <typename source_T>
+using encoder_type = o2::rans::Encoder<o2::rans::internal::SingleStreamEncoderImpl<o2::rans::internal::LegacyRenormingLowerBound>,
+                                       o2::rans::SymbolTable<source_T, o2::rans::internal::PrecomputedSymbol>,
+                                       o2::rans::internal::LegacyNStreams>;
+
+template <typename source_T>
+using decoder_type = o2::rans::Decoder<o2::rans::internal::DecoderImpl<o2::rans::internal::LegacyRenormingLowerBound>,
+                                       o2::rans::SymbolTable<source_T, o2::rans::internal::Symbol>>;
 
 } // namespace o2::rans::compat
 
