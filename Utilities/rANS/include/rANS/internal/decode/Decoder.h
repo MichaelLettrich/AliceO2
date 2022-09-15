@@ -59,12 +59,8 @@ class Decoder
 
       stream_IT inputIter = inputEnd;
       --inputIter;
-      source_IT it = outputBegin;
+      source_IT outputIter = outputBegin;
       literals_IT literalsIter = literalsEnd;
-      // make Iter point to the last last element
-      if constexpr (!std::is_null_pointer_v<literals_IT>) {
-        --literalsIter;
-      }
 
       auto decode = [&, this](coder_type& decoder) {
         const auto cumul = decoder.get();
@@ -73,7 +69,7 @@ class Decoder
 
         if constexpr (!std::is_null_pointer_v<literals_IT>) {
           if (this->mReverseLUT.isIncompressible(cumul)) {
-            sourceSymbol = *(literalsIter--);
+            sourceSymbol = *(--literalsIter);
             decoderSymbol = &(this->mSymbolTable.getEscapeSymbol());
           } else {
             sourceSymbol = (this->mReverseLUT)[cumul];
@@ -100,12 +96,12 @@ class Decoder
 
       for (size_t i = 0; i < nLoops; ++i) {
         for (auto& decoder : decoders) {
-          std::tie(*it++, inputIter) = decode(decoder);
+          std::tie(*outputIter++, inputIter) = decode(decoder);
         }
       }
 
       for (size_t i = 0; i < nLoopRemainder; ++i) {
-        std::tie(*it++, inputIter) = decode(decoders[i]);
+        std::tie(*outputIter++, inputIter) = decode(decoders[i]);
       }
 
 #ifdef O2_RANS_PRINT_PROCESSED_DATA

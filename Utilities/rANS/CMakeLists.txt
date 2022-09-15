@@ -70,24 +70,10 @@ o2_add_test(HistogramView
             COMPONENT_NAME rANS
             LABELS utils)
 
-o2_add_test(FrequencyTable
-            NAME FrequencyTable
-            SOURCES test/test_ransFrequencyTable.cxx
-            PUBLIC_LINK_LIBRARIES O2::rANS
-            COMPONENT_NAME rANS
-            LABELS utils)
-
 o2_add_test(Histograms
             NAME Histograms
             TARGETVARNAME testHistograms
             SOURCES test/test_ransHistograms.cxx
-            PUBLIC_LINK_LIBRARIES O2::rANS
-            COMPONENT_NAME rANS
-            LABELS utils)
-
-o2_add_test(SymbolTable
-            NAME SymbolTable
-            SOURCES test/test_ransSymbolTable.cxx
             PUBLIC_LINK_LIBRARIES O2::rANS
             COMPONENT_NAME rANS
             LABELS utils)
@@ -112,141 +98,60 @@ o2_add_test(EncodeDecode
             PUBLIC_LINK_LIBRARIES O2::rANS
             COMPONENT_NAME rANS
             LABELS utils)
-
-o2_add_test(EncodeDecodeNew
-            NAME EncodeDecodeNew
-            SOURCES test/test_ransEncodeDecodeNew.cxx
-            PUBLIC_LINK_LIBRARIES O2::rANS
-            COMPONENT_NAME rANS
-            LABELS utils)
-
+            
 if (TARGET benchmark::benchmark)
-o2_add_executable(CombinedIterator
-                  SOURCES benchmarks/bench_ransCombinedIterator.cxx
+  o2_add_executable(CombinedIterator
+                    SOURCES benchmarks/bench_ransCombinedIterator.cxx
+                    COMPONENT_NAME rANS
+                    IS_BENCHMARK
+                    PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
+
+  o2_add_executable(Encode
+                    SOURCES benchmarks/bench_ransEncode.cxx
+                    COMPONENT_NAME rANS
+                    IS_BENCHMARK
+                    TARGETVARNAME ransEncoderBenchmark
+                    PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark RapidJSON::RapidJSON)
+  target_compile_options(${ransEncoderBenchmark} PRIVATE  -O3 -march=native -fopenmp)
+  target_link_libraries(${ransEncoderBenchmark} PRIVATE -ltbb)
+
+  o2_add_executable(EncodeImpl
+                    SOURCES benchmarks/bench_ransEncodeImpl.cxx
+                    COMPONENT_NAME rANS
+                    IS_BENCHMARK
+                    TARGETVARNAME ransEncodeBenchmark
+                    PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
+  target_compile_options(${ransEncodeBenchmark} PRIVATE  -O3 -march=native -fopenmp)
+  target_link_libraries(${ransEncodeBenchmark} PRIVATE -ltbb)
+
+  o2_add_executable(Streaming
+                  SOURCES benchmarks/bench_ransStreaming.cxx
                   COMPONENT_NAME rANS
                   IS_BENCHMARK
+                  TARGETVARNAME ransStreamingBenchmark
                   PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
+    target_compile_options(${ransStreamingBenchmark} PRIVATE  -O2 -march=native -fopenmp)
+    target_link_libraries(${ransStreamingBenchmark} PRIVATE -ltbb)
+    if(${ENABLE_VTUNE_PROFILER})
+      target_compile_definitions(${ransStreamingBenchmark} PRIVATE ENABLE_VTUNE_PROFILER)
+      target_link_libraries(${ransStreamingBenchmark} PRIVATE PkgConfig::Vtune)
+    endif()
 
-o2_add_executable(Compression
-                  SOURCES benchmarks/bench_ransCompression.cxx
-                  COMPONENT_NAME rANS
-                  IS_BENCHMARK
-                  TARGETVARNAME ransCompressionBenchmark
-                  PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
-  target_compile_options(${ransCompressionBenchmark} PRIVATE -O3  -march=native -fopenmp)
-  target_link_libraries(${ransCompressionBenchmark} PRIVATE -ltbb)
-
-o2_add_executable(Encoder
-                  SOURCES benchmarks/bench_ransEncoder.cxx
-                  COMPONENT_NAME rANS
-                  IS_BENCHMARK
-                  TARGETVARNAME ransEncoderBenchmark
-                  PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
-target_compile_options(${ransEncoderBenchmark} PRIVATE  -O3 -march=native -fopenmp)
-target_link_libraries(${ransEncoderBenchmark} PRIVATE -ltbb)
-
-o2_add_executable(EncoderNew
-                  SOURCES benchmarks/bench_ransEncoderNew.cxx
-                  COMPONENT_NAME rANS
-                  IS_BENCHMARK
-                  TARGETVARNAME ransEncoderBenchmark
-                  PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark RapidJSON::RapidJSON)
-target_compile_options(${ransEncoderBenchmark} PRIVATE  -O3 -march=native -fopenmp)
-target_link_libraries(${ransEncoderBenchmark} PRIVATE -ltbb)
-
-o2_add_executable(LiteralEncoder
-                  SOURCES benchmarks/bench_ransLiteralEncoder.cxx
-                  COMPONENT_NAME rANS
-                  IS_BENCHMARK
-                  TARGETVARNAME ransLiteralEncoderBenchmark
-                  PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
-target_compile_options(${ransLiteralEncoderBenchmark} PRIVATE  -O3 -march=native -fopenmp)
-target_link_libraries(${ransLiteralEncoderBenchmark} PRIVATE -ltbb)
-
-o2_add_executable(Encode
-                  SOURCES benchmarks/bench_ransEncode.cxx
-                  COMPONENT_NAME rANS
-                  IS_BENCHMARK
-                  TARGETVARNAME ransEncodeBenchmark
-                  PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
-target_compile_options(${ransEncodeBenchmark} PRIVATE  -O3 -march=native -fopenmp)
-target_link_libraries(${ransEncodeBenchmark} PRIVATE -ltbb)
-
-o2_add_executable(SymbolTableAccess
-                  SOURCES benchmarks/bench_ransSymbolTableAccess.cxx
-                  COMPONENT_NAME rANS
-                  IS_BENCHMARK
-                  TARGETVARNAME ransSymbolTableAccessBenchmark
-                  PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
-target_compile_options(${ransSymbolTableAccessBenchmark} PRIVATE  -O3 -march=native -fopenmp)
-target_link_libraries(${ransSymbolTableAccessBenchmark} PRIVATE -ltbb)
-
-o2_add_executable(Streaming
-                SOURCES benchmarks/bench_ransStreaming.cxx
-                COMPONENT_NAME rANS
-                IS_BENCHMARK
-                TARGETVARNAME ransStreamingBenchmark
-                PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
-  target_compile_options(${ransStreamingBenchmark} PRIVATE  -O2 -march=native -fopenmp)
-  target_link_libraries(${ransStreamingBenchmark} PRIVATE -ltbb)
-  if(${ENABLE_VTUNE_PROFILER})
-    target_compile_definitions(${ransStreamingBenchmark} PRIVATE ENABLE_VTUNE_PROFILER)
-    target_link_libraries(${ransStreamingBenchmark} PRIVATE PkgConfig::Vtune)
-  endif()
-
-
-o2_add_executable(TPCEncodeDecode
-                  SOURCES benchmarks/bench_ransTPC.cxx
-                  COMPONENT_NAME rANS
-                  IS_BENCHMARK
-                  PUBLIC_LINK_LIBRARIES O2::rANS 
-                  TARGETVARNAME ransTPCBenchmark
-                  PUBLIC_LINK_LIBRARIES O2::rANS Boost::program_options FairLogger::FairLogger RapidJSON::RapidJSON)
-  target_compile_options(${ransTPCBenchmark} PRIVATE  -O3 -march=native -fopenmp)
-  target_link_libraries(${ransTPCBenchmark} PRIVATE -ltbb)
-  if(${ENABLE_VTUNE_PROFILER})
-  target_compile_definitions(${ransTPCBenchmark} PRIVATE ENABLE_VTUNE_PROFILER)
-  target_link_libraries(${ransTPCBenchmark} PRIVATE PkgConfig::Vtune)
-endif()
-
-o2_add_executable(TPCEncodeDecodeNew
-                  SOURCES benchmarks/bench_ransTPCNew.cxx
-                  COMPONENT_NAME rANS
-                  IS_BENCHMARK
-                  PUBLIC_LINK_LIBRARIES O2::rANS 
-                  TARGETVARNAME ransTPCBenchmark
-                  PUBLIC_LINK_LIBRARIES O2::rANS Boost::program_options FairLogger::FairLogger RapidJSON::RapidJSON)
-  target_compile_options(${ransTPCBenchmark} PRIVATE  -O3 -march=native -fopenmp)
-  target_link_libraries(${ransTPCBenchmark} PRIVATE -ltbb)
-  if(${ENABLE_VTUNE_PROFILER})
-  target_compile_definitions(${ransTPCBenchmark} PRIVATE ENABLE_VTUNE_PROFILER)
-  target_link_libraries(${ransTPCBenchmark} PRIVATE PkgConfig::Vtune)
-endif()
-
-if(${ENABLE_VTUNE_PROFILER})
-  o2_add_executable(TPCBuildFrequencyTable
-                    SOURCES benchmarks/bench_ransTPCFrequencyTable.cxx
+  o2_add_executable(TPCEncodeDecode
+                    SOURCES benchmarks/bench_ransTPC.cxx
                     COMPONENT_NAME rANS
                     IS_BENCHMARK
                     PUBLIC_LINK_LIBRARIES O2::rANS 
                     TARGETVARNAME ransTPCBenchmark
                     PUBLIC_LINK_LIBRARIES O2::rANS Boost::program_options FairLogger::FairLogger RapidJSON::RapidJSON)
-  target_compile_options(${ransTPCBenchmark} PRIVATE  -O3 -march=native)
+  target_compile_options(${ransTPCBenchmark} PRIVATE  -O3 -march=native -fopenmp)
   target_link_libraries(${ransTPCBenchmark} PRIVATE -ltbb)
-  target_compile_definitions(${ransTPCBenchmark} PRIVATE ENABLE_VTUNE_PROFILER)
-  target_link_libraries(${ransTPCBenchmark} PRIVATE PkgConfig::Vtune)
-endif()
+  if(${ENABLE_VTUNE_PROFILER})
+    target_compile_definitions(${ransTPCBenchmark} PRIVATE ENABLE_VTUNE_PROFILER)
+    target_link_libraries(${ransTPCBenchmark} PRIVATE PkgConfig::Vtune)
+  endif()
 
 endif()
-
-o2_add_executable(SIMD
-                  SOURCES benchmarks/bench_ransSIMD.cxx
-                  COMPONENT_NAME rANS
-                  IS_BENCHMARK
-                  TARGETVARNAME ransSIMDBenchmark
-                  PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark)
-target_compile_options(${ransSIMDBenchmark} PRIVATE  -O3 -march=native -fopenmp)
-target_link_libraries(${ransSIMDBenchmark} PRIVATE -ltbb)
 
 o2_add_executable(rans-encode-decode-8
                   TARGETVARNAME targetName

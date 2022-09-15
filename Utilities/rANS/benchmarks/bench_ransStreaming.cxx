@@ -22,10 +22,13 @@
 
 #include <benchmark/benchmark.h>
 
-#include "rANSLegacy/utils.h"
-#include "rANSLegacy/rans.h"
-#include "rANSLegacy/internal/backend/simd/kernel.h"
-#include "rANSLegacy/internal/backend/simd/types.h"
+#include "rANS/factory.h"
+#include "rANS/histogram.h"
+
+#include "rANS/internal/common/utils.h"
+#include "rANS/internal/common/simdtypes.h"
+#include "rANS/internal/common/simdops.h"
+#include "rANS/internal/encode/simdKernel.h"
 
 #ifdef ENABLE_VTUNE_PROFILER
 #include <ittnotify.h>
@@ -35,7 +38,8 @@ using count_t = uint32_t;
 using ransState_t = uint64_t;
 using stream_t = uint32_t;
 
-using namespace o2::ranslegacy::internal;
+using namespace o2::rans;
+using namespace o2::rans::internal;
 
 inline constexpr size_t MessageSize = 1ull << 22;
 inline constexpr size_t LowerBound = 1ul << 20;
@@ -55,24 +59,27 @@ class RenormingData
     mSourceMessage.resize(sourceSize);
     std::generate(std::execution::par_unseq, mSourceMessage.begin(), mSourceMessage.end(), [&dist, &mt]() { return dist(mt); });
 
-    mRenormedFrequencies = o2::ranslegacy::renorm(o2::ranslegacy::makeFrequencyTableFromSamples(std::begin(mSourceMessage), std::end(mSourceMessage)));
+    const auto histogram = makeHistogram::fromSamples(gsl::span<const source_T>(mSourceMessage));
+    const auto metrics = computeDatasetMetrics(histogram);
+    const size_t renormingPrecision = computeRenormingPrecision(metrics);
+    mRenormedHistogram = renormCutoffIncompressible<>(histogram, renormingPrecision, 0);
 
-    double_t expectationValue = std::accumulate(mRenormedFrequencies.begin(), mRenormedFrequencies.end(), 0.0, [this](const double_t& a, const count_t& b) {
-      double_t prb = static_cast<double_t>(b) / static_cast<double_t>(mRenormedFrequencies.getNumSamples());
+    double_t expectationValue = std::accumulate(mRenormedHistogram.begin(), mRenormedHistogram.end(), 0.0, [this](const double_t& a, const count_t& b) {
+      double_t prb = static_cast<double_t>(b) / static_cast<double_t>(mRenormedHistogram.getNumSamples());
       return a + b * prb;
     });
 
-    mState = ((LowerBound >> mRenormedFrequencies.getRenormingBits()) << StreamBits) * expectationValue;
+    mState = ((LowerBound >> mRenormedHistogram.getRenormingBits()) << StreamBits) * expectationValue;
   };
 
   const auto& getSourceMessage() const { return mSourceMessage; };
-  const auto& getRenormedFrequencies() const { return mRenormedFrequencies; };
+  const auto& getRenormedHistogram() const { return mRenormedHistogram; };
 
   ransState_t getState() const { return mState; };
 
  private:
   std::vector<source_T> mSourceMessage{};
-  o2::ranslegacy::RenormedFrequencyTable mRenormedFrequencies{};
+  RenormedHistogram<source_T> mRenormedHistogram{};
   ransState_t mState{};
 };
 
@@ -99,10 +106,10 @@ struct Fixture : public benchmark::Fixture {
   void SetUp(const ::benchmark::State& state) final
   {
     const auto& sourceMessage = getData<source_T>().getSourceMessage();
-    const auto& frequencyTable = getData<source_T>().getRenormedFrequencies();
+    const auto& renormedHistogram = getData<source_T>().getRenormedHistogram();
 
     for (auto& symbol : sourceMessage) {
-      mFrequencies.push_back(frequencyTable[symbol]);
+      mFrequencies.push_back(renormedHistogram[symbol]);
     }
   }
 
@@ -113,7 +120,7 @@ struct Fixture : public benchmark::Fixture {
 
   std::vector<count_t> mFrequencies{};
   ransState_t mState = getData<source_T>().getState();
-  size_t mRenormingBits = getData<source_T>().getRenormedFrequencies().getRenormingBits();
+  size_t mRenormingBits = getData<source_T>().getRenormedHistogram().getRenormingBits();
 };
 
 template <typename source_T, simd::SIMDWidth width_V>
@@ -128,28 +135,28 @@ struct SIMDFixture : public benchmark::Fixture {
     mState[1] = simd::setAll<width_V>(getData<source_T>().getState());
 
     const auto& sourceMessage = getData<source_T>().getSourceMessage();
-    const auto& frequencyTable = getData<source_T>().getRenormedFrequencies();
+    const auto& renormedHistogram = getData<source_T>().getRenormedHistogram();
 
     for (size_t i = 0; i < sourceMessage.size(); i += 2 * nElems) {
       if constexpr (width_V == simd::SIMDWidth::SSE) {
-        mFrequencies.push_back({{simd::epi32_t<simd::SIMDWidth::SSE>{frequencyTable[sourceMessage[i + 0]],
-                                                                     frequencyTable[sourceMessage[i + 1]],
+        mFrequencies.push_back({{simd::epi32_t<simd::SIMDWidth::SSE>{renormedHistogram[sourceMessage[i + 0]],
+                                                                     renormedHistogram[sourceMessage[i + 1]],
                                                                      0x0u,
                                                                      0x0u},
-                                 simd::epi32_t<simd::SIMDWidth::SSE>{frequencyTable[sourceMessage[i + 2]],
-                                                                     frequencyTable[sourceMessage[i + 3]],
+                                 simd::epi32_t<simd::SIMDWidth::SSE>{renormedHistogram[sourceMessage[i + 2]],
+                                                                     renormedHistogram[sourceMessage[i + 3]],
                                                                      0x0u,
                                                                      0x0u}}});
       }
       if constexpr (width_V == simd::SIMDWidth::AVX) {
-        mFrequencies.push_back({{simd::epi32_t<simd::SIMDWidth::SSE>{frequencyTable[sourceMessage[i + 0]],
-                                                                     frequencyTable[sourceMessage[i + 1]],
-                                                                     frequencyTable[sourceMessage[i + 2]],
-                                                                     frequencyTable[sourceMessage[i + 3]]},
-                                 simd::epi32_t<simd::SIMDWidth::SSE>{frequencyTable[sourceMessage[i + 4]],
-                                                                     frequencyTable[sourceMessage[i + 5]],
-                                                                     frequencyTable[sourceMessage[i + 6]],
-                                                                     frequencyTable[sourceMessage[i + 7]]}}});
+        mFrequencies.push_back({{simd::epi32_t<simd::SIMDWidth::SSE>{renormedHistogram[sourceMessage[i + 0]],
+                                                                     renormedHistogram[sourceMessage[i + 1]],
+                                                                     renormedHistogram[sourceMessage[i + 2]],
+                                                                     renormedHistogram[sourceMessage[i + 3]]},
+                                 simd::epi32_t<simd::SIMDWidth::SSE>{renormedHistogram[sourceMessage[i + 4]],
+                                                                     renormedHistogram[sourceMessage[i + 5]],
+                                                                     renormedHistogram[sourceMessage[i + 6]],
+                                                                     renormedHistogram[sourceMessage[i + 7]]}}});
       }
     }
   }
@@ -162,7 +169,7 @@ struct SIMDFixture : public benchmark::Fixture {
   static constexpr size_t nElems = simd::getElementCount<ransState_t>(width_V);
   std::vector<std::array<simd::epi32_t<simd::SIMDWidth::SSE>, 2>> mFrequencies{};
   simd::simdI_t<width_V> mState[2];
-  uint8_t mRenormingBits = getData<source_T>().getRenormedFrequencies().getRenormingBits();
+  uint8_t mRenormingBits = getData<source_T>().getRenormedHistogram().getRenormingBits();
 };
 
 template <typename stream_IT>

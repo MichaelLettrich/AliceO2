@@ -46,8 +46,8 @@ class SingleStreamEncoderImplBase : public EncoderImpl<symbol_T,
   [[nodiscard]] inline stream_IT flush(stream_IT outputIter)
   {
     static_assert(base_type::getStreamOutTypeBits() == 32);
-    *(++outputIter) = static_cast<stream_type>(mState >> 32);
-    *(++outputIter) = static_cast<stream_type>(mState);
+    *(outputIter++) = static_cast<stream_type>(mState >> 32);
+    *(outputIter++) = static_cast<stream_type>(mState);
 
     mState = 0;
     return outputIter;
@@ -76,7 +76,7 @@ class SingleStreamEncoderImplBase : public EncoderImpl<symbol_T,
   {
     state_type maxState = ((base_type::getStreamingLowerBound() >> this->mSymbolTablePrecision) << base_type::getStreamOutTypeBits()) * frequency;
     if (state >= maxState) {
-      *(++outputIter) = static_cast<stream_type>(state);
+      *(outputIter++) = static_cast<stream_type>(state);
       state >>= this->getStreamOutTypeBits();
       assert(state < maxState);
     }
