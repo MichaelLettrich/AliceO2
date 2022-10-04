@@ -21,7 +21,6 @@
 #include <string>
 #include "DataFormatsTOF/CTF.h"
 #include "DetectorsCommonDataFormats/DetID.h"
-#include "rANSLegacy/rans.h"
 #include "DetectorsBase/CTFCoderBase.h"
 #include "TOFBase/Digit.h"
 

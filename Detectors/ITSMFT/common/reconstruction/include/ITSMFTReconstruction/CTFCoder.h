@@ -29,7 +29,6 @@
 #include "ITSMFTReconstruction/Clusterer.h"
 #include "DetectorsCommonDataFormats/DetID.h"
 #include "DetectorsBase/CTFCoderBase.h"
-#include "rANSLegacy/rans.h"
 
 //#define _CHECK_INCREMENTES_ // Uncoment this the check the incremements being non-negative
 

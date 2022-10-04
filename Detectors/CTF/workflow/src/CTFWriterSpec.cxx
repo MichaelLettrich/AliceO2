@@ -44,7 +44,10 @@
 #include "DataFormatsCPV/CTF.h"
 #include "DataFormatsZDC/CTF.h"
 #include "DataFormatsCTP/CTF.h"
-#include "rANSLegacy/rans.h"
+
+#include "rANS/histogram.h"
+#include "rANS/compat.h"
+
 #include <vector>
 #include <stdexcept>
 #include <array>
@@ -88,7 +91,7 @@ size_t appendToTree(TTree& tree, const std::string brname, T& ptr)
 }
 
 using DetID = o2::detectors::DetID;
-using FTrans = o2::ranslegacy::FrequencyTable;
+using FTrans = o2::rans::Histogram<int32_t>;
 
 class CTFWriterSpec : public o2::framework::Task
 {
@@ -314,7 +317,7 @@ size_t CTFWriterSpec::processDet(o2::framework::ProcessingContext& pc, DetID det
       sz = ctfBuffer.size();
     }
     if (mCreateDict) {
-      if (!mFreqsAccumulation[det].size()) {
+      if (mFreqsAccumulation[det].empty()) {
         mFreqsAccumulation[det].resize(C::getNBlocks());
         mFreqsMetaData[det].resize(C::getNBlocks());
       }
@@ -340,8 +343,17 @@ size_t CTFWriterSpec::processDet(o2::framework::ProcessingContext& pc, DetID det
                   }
                   return true;
                 }()) {
-              auto newProbBits = static_cast<uint8_t>(o2::ranslegacy::computeRenormingPrecision(freq));
-              mdSave = o2::ctf::Metadata{0, 0, md.messageWordSize, md.coderType, md.streamSize, newProbBits, md.opt, freq.getMinSymbol(), freq.getMaxSymbol(), static_cast<int32_t>(freq.size()), 0, 0};
+              auto newProbBits = static_cast<uint8_t>(o2::rans::compat::computeRenormingPrecision(freq.countNUsedAlphabetSymbols()));
+              auto histogramView = o2::rans::internal::trim(o2::rans::internal::HistogramView{freq.begin(), freq.end(), freq.getOffset()});
+              mdSave = o2::ctf::Metadata{0, 0, md.messageWordSize,
+                                         md.coderType,
+                                         md.streamSize,
+                                         newProbBits,
+                                         md.opt,
+                                         static_cast<int32_t>(histogramView.getMin()),
+                                         static_cast<int32_t>(histogramView.getMax()),
+                                         static_cast<int32_t>(histogramView.size()),
+                                         0, 0};
               mFreqsAccumulation[det][ib] = std::move(freq);
             }
           }

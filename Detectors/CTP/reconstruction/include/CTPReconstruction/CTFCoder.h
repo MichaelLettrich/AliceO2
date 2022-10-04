@@ -23,7 +23,6 @@
 #include "DataFormatsCTP/CTF.h"
 #include "DetectorsCommonDataFormats/DetID.h"
 #include "DetectorsBase/CTFCoderBase.h"
-#include "rANSLegacy/rans.h"
 #include "CTPReconstruction/CTFHelper.h"
 
 class TTree;
