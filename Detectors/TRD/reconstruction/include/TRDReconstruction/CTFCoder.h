@@ -23,7 +23,6 @@
 #include "DataFormatsTRD/CTF.h"
 #include "DetectorsCommonDataFormats/DetID.h"
 #include "DetectorsBase/CTFCoderBase.h"
-#include "rANSLegacy/rans.h"
 #include "TRDReconstruction/CTFHelper.h"
 #include "CommonConstants/LHCConstants.h"
 
