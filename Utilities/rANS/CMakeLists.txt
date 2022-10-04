@@ -9,16 +9,13 @@
 # granted to it by virtue of its status as an Intergovernmental Organization
 # or submit itself to any jurisdiction.
 
-o2_add_library(rANS
-               TARGETVARNAME targetName
-               SOURCES src/FrequencyTable.cxx
-                       src/RenormedFrequencyTable.cxx
-               PUBLIC_LINK_LIBRARIES FairLogger::FairLogger Microsoft.GSL::GSL)
-#target_compile_definitions(${targetName} PUBLIC O2_RANS_PRINT_PROCESSED_DATA)
-target_compile_options(${targetName} PUBLIC -mavx2 -mfma -march=native)
+o2_add_header_only_library(rANS
+               TARGETVARNAME LIBRANS
+               INTERFACE_LINK_LIBRARIES FairLogger::FairLogger Microsoft.GSL::GSL)
+target_compile_options(${LIBRANS} INTERFACE -mavx2 -mfma -march=native)
 if(${ENABLE_VTUNE_PROFILER})
-  target_compile_definitions(${targetName} PUBLIC ENABLE_VTUNE_PROFILER)
-  target_link_libraries(${targetName} PUBLIC PkgConfig::Vtune)
+  target_compile_definitions(${LIBRANS} INTERFACE ENABLE_VTUNE_PROFILER)
+  target_link_libraries(${LIBRANS} INTERFACE PkgConfig::Vtune)
 endif()
 
 o2_add_test(Utils
