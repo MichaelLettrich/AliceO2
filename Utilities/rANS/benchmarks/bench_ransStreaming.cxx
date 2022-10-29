@@ -61,8 +61,7 @@ class RenormingData
 
     const auto histogram = makeHistogram::fromSamples(gsl::span<const source_T>(mSourceMessage));
     const auto metrics = computeDatasetMetrics(histogram);
-    const size_t renormingPrecision = computeRenormingPrecision(metrics);
-    mRenormedHistogram = renormCutoffIncompressible<>(histogram, renormingPrecision, 0);
+    mRenormedHistogram = renorm(histogram, metrics);
 
     double_t expectationValue = std::accumulate(mRenormedHistogram.begin(), mRenormedHistogram.end(), 0.0, [this](const double_t& a, const count_t& b) {
       double_t prb = static_cast<double_t>(b) / static_cast<double_t>(mRenormedHistogram.getNumSamples());

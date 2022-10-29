@@ -42,7 +42,7 @@ size_t getNUniqueSymbols(const T& container)
 
 BOOST_AUTO_TEST_CASE(test_empty)
 {
-  const auto renormedHistogram = renormCutoffIncompressible(Histogram<uint32_t>{});
+  const auto renormedHistogram = renorm(Histogram<uint32_t>{}, true);
   const ReverseSymbolLookupTable<uint32_t> rLut{renormedHistogram};
 
   const auto size = 0;
@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_CASE(test_buildRLUT)
   const size_t scaleBits = 17;
   const auto size = (1ull << scaleBits) - 1;
 
-  const auto renormedHistogram = renormCutoffIncompressible(makeHistogram::fromSamples(A.begin(), A.end()), scaleBits);
+  const auto renormedHistogram = renorm(makeHistogram::fromSamples(A.begin(), A.end()), scaleBits, true);
   const ReverseSymbolLookupTable<int32_t> rLut{renormedHistogram};
 
   BOOST_CHECK_EQUAL(rLut.size(), size);

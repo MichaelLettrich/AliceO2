@@ -91,8 +91,7 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
   auto tmpHist = histogram;
   timer.start();
   const auto metrics = computeDatasetMetrics(histogram);
-  const size_t renormingPrecision = computeRenormingPrecision(metrics);
-  const auto renormedHistogram = renormCutoffIncompressible<>(histogram, renormingPrecision, 0);
+  const auto renormedHistogram = renorm(std::move(tmpHist), metrics);
   timer.stop();
   // writerRenormed.Key(name.c_str());
   // toJSON(renormedFrequencyTable, writerRenormed);
