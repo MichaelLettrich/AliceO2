@@ -165,16 +165,9 @@ class makeEncoder
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromHistogram(const Histogram<source_T>& histogram, size_t renormingPrecision = 0)
+  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T> histogram, size_t renormingPrecision = 0)
   {
-    const auto renormedHistogram = renorm(histogram, renormingPrecision);
-    return makeEncoder::fromRenormed(renormedHistogram);
-  };
-
-  template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromHistogram(const Histogram<source_T>&& histogram, size_t renormingPrecision = 0)
-  {
-    const auto renormedHistogram = renorm(std::move(histogram), renormingPrecision);
+    const auto renormedHistogram = o2::rans::compat::renorm(std::move(histogram), renormingPrecision);
     return makeEncoder::fromRenormed(renormedHistogram);
   };
 
@@ -220,9 +213,9 @@ class makeDecoder
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T>&& histogram, size_t renormingPrecision = 0)
+  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T> histogram, size_t renormingPrecision = 0)
   {
-    const auto renormedHistogram = renorm(std::forward<Histogram<source_T>>(histogram), renormingPrecision);
+    const auto renormedHistogram = o2::rans::compat::renorm(std::move(histogram), renormingPrecision);
     return this_type::fromRenormed(renormedHistogram);
   };
 
