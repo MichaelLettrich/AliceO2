@@ -53,7 +53,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_empty, histogram_T, histogram_t)
   histogram_T f{};
   f.addSamples(gsl::make_span(samples));
 
-  const auto symbolTable = SymbolTable<source_type, internal::Symbol>(renormCutoffIncompressible(f));
+  const auto symbolTable = SymbolTable<source_type, internal::Symbol>(renorm(f));
 
   BOOST_CHECK_EQUAL(symbolTable.size(), 0);
   BOOST_CHECK_EQUAL(symbolTable.countNUsedAlphabetSymbols(), 0);
@@ -85,7 +85,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_symbolTable, histogram_T, histogram_t)
   std::vector<uint32_t> frequencies{1, 1, 2, 2, 2, 2, 6, 8, 4, 10, 8, 14, 10, 19, 26, 30, 31, 35, 41, 45, 51, 44, 47, 39, 58, 52, 42, 53, 50, 34, 50, 30, 32, 24, 30, 20, 17, 12, 16, 6, 8, 5, 6, 4, 4, 2, 2, 2, 1};
   histogram_T histogram{frequencies.begin(), frequencies.end(), static_cast<uint8_t>(0)};
   const size_t scaleBits = 8;
-  const auto symbolTable = SymbolTable<source_type, internal::Symbol>(renormCutoffIncompressible(std::move(histogram), scaleBits, 1));
+  const auto symbolTable = SymbolTable<source_type, internal::Symbol>(renorm(std::move(histogram), scaleBits, true, 1));
 
   const std::vector<uint32_t> rescaledFrequencies{1, 2, 1, 3, 2, 3, 3, 5, 6, 7, 8, 9, 10, 11, 13, 11, 12, 10, 14, 13, 10, 13, 12, 8, 12, 7, 8, 6, 7, 5, 4, 3, 4, 2, 2, 1, 2, 1, 1};
   std::vector<uint32_t> cumulativeFrequencies;
