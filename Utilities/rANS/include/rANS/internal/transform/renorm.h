@@ -135,6 +135,10 @@ inline constexpr bool preferPacking(const DatasetMetrics<source_T>& metrics, flo
 template <typename source_T>
 inline constexpr size_t computeRenormingPrecision(const DatasetMetrics<source_T>& metrics, float_t cutoffPrecision = 0.999) noexcept
 {
+  if (metrics.nUsedAlphabetSymbols == 0) {
+    return 0;
+  }
+
   size_t computedRenormingBits = [&]() -> size_t {
     float_t cumulatedPrecision = 0;
     size_t renormingBits = 0;
@@ -212,11 +216,12 @@ inline size_t getNUsedAlphabetSymbols(const Histogram<source_T>& f)
   }
 }
 
-} // namespace renormImpl
-
 template <typename source_T>
-RenormedHistogram<source_T> renormCutoffIncompressible(Histogram<source_T> histogram, uint8_t newPrecision = 0, uint8_t lowProbabilityCutoffBits = 3)
+RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, size_t newPrecision, size_t nUsedAlphabetSymbols, bool forceIncompressible, size_t lowProbabilityCutoffBits = 0)
 {
+  using namespace o2::rans;
+  using namespace o2::rans::internal;
+
   if (histogram.empty()) {
     LOG(warning) << "rescaling Frequency Table for empty message";
   }
@@ -229,14 +234,9 @@ RenormedHistogram<source_T> renormCutoffIncompressible(Histogram<source_T> histo
 
   const source_type offset = histogram.getOffset();
   const double_t nSamples = histogram.getNumSamples();
-  const count_type nUsedAlphabetSymbols = renormImpl::getNUsedAlphabetSymbols(histogram);
 
-  if (newPrecision == 0) {
-    newPrecision = computeRenormingPrecision<source_type>(nUsedAlphabetSymbols);
-  }
-
-  const count_type nSamplesRescaled = 1 << newPrecision;
-  const double_t probabilityCutOffThreshold = 1 / static_cast<double_t>(1ul << (newPrecision + lowProbabilityCutoffBits));
+  const count_type nSamplesRescaled = pow2(newPrecision);
+  const double_t probabilityCutOffThreshold = 1.0 / static_cast<double_t>(pow2(newPrecision + lowProbabilityCutoffBits));
 
   // scaling
   double_t incompressibleSymbolProbability = 0;
@@ -278,8 +278,17 @@ RenormedHistogram<source_T> renormCutoffIncompressible(Histogram<source_T> histo
     }
   }
 
-  // treat incompressible symbol
-  const count_type incompressibleSymbolFrequency = std::max(static_cast<count_type>(1), static_cast<count_type>(incompressibleSymbolProbability * nSamplesRescaled));
+  // treat incompressible symbol:
+  const count_type incompressibleSymbolFrequency = [&]() -> count_type {
+    // The Escape symbol for incompressible data is required
+    const bool requireIncompressible = incompressibleSymbolProbability > 0. // if the algorithm eliminates infrequent symbols
+                                       || nSamples == 0                     // if the message we built the histogram from was empty
+                                       || forceIncompressible;              // or we want to reuse the symbol table later with different data
+
+    // if requireIncompressible == false it casts into 0, else it casts into 1 which is exactly our lower bound for each case, and we avoid branching.
+    return std::max(static_cast<count_type>(requireIncompressible), static_cast<count_type>(incompressibleSymbolProbability * nSamplesRescaled));
+  }();
+
   nSamplesRescaledUncorrected += incompressibleSymbolFrequency;
 
   // correction
@@ -315,6 +324,30 @@ RenormedHistogram<source_T> renormCutoffIncompressible(Histogram<source_T> histo
   }
 
   return RenormedHistogram<source_type>(std::move(rescaledHistogram), newPrecision, incompressibleSymbolFrequency);
+};
+
+} // namespace renormImpl
+
+template <typename source_T>
+RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, size_t newPrecision, bool forceIncompressible = false, size_t lowProbabilityCutoffBits = 0)
+{
+  const size_t nUsedAlphabetSymbols = renormImpl::getNUsedAlphabetSymbols(histogram);
+  return renormImpl::renorm(std::move(histogram), newPrecision, nUsedAlphabetSymbols, forceIncompressible, lowProbabilityCutoffBits);
+};
+
+template <typename source_T>
+RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, const DatasetMetrics<source_T>& metrics, bool forceIncompressible = false, size_t lowProbabilityCutoffBits = 0)
+{
+  const size_t newPrecision = computeRenormingPrecision(metrics);
+  return renormImpl::renorm(std::move(histogram), newPrecision, metrics.nUsedAlphabetSymbols, forceIncompressible, lowProbabilityCutoffBits);
+};
+
+template <typename source_T>
+RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, bool forceIncompressible = false)
+{
+  const auto metrics = computeDatasetMetrics(histogram);
+  const size_t newPrecision = computeRenormingPrecision(metrics);
+  return renormImpl::renorm(std::move(histogram), newPrecision, metrics.nUsedAlphabetSymbols, forceIncompressible, 0);
 };
 
 } // namespace o2::rans

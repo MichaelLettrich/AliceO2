@@ -17,6 +17,7 @@
 #define RANS_FACTORY_H_
 
 #include "rANS/internal/common/typetraits.h"
+#include "rANS/internal/transform/renorm.h"
 
 #include "rANS/internal/containers/Histogram.h"
 #include "rANS/internal/containers/RenormedHistogram.h"
@@ -80,32 +81,66 @@ class makeEncoder
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T>& histogram, size_t renormingPrecision = 0)
+  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T> histogram, bool forceEscapeSymbol = false)
   {
-    const auto renormedHistogram = renormCutoffIncompressible(histogram, renormingPrecision);
+    const auto renormedHistogram = renorm(std::move(histogram), forceEscapeSymbol);
     return this_type::fromRenormed(renormedHistogram);
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromHistogram(const Histogram<source_T>&& histogram, size_t renormingPrecision = 0)
+  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T> histogram, const DatasetMetrics<source_T>& metrics, bool forceEscapeSymbol = false)
   {
-    const auto renormedHistogram = renormCutoffIncompressible(std::move(histogram), renormingPrecision);
+    const auto renormedHistogram = renorm(std::move(histogram), metrics, forceEscapeSymbol);
+    return this_type::fromRenormed(renormedHistogram);
+  };
+
+  template <typename source_T>
+  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T> histogram, size_t renormingPrecision, bool forceEscapeSymbol = false)
+  {
+    const auto renormedHistogram = renorm(std::move(histogram), renormingPrecision, forceEscapeSymbol);
     return this_type::fromRenormed(renormedHistogram);
   };
 
   template <typename source_IT>
-  [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end, size_t renormingPrecision = 0)
+  [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end, bool forceEscapeSymbol = false)
   {
     auto histogram = makeHistogram::fromSamples(begin, end);
+    return this_type::fromHistogram(std::move(histogram), forceEscapeSymbol);
+  };
 
-    return this_type::fromHistogram(std::move(histogram), renormingPrecision);
+  template <typename source_IT>
+  [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end, const DatasetMetrics<typename std::iterator_traits<source_IT>::value_type>& metrics, bool forceEscapeSymbol = false)
+  {
+    auto histogram = makeHistogram::fromSamples(begin, end);
+    return this_type::fromHistogram(std::move(histogram), metrics, forceEscapeSymbol);
+  };
+
+  template <typename source_IT>
+  [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end, size_t renormingPrecision, bool forceEscapeSymbol = false)
+  {
+    auto histogram = makeHistogram::fromSamples(begin, end);
+    return this_type::fromHistogram(std::move(histogram), renormingPrecision, forceEscapeSymbol);
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range, size_t renormingPrecision = 0)
+  [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range, bool forceEscapeSymbol = false)
   {
-    auto histogram = makeHistogram::template fromSamples(range);
-    return this_type::fromHistogram(std::move(histogram), renormingPrecision);
+    auto histogram = makeHistogram::fromSamples(range);
+    return this_type::fromHistogram(std::move(histogram), forceEscapeSymbol);
+  };
+
+  template <typename source_T>
+  [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range, const DatasetMetrics<source_T>& metrics, bool forceEscapeSymbol = false)
+  {
+    auto histogram = makeHistogram::fromSamples(range);
+    return this_type::fromHistogram(std::move(histogram), metrics, forceEscapeSymbol);
+  };
+
+  template <typename source_T>
+  [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range, size_t renormingPrecision, bool forceEscapeSymbol = false)
+  {
+    auto histogram = makeHistogram::fromSamples(range);
+    return this_type::fromHistogram(std::move(histogram), renormingPrecision, forceEscapeSymbol);
   };
 
  private:
@@ -135,24 +170,66 @@ class makeDecoder
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T>&& histogram, size_t renormingPrecision = 0)
+  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T> histogram, bool forceEscapeSymbol = false)
   {
-    const auto renormedHistogram = renormCutoffIncompressible(std::forward<Histogram<source_T>>(histogram), renormingPrecision);
+    const auto renormedHistogram = renorm(std::move(histogram), forceEscapeSymbol);
+    return this_type::fromRenormed(renormedHistogram);
+  };
+
+  template <typename source_T>
+  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T> histogram, const DatasetMetrics<source_T>& metrics, bool forceEscapeSymbol = false)
+  {
+    const auto renormedHistogram = renorm(std::move(histogram), metrics, forceEscapeSymbol);
+    return this_type::fromRenormed(renormedHistogram);
+  };
+
+  template <typename source_T>
+  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T> histogram, size_t renormingPrecision, bool forceEscapeSymbol = false)
+  {
+    const auto renormedHistogram = renorm(std::move(histogram), renormingPrecision);
     return this_type::fromRenormed(renormedHistogram);
   };
 
   template <typename source_IT>
-  [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end, size_t renormingPrecision = 0)
+  [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end, bool forceEscapeSymbol = false)
   {
     auto histogram = makeHistogram::fromSamples(begin, end);
-    return this_type::fromHistogram(std::move(histogram), renormingPrecision);
+    return this_type::fromHistogram(std::move(histogram), forceEscapeSymbol);
+  };
+
+  template <typename source_IT>
+  [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end, const DatasetMetrics<typename std::iterator_traits<source_IT>::value_type>& metrics, bool forceEscapeSymbol = false)
+  {
+    auto histogram = makeHistogram::fromSamples(begin, end);
+    return this_type::fromHistogram(std::move(histogram), metrics, forceEscapeSymbol);
+  };
+
+  template <typename source_IT>
+  [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end, size_t renormingPrecision, bool forceEscapeSymbol = false)
+  {
+    auto histogram = makeHistogram::fromSamples(begin, end);
+    return this_type::fromHistogram(std::move(histogram), renormingPrecision, forceEscapeSymbol);
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range, size_t renormingPrecision = 0)
+  [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range, bool forceEscapeSymbol = false)
   {
     auto histogram = makeHistogram::fromSamples(range);
-    return this_type::fromHistogram(std::move(histogram), renormingPrecision);
+    return this_type::fromHistogram(std::move(histogram), forceEscapeSymbol);
+  };
+
+  template <typename source_T>
+  [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range, const DatasetMetrics<source_T>& metrics, bool forceEscapeSymbol = false)
+  {
+    auto histogram = makeHistogram::fromSamples(range);
+    return this_type::fromHistogram(std::move(histogram), metrics, forceEscapeSymbol);
+  };
+
+  template <typename source_T>
+  [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range, size_t renormingPrecision, bool forceEscapeSymbol = false)
+  {
+    auto histogram = makeHistogram::fromSamples(range);
+    return this_type::fromHistogram(std::move(histogram), renormingPrecision, forceEscapeSymbol);
   };
 };
 

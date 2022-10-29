@@ -83,6 +83,8 @@ class SymbolTable : public internal::Container<source_T, symbol_T, SymbolTable<s
 
   [[nodiscard]] inline size_type size() const noexcept { return mSize; };
 
+  [[nodiscard]] inline bool hasEscapeSymbol() const noexcept { return mEscapeSymbol.getFrequency() > 0; };
+
   [[nodiscard]] inline const_reference getEscapeSymbol() const noexcept { return mEscapeSymbol; };
 
   [[nodiscard]] inline bool isEscapeSymbol(const_reference symbol) const noexcept { return symbol == mEscapeSymbol; };

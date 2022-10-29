@@ -70,8 +70,7 @@ void ransCompressionBenchmark(benchmark::State& st)
 
   const auto histogram = makeHistogram::fromSamples(gsl::span<const source_type>(inputData));
   const auto metrics = computeDatasetMetrics(histogram);
-  const size_t renormingPrecision = computeRenormingPrecision(metrics);
-  const auto renormedHistogram = renormCutoffIncompressible<>(histogram, renormingPrecision, 10);
+  const auto renormedHistogram = renorm(histogram, metrics, false, 10);
   auto encoder = makeEncoder<coderTag_V>::fromRenormed(renormedHistogram);
 
 #ifdef ENABLE_VTUNE_PROFILER
@@ -94,7 +93,7 @@ void ransCompressionBenchmark(benchmark::State& st)
   st.SetBytesProcessed(static_cast<int64_t>(inputData.size()) * sizeof(source_type) * static_cast<int64_t>(st.iterations()));
   st.counters["AlphabetRangeBits"] = metrics.alphabetRangeBits;
   st.counters["nUsedAlphabetSymbols"] = metrics.nUsedAlphabetSymbols;
-  st.counters["SymbolTablePrecision"] = renormingPrecision;
+  st.counters["SymbolTablePrecision"] = renormedHistogram.getRenormingBits();
   st.counters["Entropy"] = metrics.entropy;
   st.counters["ExpectedCodewordLength"] = computeExpectedCodewordLength(histogram, renormedHistogram);
   st.counters["SourceSize"] = inputData.size() * sizeof(source_type);
@@ -117,8 +116,7 @@ void ransLiteralCompressionBenchmark(benchmark::State& st)
 
   const auto histogram = makeHistogram::fromSamples(gsl::span<const source_type>(inputData));
   const auto metrics = computeDatasetMetrics(histogram);
-  const size_t renormingPrecision = computeRenormingPrecision(metrics);
-  const auto renormedHistogram = renormCutoffIncompressible<>(histogram, renormingPrecision, 10);
+  const auto renormedHistogram = renorm(histogram, metrics);
   auto encoder = makeEncoder<coderTag_V>::fromRenormed(renormedHistogram);
 
 #ifdef ENABLE_VTUNE_PROFILER
@@ -142,7 +140,7 @@ void ransLiteralCompressionBenchmark(benchmark::State& st)
   st.SetBytesProcessed(static_cast<int64_t>(inputData.size()) * sizeof(source_type) * static_cast<int64_t>(st.iterations()));
   st.counters["AlphabetRangeBits"] = metrics.alphabetRangeBits;
   st.counters["nUsedAlphabetSymbols"] = metrics.nUsedAlphabetSymbols;
-  st.counters["SymbolTablePrecision"] = renormingPrecision;
+  st.counters["SymbolTablePrecision"] = renormedHistogram.getRenormingBits();
   st.counters["Entropy"] = metrics.entropy;
   st.counters["ExpectedCodewordLength"] = computeExpectedCodewordLength(histogram, renormedHistogram);
   st.counters["SourceSize"] = inputData.size() * sizeof(source_type);
