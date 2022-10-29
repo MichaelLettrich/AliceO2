@@ -20,11 +20,16 @@
 
 #include <fairlogger/Logger.h>
 
+#include "rANS/internal/common/defines.h"
+
 #include "rANS/internal/common/utils.h"
+
+#ifdef RANS_SIMD
 #include "rANS/internal/encode/SIMDEncoderImpl.h"
+#include "rANS/internal/encode/simdKernel.h"
+#endif /* RANS_SIMD */
 #include "rANS/internal/encode/SingleStreamEncoderImpl.h"
 #include "rANS/internal/containers/SymbolTable.h"
-#include "rANS/internal/encode/simdKernel.h"
 
 namespace o2::rans::internal
 {
@@ -159,6 +164,7 @@ class EncoderSymbolMapper<symbolTable_T,
   };
 };
 
+#ifdef RANS_SINGLE_STREAM
 template <size_t streamingLowerBound_V, typename symbolTable_T, typename incompressible_IT>
 class EncoderSymbolMapper<symbolTable_T,
                           SingleStreamEncoderImpl<streamingLowerBound_V>,
@@ -198,7 +204,9 @@ class EncoderSymbolMapper<symbolTable_T,
     return this->unpackSymbols(sourceIter, unpacked);
   };
 };
+#endif /* RANS_SINGLE_STREAM */
 
+#ifdef RANS_SSE
 template <size_t streamingLowerBound_V, typename symbolTable_T, typename incompressible_IT>
 class EncoderSymbolMapper<symbolTable_T,
                           SSEEncoderImpl<streamingLowerBound_V>,
@@ -268,7 +276,9 @@ class EncoderSymbolMapper<symbolTable_T,
     return sourceIter;
   };
 };
+#endif /* RANS_SSE */
 
+#ifdef RANS_AVX2
 template <size_t streamingLowerBound_V, typename symbolTable_T, typename incompressible_IT>
 class EncoderSymbolMapper<symbolTable_T,
                           AVXEncoderImpl<streamingLowerBound_V>,
@@ -342,6 +352,7 @@ class EncoderSymbolMapper<symbolTable_T,
     return sourceIter;
   };
 };
+#endif /* RANS_AVX2 */
 
 } // namespace o2::rans::internal
 

@@ -20,8 +20,9 @@
 #include <cstdint>
 #include <tuple>
 
-#include "rANS/internal/encode/EncoderImpl.h"
+#include "rANS/internal/common/defaults.h"
 #include "rANS/internal/common/utils.h"
+#include "rANS/internal/encode/EncoderImpl.h"
 #include "rANS/internal/containers/Symbol.h"
 
 namespace o2::rans::internal
@@ -119,6 +120,7 @@ class CompatEncoderImpl : public SingleStreamEncoderImplBase<lowerBound_V, const
   };
 };
 
+#ifdef RANS_SINGLE_STREAM
 template <size_t lowerBound_V>
 class SingleStreamEncoderImpl : public SingleStreamEncoderImplBase<lowerBound_V, const PrecomputedSymbol*, SingleStreamEncoderImpl<lowerBound_V>>
 {
@@ -154,6 +156,7 @@ class SingleStreamEncoderImpl : public SingleStreamEncoderImplBase<lowerBound_V,
     return streamPosition;
   };
 };
+#endif /* RANS_SINGLE_STREAM */
 
 } // namespace o2::rans::internal
 

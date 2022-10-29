@@ -74,14 +74,23 @@ using testInputAll_types = boost::mp11::mp_product<boost::mp11::mp_invoke_q, tes
 using testInputProduct_types = boost::mp11::mp_product<boost::mp11::mp_list, testInputAll_types, testInputAll_types>;
 using testInput_types = boost::mp11::mp_copy_if<testInputProduct_types, hasSameTemplateParam>;
 
-using coder_types = boost::mp11::mp_list<std::integral_constant<CoderTag, CoderTag::Compat>,
-                                         std::integral_constant<CoderTag, CoderTag::SingleStream>,
-                                         std::integral_constant<CoderTag, CoderTag::SSE>,
-                                         std::integral_constant<CoderTag, CoderTag::AVX2>>;
+using coder_types = boost::mp11::mp_list<std::integral_constant<CoderTag, CoderTag::Compat>
+#ifdef RANS_SINGLE_STREAM
+                                         ,
+                                         std::integral_constant<CoderTag, CoderTag::SingleStream>
+#endif /* RANS_SINGLE_STREAM */
+#ifdef RANS_SEE
+                                         ,
+                                         std::integral_constant<CoderTag, CoderTag::SSE>
+#endif /*RANS_SSE */
+#ifdef RANS_AVX2
+                                         ,
+                                         std::integral_constant<CoderTag, CoderTag::AVX2>
+#endif /* RANS_AVX2 */
+                                         >;
 
 using testCase_types = boost::mp11::mp_product<boost::mp11::mp_list, coder_types, testInput_types>;
 
-inline constexpr size_t NRansStreams = o2::rans::internal::NStreams;
 inline constexpr size_t RansRenormingPrecision = 16;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_encodeDecode, test_types, testCase_types)
@@ -133,3 +142,22 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_encodeDecode, test_types, testCase_types)
 
   BOOST_CHECK_EQUAL_COLLECTIONS(decodeBuffer.begin(), decodeBuffer.end(), encodeString.begin(), encodeString.end());
 };
+
+#ifndef RANS_SINGLE_STREAM
+BOOST_AUTO_TEST_CASE(test_NoSingleStream)
+{
+  BOOST_TEST_WARN(" Tests were not Compiled for a uint128_t capable CPU, cannot run all tests");
+}
+#endif /* RANS_SINGLE_STREAM */
+#ifndef RANS_SSE
+BOOST_AUTO_TEST_CASE(test_NoSSE)
+{
+  BOOST_TEST_WARN("Tests were not Compiled for a SSE 4.2 capable CPU, cannot run all tests");
+}
+#endif /* RANS_SSE */
+#ifndef RANS_AVX2
+BOOST_AUTO_TEST_CASE(test_NoAVX2)
+{
+  BOOST_TEST_WARN("Tests were not Compiled for a AVX2 capable CPU, cannot run all tests");
+}
+#endif /* RANS_AVX2 */

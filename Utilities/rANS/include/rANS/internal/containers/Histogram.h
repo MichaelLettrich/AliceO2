@@ -22,7 +22,6 @@
 #include <gsl/span>
 
 #include <fairlogger/Logger.h>
-#include <immintrin.h>
 #include <utility>
 
 #include "rANS/internal/common/utils.h"
@@ -30,8 +29,10 @@
 #include "rANS/internal/containers/CountingContainer.h"
 #include "rANS/internal/containers/HistogramView.h"
 
+#ifdef RANS_SIMD
 #include "rANS/internal/common/simdops.h"
 #include "rANS/internal/common/simdtypes.h"
+#endif /* RANS_SIMD */
 
 namespace o2::rans
 {
@@ -48,117 +49,20 @@ inline std::pair<source_T, source_T> minmaxImpl(const source_T* begin, const sou
   return {*minIter, *maxIter};
 };
 
+#ifdef RANS_SIMD
 template <>
 inline std::pair<uint32_t, uint32_t> minmaxImpl<uint32_t>(const uint32_t* begin, const uint32_t* end)
 {
-  constexpr size_t ElemsPerLane = 4;
-  constexpr size_t nUnroll = 2 * ElemsPerLane;
-  auto iter = begin;
-
-  uint32_t min = *iter;
-  uint32_t max = *iter;
-
-  if (end - nUnroll > begin) {
-
-    __m128i minVec[2];
-    __m128i maxVec[2];
-    __m128i tmpVec[2];
-
-    minVec[0] = _mm_loadu_si128(reinterpret_cast<const __m128i_u*>(iter));
-    minVec[1] = minVec[0];
-    maxVec[0] = minVec[0];
-    maxVec[1] = minVec[0];
-
-    for (; iter < end - nUnroll; iter += nUnroll) {
-      tmpVec[0] = _mm_loadu_si128(reinterpret_cast<const __m128i_u*>(iter));
-      minVec[0] = _mm_min_epi32(minVec[0], tmpVec[0]);
-      maxVec[0] = _mm_max_epi32(maxVec[0], tmpVec[0]);
-
-      tmpVec[1] = _mm_loadu_si128(reinterpret_cast<const __m128i_u*>(iter) + 1);
-      minVec[1] = _mm_min_epi32(minVec[1], tmpVec[1]);
-      maxVec[1] = _mm_max_epi32(maxVec[1], tmpVec[1]);
-
-      __builtin_prefetch(iter + 512, 0);
-    }
-
-    minVec[0] = _mm_min_epu32(minVec[0], minVec[1]);
-    maxVec[0] = _mm_max_epu32(maxVec[0], maxVec[1]);
-
-    uint32_t tmpMin[ElemsPerLane];
-    uint32_t tmpMax[ElemsPerLane];
-    _mm_storeu_si128(reinterpret_cast<__m128i*>(tmpMin), minVec[0]);
-    _mm_storeu_si128(reinterpret_cast<__m128i*>(tmpMax), maxVec[0]);
-
-    for (size_t i = 0; i < ElemsPerLane; ++i) {
-      min = std::min(tmpMin[i], min);
-      max = std::max(tmpMax[i], max);
-    }
-  }
-
-  while (iter != end) {
-    min = std::min(*iter, min);
-    max = std::max(*iter, max);
-    ++iter;
-  }
-
-  return {min, max};
+  return o2::rans::internal::simd::minmax(begin, end);
 };
 
 template <>
 inline std::pair<int32_t, int32_t> minmaxImpl<int32_t>(const int32_t* begin, const int32_t* end)
 {
-  constexpr size_t ElemsPerLane = 4;
-  constexpr size_t nUnroll = 2 * ElemsPerLane;
-  auto iter = begin;
-
-  int32_t min = *iter;
-  int32_t max = *iter;
-
-  if (end - nUnroll > begin) {
-
-    __m128i minVec[2];
-    __m128i maxVec[2];
-    __m128i tmpVec[2];
-
-    minVec[0] = _mm_loadu_si128(reinterpret_cast<const __m128i_u*>(iter));
-    minVec[1] = minVec[0];
-    maxVec[0] = minVec[0];
-    maxVec[1] = minVec[0];
-
-    for (; iter < end - nUnroll; iter += nUnroll) {
-      tmpVec[0] = _mm_loadu_si128(reinterpret_cast<const __m128i_u*>(iter));
-      minVec[0] = _mm_min_epu32(minVec[0], tmpVec[0]);
-      maxVec[0] = _mm_max_epu32(maxVec[0], tmpVec[0]);
-
-      tmpVec[1] = _mm_loadu_si128(reinterpret_cast<const __m128i_u*>(iter) + 1);
-      minVec[1] = _mm_min_epu32(minVec[1], tmpVec[1]);
-      maxVec[1] = _mm_max_epu32(maxVec[1], tmpVec[1]);
-
-      __builtin_prefetch(iter + 512, 0);
-    }
-
-    minVec[0] = _mm_min_epu32(minVec[0], minVec[1]);
-    maxVec[0] = _mm_max_epu32(maxVec[0], maxVec[1]);
-
-    int32_t tmpMin[ElemsPerLane];
-    int32_t tmpMax[ElemsPerLane];
-    _mm_storeu_si128(reinterpret_cast<__m128i*>(tmpMin), minVec[0]);
-    _mm_storeu_si128(reinterpret_cast<__m128i*>(tmpMax), maxVec[0]);
-
-    for (size_t i = 0; i < ElemsPerLane; ++i) {
-      min = std::min(tmpMin[i], min);
-      max = std::max(tmpMax[i], max);
-    }
-  }
-
-  while (iter != end) {
-    min = std::min(*iter, min);
-    max = std::max(*iter, max);
-    ++iter;
-  }
-
-  return {min, max};
+  return o2::rans::internal::simd::minmax(begin, end);
 };
+#endif /* RANS_SIMD */
+
 }; // namespace histogramImpl
 
 template <typename source_T>
