@@ -26,6 +26,10 @@
 
 #include <fairlogger/Logger.h>
 
+#include "rANS/internal/common/defines.h"
+
+#if defined(RANS_SIMD)
+
 #include "rANS/internal/common/simdtypes.h"
 #include "rANS/internal/common/simdops.h"
 
@@ -33,21 +37,21 @@ using namespace o2::rans::internal::simd;
 
 // clang-format off
 using pd_types = boost::mpl::list<pd_t<SIMDWidth::SSE>
-#ifdef __AVX2__
+#ifdef RANS_AVX2
                                       , pd_t<SIMDWidth::AVX>
-#endif /* __AVX2__ */
+#endif /* RANS_AVX2 */
                                       >;
 
 using epi64_types = boost::mpl::list<epi64_t<SIMDWidth::SSE>
-#ifdef __AVX2__
+#ifdef RANS_AVX2
                                           , epi64_t<SIMDWidth::AVX>
-#endif /* __AVX2__ */
+#endif /* RANS_AVX2 */
                                           >;
 
 using epi32_types = boost::mpl::list<epi32_t<SIMDWidth::SSE>
-#ifdef __AVX2__
+#ifdef RANS_AVX2
                                           , epi32_t<SIMDWidth::AVX>
-#endif /* __AVX2__ */
+#endif /* RANS_AVX2 */
                                           >;
 // clang-format on
 
@@ -183,5 +187,20 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(modDiv, pd_T, pd_types)
     BOOST_CHECK_EQUAL_COLLECTIONS(gsl::make_span(modResult).begin(), gsl::make_span(modResult).end(), gsl::make_span(modPD).begin(), gsl::make_span(modPD).end());
   }
 }
-
 BOOST_AUTO_TEST_SUITE_END()
+
+#ifndef RANS_AVX2
+BOOST_AUTO_TEST_CASE(test_NoAVX2)
+{
+  BOOST_TEST_WARN("Tests were not Compiled for AVX2, cannot run all tests");
+}
+#endif /* RANS_AVX2 */
+
+#else /* !defined(RANS_SIMD) */
+
+BOOST_AUTO_TEST_CASE(test_NoSIMD)
+{
+  BOOST_TEST_WARN("Tests were not Compiled for SIMD, cannot run all tests");
+}
+
+#endif /* RANS_SIMD */

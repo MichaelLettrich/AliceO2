@@ -36,6 +36,20 @@
 namespace o2::rans::compat
 {
 
+namespace defaults
+{
+namespace internal
+{
+inline constexpr size_t RenormingLowerBound = 31;
+} // namespace internal
+
+struct EncoderImpl {
+  inline static constexpr size_t nStreams = 2;
+  inline static constexpr size_t renormingLowerBound = internal::RenormingLowerBound;
+};
+
+} // namespace defaults
+
 namespace compatImpl
 {
 inline constexpr uint32_t MinRenormThreshold = 10;
@@ -188,8 +202,8 @@ class makeEncoder
 
  private:
   static constexpr CoderTag mCoderTag = CoderTag::SingleStream;
-  static constexpr size_t mNstreams = o2::rans::internal::LegacyNStreams;
-  static constexpr size_t mRenormingLowerBound = o2::rans::internal::LegacyRenormingLowerBound;
+  static constexpr size_t mNstreams = defaults::EncoderImpl::nStreams;
+  static constexpr size_t mRenormingLowerBound = defaults::EncoderImpl::renormingLowerBound;
 };
 
 class makeDecoder
@@ -235,8 +249,8 @@ class makeDecoder
 
  private:
   static constexpr CoderTag mCoderTag = CoderTag::SingleStream;
-  static constexpr size_t mNstreams = o2::rans::internal::LegacyNStreams;
-  static constexpr size_t mRenormingLowerBound = o2::rans::internal::LegacyRenormingLowerBound;
+  static constexpr size_t mNstreams = defaults::EncoderImpl::nStreams;
+  static constexpr size_t mRenormingLowerBound = defaults::EncoderImpl::renormingLowerBound;
 };
 
 template <typename source_T>
@@ -272,13 +286,10 @@ inline size_t calculateMaxBufferSize(size_t num, size_t rangeBits)
 }
 
 template <typename source_T>
-using encoder_type = o2::rans::Encoder<o2::rans::internal::SingleStreamEncoderImpl<o2::rans::internal::LegacyRenormingLowerBound>,
-                                       o2::rans::SymbolTable<source_T, o2::rans::internal::PrecomputedSymbol>,
-                                       o2::rans::internal::LegacyNStreams>;
+using encoder_type = decltype(makeEncoder::fromRenormed(RenormedHistogram<source_T>{}));
 
 template <typename source_T>
-using decoder_type = o2::rans::Decoder<o2::rans::internal::DecoderImpl<o2::rans::internal::LegacyRenormingLowerBound>,
-                                       o2::rans::SymbolTable<source_T, o2::rans::internal::Symbol>>;
+using decoder_type = decltype(makeDecoder::fromRenormed(RenormedHistogram<source_T>{}));
 
 } // namespace o2::rans::compat
 

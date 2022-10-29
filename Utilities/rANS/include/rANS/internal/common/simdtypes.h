@@ -15,15 +15,19 @@
 #ifndef RANS_INTERNAL_COMMON_SIMDTYPES_H_
 #define RANS_INTERNAL_COMMON_SIMDTYPES_H_
 
-#include <cstdint>
-#include <cstring>
+#include "rANS/internal/common/defines.h"
+
+#ifdef RANS_SIMD
 
 #include <immintrin.h>
+#include <cstdint>
+#include <cstring>
 
 #include "rANS/internal/common/utils.h"
 
 namespace o2::rans::internal::simd
 {
+
 enum class SIMDWidth : uint32_t { SSE = 128u,
                                   AVX = 256u };
 
@@ -74,16 +78,20 @@ struct SimdInt<SIMDWidth::SSE> {
   using value_type = __m128i;
 };
 
+#ifdef RANS_AVX2
 template <>
 struct SimdInt<SIMDWidth::AVX> {
   using value_type = __m256i;
 };
+#endif
 
 template <SIMDWidth width_V>
 using simdI_t = typename SimdInt<width_V>::value_type;
 
 using simdIsse_t = simdI_t<SIMDWidth::SSE>;
+#ifdef RANS_AVX2
 using simdIavx_t = simdI_t<SIMDWidth::AVX>;
+#endif
 
 template <SIMDWidth>
 struct SimdDouble;
@@ -93,17 +101,22 @@ struct SimdDouble<SIMDWidth::SSE> {
   using value_type = __m128d;
 };
 
+#ifdef RANS_AVX2
 template <>
 struct SimdDouble<SIMDWidth::AVX> {
   using value_type = __m256d;
 };
+#endif
 
 template <SIMDWidth width_V>
 using simdD_t = typename SimdDouble<width_V>::value_type;
 
 using simdDsse_t = simdD_t<SIMDWidth::SSE>;
+#ifdef RANS_AVX2
 using simdDavx_t = simdD_t<SIMDWidth::AVX>;
-
+#endif
 } // namespace o2::rans::internal::simd
+
+#endif /* RANS_SIMD */
 
 #endif /* RANS_INTERNAL_COMMON_SIMDTYPES_H_ */
