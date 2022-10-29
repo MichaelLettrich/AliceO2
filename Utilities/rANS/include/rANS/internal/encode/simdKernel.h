@@ -15,6 +15,10 @@
 #ifndef RANS_INTERNAL_ENCODE_SIMDKERNEL_H_
 #define RANS_INTERNAL_ENCODE_SIMDKERNEL_H_
 
+#include "rANS/internal/common/defines.h"
+
+#ifdef RANS_SIMD
+
 #include <immintrin.h>
 
 #include <array>
@@ -42,12 +46,17 @@ inline __m128i ransEncode(__m128i state, __m128d frequency, __m128d cumulative, 
 #endif
 
   auto [div, mod] = divMod(uint64ToDouble(state), frequency);
+#ifdef RANS_FMA
   auto newState = _mm_fmadd_pd(normalization, div, cumulative);
+#else  /* !defined(RANS_FMA) */
+  auto newState = _mm_mul_pd(normalization, div);
+  newState = _mm_add_pd(newState, cumulative);
+#endif /* RANS_FMA */
   newState = _mm_add_pd(newState, mod);
 
   return doubleToUint64(newState);
 };
-#ifdef __AVX2__
+#ifdef RANS_AVX2
 
 //
 // rans Encode
@@ -68,7 +77,7 @@ inline __m256i ransEncode(__m256i state, __m256d frequency, __m256d cumulative, 
   return doubleToUint64(newState);
 };
 
-#endif /* __AVX2__ */
+#endif /* RANS_AVX2 */
 
 inline void aosToSoa(gsl::span<const Symbol*, 2> in, __m128i* __restrict__ frequency, __m128i* __restrict__ cumulatedFrequency) noexcept
 {
@@ -102,10 +111,10 @@ inline auto computeMaxState(__m128i frequencyVec, uint8_t symbolTablePrecisionBi
     return _mm_slli_epi64(frequencyVecEpi64, shift);
   }
   if constexpr (width_V == SIMDWidth::AVX) {
-#ifdef __AVX2__
+#ifdef RANS_AVX2
     __m256i frequencyVecEpi64 = _mm256_cvtepi32_epi64(frequencyVec);
     return _mm256_slli_epi64(frequencyVecEpi64, shift);
-#endif /* __AVX2__ */
+#endif /* RANS_AVX2 */
   }
 };
 
@@ -118,7 +127,7 @@ inline __m128i computeNewState(__m128i stateVec, __m128i cmpVec) noexcept
   return newStateVec;
 };
 
-#ifdef __AVX2__
+#ifdef RANS_AVX2
 template <uint8_t streamBits_V>
 inline __m256i computeNewState(__m256i stateVec, __m256i cmpVec) noexcept
 {
@@ -128,7 +137,7 @@ inline __m256i computeNewState(__m256i stateVec, __m256i cmpVec) noexcept
   return newStateVec;
 };
 
-#endif /* __AVX2__ */
+#endif /* RANS_AVX2 */
 
 inline constexpr std::array<epi8_t<SIMDWidth::SSE>, 16>
   SSEStreamOutLUT{{
@@ -422,8 +431,8 @@ inline StreamOutResult<SIMDWidth::SSE> streamOut(const __m128i* __restrict__ sta
 {
   auto shifted1 = _mm_slli_epi64(stateVec[1], 32);
 
-  __m128i statesFused = _mm_blend_epi32(stateVec[0], shifted1, 0b1010);
-  __m128i cmpFused = _mm_blend_epi32(cmpVec[0], cmpVec[1], 0b1010);
+  __m128i statesFused = _mm_blend_epi16(stateVec[0], shifted1, 0b11001100);
+  __m128i cmpFused = _mm_blend_epi16(cmpVec[0], cmpVec[1], 0b11001100);
   const uint32_t id = _mm_movemask_ps(_mm_castsi128_ps(cmpFused));
 
   __m128i permutationMask = load(SSEStreamOutLUT[id]);
@@ -432,7 +441,7 @@ inline StreamOutResult<SIMDWidth::SSE> streamOut(const __m128i* __restrict__ sta
   return {static_cast<uint32_t>(_mm_popcnt_u32(id)), streamOutVec};
 };
 
-#ifdef __AVX2__
+#ifdef RANS_AVX2
 template <>
 struct StreamOutResult<SIMDWidth::AVX> {
   uint32_t nElemens;
@@ -458,7 +467,7 @@ inline StreamOutResult<SIMDWidth::AVX> streamOut(const __m256i* __restrict__ sta
   return {static_cast<uint32_t>(_mm_popcnt_u32(id)), streamOutVec};
 };
 
-#endif /* __AVX2__ */
+#endif /* RANS_AVX2 */
 
 template <SIMDWidth, typename output_IT>
 struct RenormResult;
@@ -469,13 +478,13 @@ struct RenormResult<SIMDWidth::SSE, output_IT> {
   __m128i newState;
 };
 
-#ifdef __AVX2__
+#ifdef RANS_AVX2
 template <typename output_IT>
 struct RenormResult<SIMDWidth::AVX, output_IT> {
   output_IT outputIter;
   __m256i newState;
 };
-#endif /* __AVX2__ */
+#endif /* RANS_AVX2 */
 
 template <typename output_IT, uint64_t lowerBound_V, uint8_t streamBits_V>
 inline output_IT ransRenorm(const __m128i* __restrict__ state, const __m128i* __restrict__ frequency, uint8_t symbolTablePrecisionBits, output_IT outputIter, __m128i* __restrict__ newState) noexcept
@@ -508,7 +517,7 @@ inline output_IT ransRenorm(const __m128i* __restrict__ state, const __m128i* __
   return outputIter;
 };
 
-#ifdef __AVX2__
+#ifdef RANS_AVX2
 template <typename output_IT, uint64_t lowerBound_V, uint8_t streamBits_V>
 inline output_IT ransRenorm(const __m256i* state, const __m128i* __restrict__ frequency, uint8_t symbolTablePrecisionBits, output_IT outputIter, __m256i* __restrict__ newState) noexcept
 {
@@ -539,7 +548,7 @@ inline output_IT ransRenorm(const __m256i* state, const __m128i* __restrict__ fr
 
   return outputIter;
 };
-#endif /* __AVX2__ */
+#endif /* RANS_AVX2 */
 
 struct UnrolledSymbols {
   __m128i frequencies[2];
@@ -548,4 +557,5 @@ struct UnrolledSymbols {
 
 } // namespace o2::rans::internal::simd
 
+#endif /* RANS_SIMD */
 #endif /* RANS_INTERNAL_ENCODE_SIMDKERNEL_H_ */

@@ -15,6 +15,10 @@
 #ifndef RANS_INTERNAL_ENCODE_SIMDENCODERIMPL_H_
 #define RANS_INTERNAL_ENCODE_SIMDENCODERIMPL_H_
 
+#include "rANS/internal/common/defines.h"
+
+#ifdef RANS_SIMD
+
 #include <cassert>
 #include <cstdint>
 #include <tuple>
@@ -212,5 +216,7 @@ template <size_t streamingLowerBound_V>
 using AVXEncoderImpl = SIMDEncoderImpl<streamingLowerBound_V, simd::SIMDWidth::AVX>;
 
 } // namespace o2::rans::internal
+
+#endif /* RANS_SIMD */
 
 #endif /* RANS_INTERNAL_ENCODE_SIMDENCODERIMPL_H_ */

@@ -16,6 +16,7 @@
 #ifndef RANS_INTERNAL_COMMON_TYPETRAITS_H_
 #define RANS_INTERNAL_COMMON_TYPETRAITS_H_
 
+#include "rANS/internal/common/defaults.h"
 #include "rANS/internal/containers/Histogram.h"
 #include "rANS/internal/containers/RenormedHistogram.h"
 #include "rANS/internal/containers/SymbolTable.h"
@@ -23,27 +24,16 @@
 
 #include "rANS/internal/encode/Encoder.h"
 #include "rANS/internal/encode/SingleStreamEncoderImpl.h"
+
+#ifdef RANS_SIMD
 #include "rANS/internal/encode/SIMDEncoderImpl.h"
+#endif
 
 #include "rANS/internal/decode/Decoder.h"
 #include "rANS/internal/decode/DecoderImpl.h"
 
-namespace o2::rans
+namespace o2::rans::internal
 {
-
-enum class CoderTag : uint8_t { Compat,
-                                SingleStream,
-                                SSE,
-                                AVX2 };
-
-namespace internal
-{
-
-inline constexpr size_t NStreams = 16;
-inline constexpr size_t RenormingLowerBound = 20;
-
-inline constexpr size_t LegacyNStreams = 2;
-inline constexpr size_t LegacyRenormingLowerBound = 31;
 
 template <typename T>
 struct getCoderTag;
@@ -52,17 +42,23 @@ template <size_t V>
 struct getCoderTag<CompatEncoderImpl<V>> : public std::integral_constant<CoderTag, CoderTag::Compat> {
 };
 
+#ifdef RANS_SINGLE_STREAM
 template <size_t V>
 struct getCoderTag<SingleStreamEncoderImpl<V>> : public std::integral_constant<CoderTag, CoderTag::SingleStream> {
 };
+#endif /* RANS_SINGLE_STREAM */
 
+#ifdef RANS_SSE
 template <size_t V>
 struct getCoderTag<SSEEncoderImpl<V>> : public std::integral_constant<CoderTag, CoderTag::SSE> {
 };
+#endif /* RANS_SSE */
 
+#ifdef RANS_AVX2
 template <size_t V>
 struct getCoderTag<AVXEncoderImpl<V>> : public std::integral_constant<CoderTag, CoderTag::AVX2> {
 };
+#endif /* RANS_AVX2 */
 
 template <class encoderImpl_T, class symbolTable_T, size_t nStreams_V>
 struct getCoderTag<Encoder<encoderImpl_T, symbolTable_T, nStreams_V>> : public getCoderTag<encoderImpl_T> {
@@ -132,28 +128,33 @@ struct CoderTraits<CoderTag::Compat> {
   using type = CompatEncoderImpl<lowerBound_V>;
 };
 
+#ifdef RANS_SINGLE_STREAM
 template <>
 struct CoderTraits<CoderTag::SingleStream> {
 
   template <size_t lowerBound_V>
   using type = SingleStreamEncoderImpl<lowerBound_V>;
 };
+#endif /* RANS_SINGLE_STREAM */
 
+#ifdef RANS_SSE
 template <>
 struct CoderTraits<CoderTag::SSE> {
 
   template <size_t lowerBound_V>
   using type = SSEEncoderImpl<lowerBound_V>;
 };
+#endif /* RANS_SSE */
 
+#ifdef RANS_AVX2
 template <>
 struct CoderTraits<CoderTag::AVX2> {
 
   template <size_t lowerBound_V>
   using type = AVXEncoderImpl<lowerBound_V>;
 };
+#endif /* RANS_AVX2 */
 
-} // namespace internal
-} // namespace o2::rans
+} // namespace o2::rans::internal
 
 #endif /* RANS_INTERNAL_COMMON_TYPETRAITS_H_ */

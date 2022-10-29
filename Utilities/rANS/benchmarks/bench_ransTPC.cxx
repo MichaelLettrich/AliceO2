@@ -25,10 +25,20 @@
 namespace bpo = boost::program_options;
 using namespace o2::rans;
 
-using coder_types = boost::mp11::mp_list<std::integral_constant<CoderTag, CoderTag::Compat>,
-                                         std::integral_constant<CoderTag, CoderTag::SingleStream>,
-                                         std::integral_constant<CoderTag, CoderTag::SSE>,
-                                         std::integral_constant<CoderTag, CoderTag::AVX2>>;
+using coder_types = boost::mp11::mp_list<std::integral_constant<CoderTag, CoderTag::Compat>
+#ifdef RANS_SINGLE_STREAM
+                                         ,
+                                         std::integral_constant<CoderTag, CoderTag::SingleStream>
+#endif /* RANS_SINGLE_STREAM */
+#ifdef RANS_SSE
+                                         ,
+                                         std::integral_constant<CoderTag, CoderTag::SSE>
+#endif /* RANS_SSE */
+#ifdef RANS_AVX2
+                                         ,
+                                         std::integral_constant<CoderTag, CoderTag::AVX2>
+#endif /* RANS_AVX2 */
+                                         >;
 
 // using coder_types = boost::mp11::mp_list<std::integral_constant<CoderTag, CoderTag::SingleStream>>;
 

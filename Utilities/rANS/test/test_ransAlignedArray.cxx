@@ -26,6 +26,10 @@
 
 #include <fairlogger/Logger.h>
 
+#include "rANS/internal/common/defines.h"
+
+#ifdef RANS_SIMD
+
 #include "rANS/internal/containers/AlignedArray.h"
 
 BOOST_AUTO_TEST_CASE(test_AlignedArray)
@@ -54,3 +58,12 @@ BOOST_AUTO_TEST_CASE(test_AlignedArray)
   BOOST_CHECK_EQUAL_COLLECTIONS(gsl::make_span(a2).begin(), gsl::make_span(a2).end(), reference2.begin(), reference2.end());
   BOOST_CHECK_EQUAL_COLLECTIONS(gsl::make_span(a2).rbegin(), gsl::make_span(a2).rend(), reference2.rbegin(), reference2.rend());
 };
+
+#else /* !defined(RANS_SIMD) */
+
+BOOST_AUTO_TEST_CASE(test_NoSIMD)
+{
+  BOOST_TEST_WARN("Tests were not Compiled for SIMD, cannot run all tests");
+}
+
+#endif
