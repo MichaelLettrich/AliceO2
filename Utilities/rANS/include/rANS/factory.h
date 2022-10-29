@@ -17,6 +17,7 @@
 #define RANS_FACTORY_H_
 
 #include "rANS/internal/common/typetraits.h"
+#include "rANS/internal/common/defaults.h"
 #include "rANS/internal/transform/renorm.h"
 
 #include "rANS/internal/containers/Histogram.h"
@@ -33,6 +34,34 @@
 
 namespace o2::rans
 {
+
+template <typename source_T, CoderTag tag_V = defaults::DefaultTag,
+          size_t lowerBound_V = defaults::EncoderImpl<tag_V>::renormingLowerBound,
+          size_t nStreams_V = defaults::EncoderImpl<tag_V>::nStreams>
+struct EncoderTraits {
+
+  inline static constexpr CoderTag coderTag = tag_V;
+  inline static constexpr size_t renormingLowerBound = lowerBound_V;
+  inline static constexpr size_t nStreams = nStreams_V;
+
+  using source_type = source_T;
+  using symbol_type = typename internal::SymbolTraits<coderTag>::type;
+  using coder_type = typename internal::CoderTraits<coderTag>::template type<renormingLowerBound>;
+  using symbolTable_type = SymbolTable<source_type, symbol_type>;
+  using encoderType = Encoder<coder_type, symbolTable_type, nStreams>;
+};
+
+template <typename source_T, size_t lowerBound_V = defaults::internal::RenormingLowerBound>
+struct DecoderTraits {
+
+  inline static constexpr size_t renormingLowerBound = lowerBound_V;
+
+  using source_type = source_T;
+  using coder_type = internal::DecoderImpl<lowerBound_V>;
+  using symbol_type = typename coder_type::symbol_type;
+  using symbolTable_type = SymbolTable<source_type, symbol_type>;
+  using decoder_type = Decoder<coder_type, symbolTable_type>;
+};
 
 struct makeHistogram {
 
@@ -59,7 +88,9 @@ struct makeHistogram {
   };
 };
 
-template <CoderTag coderTag_V, size_t nStreams_V = internal::NStreams, size_t renormingLowerBound_V = internal::RenormingLowerBound>
+template <CoderTag coderTag_V = defaults::DefaultTag,
+          size_t nStreams_V = defaults::EncoderImpl<coderTag_V>::nStreams,
+          size_t renormingLowerBound_V = defaults::EncoderImpl<coderTag_V>::renormingLowerBound>
 class makeEncoder
 {
 
@@ -148,7 +179,7 @@ class makeEncoder
   static constexpr size_t RenormingLowerBound = renormingLowerBound_V;
 };
 
-template <size_t renormingLowerBound_V = internal::RenormingLowerBound>
+template <size_t renormingLowerBound_V = defaults::internal::RenormingLowerBound>
 class makeDecoder
 {
 

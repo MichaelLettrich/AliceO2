@@ -122,6 +122,7 @@ struct Fixture : public benchmark::Fixture {
   size_t mRenormingBits = getData<source_T>().getRenormedHistogram().getRenormingBits();
 };
 
+#ifdef RANS_SIMD
 template <typename source_T, simd::SIMDWidth width_V>
 struct SIMDFixture : public benchmark::Fixture {
 
@@ -170,6 +171,7 @@ struct SIMDFixture : public benchmark::Fixture {
   simd::simdI_t<width_V> mState[2];
   uint8_t mRenormingBits = getData<source_T>().getRenormedHistogram().getRenormingBits();
 };
+#endif /* RANS_SIMD */
 
 template <typename stream_IT>
 inline std::tuple<ransState_t, stream_IT> renorm(ransState_t state, stream_IT outputIter, count_t frequency, size_t symbolTablePrecision)
@@ -201,6 +203,7 @@ static void ransRenormingBenchmark(benchmark::State& st, fixture_T& fixture)
   st.SetBytesProcessed(int64_t(st.iterations()) * getData<typename fixture_T::source_t>().getSourceMessage().size() * sizeof(typename fixture_T::source_t));
 };
 
+#ifdef RANS_SIMD
 template <class fixture_T>
 static void ransRenormingBenchmarkSIMD(benchmark::State& st, fixture_T& fixture)
 {
@@ -233,6 +236,7 @@ static void ransRenormingBenchmarkSIMD(benchmark::State& st, fixture_T& fixture)
   st.SetItemsProcessed(int64_t(st.iterations()) * getData<typename fixture_T::source_t>().getSourceMessage().size());
   st.SetBytesProcessed(int64_t(st.iterations()) * getData<typename fixture_T::source_t>().getSourceMessage().size() * sizeof(typename fixture_T::source_t));
 };
+#endif /* RANS_SIMD */
 
 BENCHMARK_TEMPLATE_DEFINE_F(Fixture, renorm_8, uint8_t)
 (benchmark::State& st)
@@ -252,6 +256,7 @@ BENCHMARK_TEMPLATE_DEFINE_F(Fixture, renorm_32, uint32_t)
   ransRenormingBenchmark(st, *this);
 };
 
+#ifdef RANS_SSE
 BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormSSE_8, uint8_t, simd::SIMDWidth::SSE)
 (benchmark::State& st)
 {
@@ -269,7 +274,9 @@ BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormSSE_32, uint32_t, simd::SIMDWidth
 {
   ransRenormingBenchmarkSIMD(st, *this);
 };
+#endif /* RANS_SSE */
 
+#ifdef RANS_AVX2
 BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormAVX_8, uint8_t, simd::SIMDWidth::AVX)
 (benchmark::State& st)
 {
@@ -287,17 +294,22 @@ BENCHMARK_TEMPLATE_DEFINE_F(SIMDFixture, renormAVX_32, uint32_t, simd::SIMDWidth
 {
   ransRenormingBenchmarkSIMD(st, *this);
 };
+#endif /* RANS_AVX2 */
 
 BENCHMARK_REGISTER_F(Fixture, renorm_8);
 BENCHMARK_REGISTER_F(Fixture, renorm_16);
 BENCHMARK_REGISTER_F(Fixture, renorm_32);
 
+#ifdef RANS_SSE
 BENCHMARK_REGISTER_F(SIMDFixture, renormSSE_8);
 BENCHMARK_REGISTER_F(SIMDFixture, renormSSE_16);
 BENCHMARK_REGISTER_F(SIMDFixture, renormSSE_32);
+#endif /* RANS_SSE */
 
+#ifdef RANS_AVX2
 BENCHMARK_REGISTER_F(SIMDFixture, renormAVX_8);
 BENCHMARK_REGISTER_F(SIMDFixture, renormAVX_16);
 BENCHMARK_REGISTER_F(SIMDFixture, renormAVX_32);
+#endif /* RANS_AVX2 */
 
 BENCHMARK_MAIN();

@@ -17,37 +17,40 @@
 #define BOOST_TEST_MAIN
 #define BOOST_TEST_DYN_LINK
 
-#ifdef __SSE__
+#include <boost/test/unit_test.hpp>
+#include <boost/mpl/list.hpp>
+
+#include "rANS/internal/common/defines.h"
+
+#ifdef RANS_SIMD
 
 #include <vector>
 #include <type_traits>
 
-#include <boost/test/unit_test.hpp>
-#include <boost/mpl/list.hpp>
-
 #include "rANS/internal/encode/simdKernel.h"
 #include "rANS/internal/common/typetraits.h"
+#include "rANS/internal/common/defaults.h"
 
 using namespace o2::rans::internal::simd;
 using namespace o2::rans::internal;
 
 // clang-format off
 using pd_types = boost::mpl::list<pd_t<SIMDWidth::SSE>
-#ifdef __AVX2__
+#ifdef RANS_AVX2
                                       , pd_t<SIMDWidth::AVX>
-#endif /* __AVX2__ */
+#endif /* RANS_AVX2 */
                                       >;
 
 using epi64_types = boost::mpl::list<epi64_t<SIMDWidth::SSE>
-#ifdef __AVX2__
+#ifdef RANS_AVX2
                                           , epi64_t<SIMDWidth::AVX>
-#endif /* __AVX2__ */
+#endif /* RANS_AVX2 */
                                           >;
 
 using epi32_types = boost::mpl::list<epi32_t<SIMDWidth::SSE>
-#ifdef __AVX2__
+#ifdef RANS_AVX2
                                           , epi32_t<SIMDWidth::AVX>
-#endif /* __AVX2__ */
+#endif /* RANS_AVX2 */
                                           >;
 // clang-format on
 
@@ -184,7 +187,7 @@ struct SSERenormFixture {
 
   SSERenormFixture() = default;
 
-  static constexpr size_t LowerBoundBits = o2::rans::internal::RenormingLowerBound;
+  static constexpr size_t LowerBoundBits = o2::rans::defaults::internal::RenormingLowerBound;
   static constexpr size_t LowerBound = pow2(LowerBoundBits);
   static constexpr size_t SymbolTablePrecisionBits = 16;
   static constexpr size_t StreamBits = o2::rans::internal::toBits(sizeof(stream_t));
@@ -412,4 +415,18 @@ BOOST_AUTO_TEST_CASE(renormSSE_1111)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-#endif /* __SSE__ */
+#ifndef RANS_AVX2
+BOOST_AUTO_TEST_CASE(test_NoAVX2)
+{
+  BOOST_TEST_WARN("Tests were not Compiled for AVX2, cannot run all tests");
+}
+#endif
+
+#else /* !defined(RANS_SIMD) */
+
+BOOST_AUTO_TEST_CASE(test_NoSIMD)
+{
+  BOOST_TEST_WARN("Tests were not Compiled for SIMD, cannot run all tests");
+}
+
+#endif /* RANS_SIMD */
