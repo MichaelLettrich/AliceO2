@@ -64,8 +64,7 @@ class SymbolTableData
 
     const auto histogram = makeHistogram::fromSamples(gsl::span<const source_T>(mSourceMessage));
     const auto metrics = computeDatasetMetrics(histogram);
-    const size_t renormingPrecision = computeRenormingPrecision(metrics);
-    mRenormedFrequencies = renormCutoffIncompressible<>(histogram, renormingPrecision, 0);
+    mRenormedFrequencies = renorm(histogram, metrics);
 
     double_t expectationValue = std::accumulate(mRenormedFrequencies.begin(), mRenormedFrequencies.end(), 0.0, [this](const double_t& a, const count_t& b) {
       double_t prb = static_cast<double_t>(b) / static_cast<double_t>(mRenormedFrequencies.getNumSamples());
