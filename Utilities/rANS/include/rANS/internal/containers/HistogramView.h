@@ -59,7 +59,7 @@ class HistogramView
 
   [[nodiscard]] inline difference_type getMin() const noexcept { return this->getOffset(); };
 
-  [[nodiscard]] inline difference_type getMax() const { return this->getOffset() + std::max(0, static_cast<int32_t>(this->size()) - 1); };
+  [[nodiscard]] inline difference_type getMax() const { return this->getOffset() + static_cast<difference_type>(this->size() - !this->empty()); };
 
   [[nodiscard]] inline iterator begin() const { return mBegin; };
 

@@ -155,6 +155,9 @@ struct CoderTraits<CoderTag::AVX2> {
 };
 #endif /* RANS_AVX2 */
 
+template <CoderTag tag_V, size_t lowerBound_V>
+using CoderTraits_t = typename CoderTraits<tag_V>::template type<lowerBound_V>;
+
 } // namespace o2::rans::internal
 
 #endif /* RANS_INTERNAL_COMMON_TYPETRAITS_H_ */
