@@ -99,8 +99,8 @@ int main(int argc, char* argv[])
 
   // build encoders
   auto histogram = makeHistogram::fromSamples(tokens.begin(), tokens.end());
-  auto metrics = computeDatasetMetrics(histogram);
-  auto renormedHistogram = renorm(std::move(histogram), computeRenormingPrecision(metrics));
+  const Metrics<source_type> metrics{histogram};
+  auto renormedHistogram = renorm(std::move(histogram), metrics);
   auto encoder = makeEncoder<CoderTag::SingleStream, NSTREAMS, LOWER_BOUND>::fromRenormed(renormedHistogram);
   auto decoder = makeDecoder<LOWER_BOUND>::fromRenormed(renormedHistogram);
 

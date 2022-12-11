@@ -100,7 +100,7 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
 
   auto tmpHist = histogram;
   timer.start();
-  const auto metrics = computeDatasetMetrics(histogram);
+  const Metrics<source_type> metrics{histogram};
   const auto renormedHistogram = renorm(std::move(tmpHist), metrics);
   timer.stop();
   // writerRenormed.Key(name.c_str());
@@ -152,6 +152,8 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
 
   writer.EndObject(); // Timing
 
+  const auto& datasetProperties = metrics.getDatasetProperties();
+
   // Frequency Table
   // ##########################
   writer.Key("FrequencyTable");
@@ -159,32 +161,34 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
   writer.Key("nSamples");
   writer.Uint64(histogram.getNumSamples());
   writer.Key("Min");
-  writer.Int(metrics.min);
+  writer.Int(datasetProperties.min);
   writer.Key("Max");
-  writer.Int(metrics.max);
+  writer.Int(datasetProperties.max);
   writer.Key("alphabetRangeBits");
-  writer.Int(metrics.alphabetRangeBits);
+  writer.Int(datasetProperties.alphabetRangeBits);
   writer.Key("nUsedAlphabetSymbols");
-  writer.Uint(metrics.nUsedAlphabetSymbols);
+  writer.Uint(datasetProperties.nUsedAlphabetSymbols);
   writer.Key("IncompressibleFrequency");
   writer.Uint(0);
   writer.EndObject(); // FrequencyTable
 
   // RescaledFrequencies
   //##########################
-  auto renormedMetrics = computeDatasetMetrics(renormedHistogram);
+  const Metrics<source_type> renormedMetrics{histogram};
+  const auto& renormedDatasetProperties = renormedMetrics.getDatasetProperties();
+
   writer.Key("RescaledFrequencies");
   writer.StartObject();
   writer.Key("nSamples");
   writer.Uint64(renormedHistogram.getNumSamples());
   writer.Key("Min");
-  writer.Int(renormedMetrics.min);
+  writer.Int(renormedDatasetProperties.min);
   writer.Key("Max");
-  writer.Int(renormedMetrics.max);
+  writer.Int(renormedDatasetProperties.max);
   writer.Key("alphabetRangeBits");
-  writer.Int(renormedMetrics.alphabetRangeBits);
+  writer.Int(renormedDatasetProperties.alphabetRangeBits);
   writer.Key("nUsedAlphabetSymbols");
-  writer.Uint(renormedMetrics.nUsedAlphabetSymbols);
+  writer.Uint(renormedDatasetProperties.nUsedAlphabetSymbols);
   writer.Key("IncompressibleFrequency");
   writer.Uint(renormedHistogram.getIncompressibleSymbolFrequency());
   writer.Key("RenormingBits");
@@ -200,7 +204,7 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
   writer.Key("SymbolSize");
   writer.Uint(sizeof(source_type));
   writer.Key("Entropy");
-  writer.Double(metrics.entropy);
+  writer.Double(datasetProperties.entropy);
   writer.Key("ExpectedCodewordLength");
   writer.Double(computeExpectedCodewordLength<>(histogram, renormedHistogram));
   writer.EndObject(); // Message

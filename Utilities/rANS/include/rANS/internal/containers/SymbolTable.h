@@ -143,6 +143,14 @@ SymbolTable<source_T, value_T>::SymbolTable(const RenormedHistogram<source_type>
   mSize = this->mContainer.size();
 };
 
+template <typename source_T, typename symbol_T>
+std::pair<source_T, source_T> getMinMax(const SymbolTable<source_T, symbol_T>& symbolTable)
+{
+  const source_T min = symbolTable.getOffset();
+  const source_T max = min + static_cast<source_T>(symbolTable.size() - !symbolTable.empty()); // subtracts 1 from size if not empty
+
+  return {min, max};
+};
 } // namespace o2::rans
 
 #endif /* RANS_INTERNAL_CONTAINERS_SYMBOLTABLE_H_ */
