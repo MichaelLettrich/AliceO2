@@ -90,6 +90,15 @@ o2_add_test(Histograms
             LABELS utils)
             target_compile_options(${TEST_HISTOGRAMS} PRIVATE -march=native)
 
+o2_add_test(Metrics
+            NAME Metrics
+            SOURCES test/test_ransMetrics.cxx
+            PUBLIC_LINK_LIBRARIES O2::rANS
+            COMPONENT_NAME rANS
+            TARGETVARNAME TEST_METRICS
+            LABELS utils)
+            target_compile_options(${TEST_METRICS} PRIVATE -march=native)
+
 o2_add_test(SymbolTables
             NAME SymbolTables
             SOURCES test/test_ransSymbolTables.cxx

@@ -20,6 +20,7 @@
 #include <fairlogger/Logger.h>
 
 #include "rANS/internal/containers/CountingContainer.h"
+#include "rANS/internal/containers/HistogramView.h"
 
 namespace o2::rans
 {
@@ -76,6 +77,13 @@ class RenormedHistogram : public internal::CountingContainer<source_T>
 
  private:
   value_type mNIncompressible{};
+};
+
+template <typename source_T>
+std::pair<source_T, source_T> getMinMax(const RenormedHistogram<source_T>& histogram)
+{
+  auto view = internal::trim(internal::makeHistogramView(histogram));
+  return {view.getMin(), view.getMax()};
 };
 
 } // namespace o2::rans

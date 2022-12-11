@@ -69,7 +69,7 @@ void ransCompressionBenchmark(benchmark::State& st)
   DecodeBuffer<source_type> decodeBuffer{inputData.size()};
 
   const auto histogram = makeHistogram::fromSamples(gsl::span<const source_type>(inputData));
-  const auto metrics = computeDatasetMetrics(histogram);
+  const Metrics<source_type> metrics{histogram};
   const auto renormedHistogram = renorm(histogram, metrics, false, 10);
   auto encoder = makeEncoder<coderTag_V>::fromRenormed(renormedHistogram);
 
@@ -89,12 +89,13 @@ void ransCompressionBenchmark(benchmark::State& st)
     st.SkipWithError("Missmatch between encoded and decoded Message");
   }
 
+  const auto& datasetProperties = metrics.getDatasetProperties();
   st.SetItemsProcessed(static_cast<int64_t>(inputData.size()) * static_cast<int64_t>(st.iterations()));
   st.SetBytesProcessed(static_cast<int64_t>(inputData.size()) * sizeof(source_type) * static_cast<int64_t>(st.iterations()));
-  st.counters["AlphabetRangeBits"] = metrics.alphabetRangeBits;
-  st.counters["nUsedAlphabetSymbols"] = metrics.nUsedAlphabetSymbols;
+  st.counters["AlphabetRangeBits"] = datasetProperties.alphabetRangeBits;
+  st.counters["nUsedAlphabetSymbols"] = datasetProperties.nUsedAlphabetSymbols;
   st.counters["SymbolTablePrecision"] = renormedHistogram.getRenormingBits();
-  st.counters["Entropy"] = metrics.entropy;
+  st.counters["Entropy"] = datasetProperties.entropy;
   st.counters["ExpectedCodewordLength"] = computeExpectedCodewordLength(histogram, renormedHistogram);
   st.counters["SourceSize"] = inputData.size() * sizeof(source_type);
   st.counters["CompressedSize"] = std::distance(encodeBuffer.buffer.data(), encodeBuffer.encodeBufferEnd) * sizeof(typename decltype(encoder)::stream_type);
@@ -115,7 +116,7 @@ void ransLiteralCompressionBenchmark(benchmark::State& st)
   DecodeBuffer<source_type> decodeBuffer{inputData.size()};
 
   const auto histogram = makeHistogram::fromSamples(gsl::span<const source_type>(inputData));
-  const auto metrics = computeDatasetMetrics(histogram);
+  const Metrics<source_type> metrics{histogram};
   const auto renormedHistogram = renorm(histogram, metrics);
   auto encoder = makeEncoder<coderTag_V>::fromRenormed(renormedHistogram);
 
@@ -136,12 +137,13 @@ void ransLiteralCompressionBenchmark(benchmark::State& st)
     st.SkipWithError("Missmatch between encoded and decoded Message");
   }
 
+  const auto& datasetProperties = metrics.getDatasetProperties();
   st.SetItemsProcessed(static_cast<int64_t>(inputData.size()) * static_cast<int64_t>(st.iterations()));
   st.SetBytesProcessed(static_cast<int64_t>(inputData.size()) * sizeof(source_type) * static_cast<int64_t>(st.iterations()));
-  st.counters["AlphabetRangeBits"] = metrics.alphabetRangeBits;
-  st.counters["nUsedAlphabetSymbols"] = metrics.nUsedAlphabetSymbols;
+  st.counters["AlphabetRangeBits"] = datasetProperties.alphabetRangeBits;
+  st.counters["nUsedAlphabetSymbols"] = datasetProperties.nUsedAlphabetSymbols;
   st.counters["SymbolTablePrecision"] = renormedHistogram.getRenormingBits();
-  st.counters["Entropy"] = metrics.entropy;
+  st.counters["Entropy"] = datasetProperties.entropy;
   st.counters["ExpectedCodewordLength"] = computeExpectedCodewordLength(histogram, renormedHistogram);
   st.counters["SourceSize"] = inputData.size() * sizeof(source_type);
   st.counters["CompressedSize"] = std::distance(encodeBuffer.buffer.data(), encodeBuffer.encodeBufferEnd) * sizeof(typename decltype(encoder)::stream_type);
