@@ -16,21 +16,15 @@
 #ifndef RANS_INTERNAL_COMMON_DEFAULTS_H_
 #define RANS_INTERNAL_COMMON_DEFAULTS_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 
 #include "rANS/internal/common/defines.h"
-#include "rANS/internal/common/typetraits.h"
 
-namespace o2::rans
-{
+#include <cstdint>
 
-enum class CoderTag : uint8_t { Compat,
-                                SingleStream,
-                                SSE,
-                                AVX2 };
-
-namespace defaults
+namespace o2::rans::defaults
 {
 
 #if defined(RANS_AVX2)
@@ -48,7 +42,10 @@ inline constexpr o2::rans::CoderTag DefaultTag = o2::rans::CoderTag::Compat;
 namespace internal
 {
 inline constexpr size_t RenormingLowerBound = 20;
-}
+} // namespace internal
+
+inline constexpr size_t MinRenormPrecisionBits = 10;
+inline constexpr size_t MaxRenormPrecisionBits = 20;
 
 template <CoderTag tag_V = DefaultTag>
 struct EncoderImpl;
@@ -83,7 +80,6 @@ struct EncoderImpl<CoderTag::AVX2> {
 };
 #endif
 
-} // namespace defaults
-} // namespace o2::rans
+} // namespace o2::rans::defaults
 
 #endif /* RANS_INTERNAL_COMMON_DEFAULTS_H_ */

@@ -28,6 +28,7 @@
 #include <fairlogger/Logger.h>
 
 #include "rANS/utils.h"
+#include "rANS/internal/common/defaults.h"
 
 #define rans_likely(x) __builtin_expect((x), 1)
 #define rans_unlikely(x) __builtin_expect((x), 0)
@@ -79,7 +80,7 @@ inline constexpr size_t toBits(size_t bytes) noexcept { return bytes * 8; };
 
 inline constexpr size_t pow2(size_t n) noexcept
 {
-  return static_cast<size_t>(1) << n;
+  return 1ull << n;
 }
 
 inline constexpr uint32_t log2UIntNZ(uint32_t x) noexcept
@@ -108,6 +109,36 @@ inline constexpr bool isPow2(T x) noexcept
   return x > 0 && (x & (x - 1)) == 0;
 }
 
+[[nodiscard]] inline uint32_t symbolLengthBits(uint32_t x) noexcept { return log2UInt(x); };
+
+template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
+[[nodiscard]] inline uint32_t getRangeBits(T min, T max) noexcept
+{
+  assert(max >= min);
+  const int64_t diff = max - min;
+
+  if (diff == 0) {
+    return 0; // if min==max, we're empty. Compatible with the case that we need 2**0 == 1 Value.
+  } else {
+    return symbolLengthBits(diff) + 1; // otherwise add 1 to cover full interval [min,max]
+  }
+};
+
+[[nodiscard]] inline count_t roundSymbolFrequency(double_t rescaledFrequency)
+{
+  const count_t roundedDown = static_cast<count_t>(rescaledFrequency);
+  const double_t roundedDownD = roundedDown;
+
+  // rescaledFrequency**2 <= ( floor(rescaledFrequency) * ceil(rescaledFrequency))
+  if (rescaledFrequency * rescaledFrequency <= (roundedDownD * (roundedDownD + 1.0))) {
+    // round down
+    return roundedDown;
+  } else {
+    // round up
+    return roundedDown + 1;
+  }
+};
+
 inline constexpr size_t
   numSymbolsWithNBits(size_t bits) noexcept
 {
@@ -135,6 +166,37 @@ inline Freq_IT advanceIter(Freq_IT iter, std::ptrdiff_t distance)
   std::advance(iter, distance);
   return iter;
 }
+
+[[nodiscard]] inline size_t sanitizeRenormingBitRange(size_t renormPrecision)
+{
+  size_t sanitizedPrecision{};
+  if (renormPrecision != 0) {
+    sanitizedPrecision = std::min(defaults::MaxRenormPrecisionBits, std::max(defaults::MinRenormPrecisionBits, renormPrecision));
+    LOG_IF(warning, (sanitizedPrecision != renormPrecision)) << fmt::format("Renorming precision {} is not in valid interval [{},{}], rounding to {} ",
+                                                                            renormPrecision,
+                                                                            defaults::MinRenormPrecisionBits,
+                                                                            defaults::MaxRenormPrecisionBits,
+                                                                            sanitizedPrecision);
+  } else {
+    // allow 0 as special case to handle empty frequency tables
+    sanitizedPrecision = 0;
+  }
+  return sanitizedPrecision;
+};
+
+template <typename T>
+[[nodiscard]] inline size_t constexpr nBytesTo(size_t nBytes) noexcept
+{
+  const size_t nOthers = nBytes / sizeof(T) + (nBytes % sizeof(T) > 0);
+  return nOthers;
+};
+
+[[nodiscard]] inline constexpr bool isValidRenormingPrecision(size_t renormPrecision)
+{
+  const bool isInInterval = (renormPrecision >= defaults::MinRenormPrecisionBits) && (renormPrecision <= defaults::MaxRenormPrecisionBits);
+  const bool isZeroMessage = renormPrecision == 0;
+  return isInInterval || isZeroMessage;
+};
 
 class RANSTimer
 {

@@ -66,4 +66,14 @@
 #define RANS_FMA
 #endif
 
+#include <cstdint>
+
+namespace o2::rans
+{
+enum class CoderTag : uint8_t { Compat,
+                                SingleStream,
+                                SSE,
+                                AVX2 };
+} // namespace o2::rans
+
 #endif /*RANS_INTERNAL_COMMON_DEFINES_H_*/

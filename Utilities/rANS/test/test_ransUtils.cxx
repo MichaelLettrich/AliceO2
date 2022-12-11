@@ -17,6 +17,9 @@
 #define BOOST_TEST_MAIN
 #define BOOST_TEST_DYN_LINK
 
+#undef NDEBUG
+#include <cassert>
+
 #include <vector>
 #include <type_traits>
 #include <array>
@@ -33,4 +36,14 @@ BOOST_AUTO_TEST_CASE(test_checkBounds)
   std::vector<size_t> A(2);
   BOOST_CHECK_THROW(o2::rans::checkBounds(std::end(A), std::begin(A)), std::runtime_error);
   BOOST_CHECK_NO_THROW(o2::rans::checkBounds(std::begin(A), std::end(A)));
+};
+
+BOOST_AUTO_TEST_CASE(test_checkAlphabetBitRange)
+{
+  using namespace o2::rans::internal;
+  BOOST_CHECK_EQUAL(getRangeBits(-1, -1), 0ul); // empty or single value -> 2**0 = 1
+  BOOST_CHECK_EQUAL(getRangeBits(-1, 0), 1ul);  // 2 unique values -> 1 Bit
+  BOOST_CHECK_EQUAL(getRangeBits(-1, 1), 2ul);  // 3 unique values -> 2 Bits
+  BOOST_CHECK_EQUAL(getRangeBits(-1, 2), 2ul);  // 4 unique values -> 2 Bits
+  BOOST_CHECK_EQUAL(getRangeBits(-1, 3), 3ul);  // 5 unique values -> 3 Bits
 };
