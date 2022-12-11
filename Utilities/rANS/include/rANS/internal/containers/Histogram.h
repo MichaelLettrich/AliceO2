@@ -488,6 +488,13 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addFrequencie
   return *this;
 }
 
+template <typename source_T>
+std::pair<source_T, source_T> getMinMax(const Histogram<source_T>& histogram)
+{
+  auto view = internal::trim(internal::makeHistogramView(histogram));
+  return {view.getMin(), view.getMax()};
+};
+
 } // namespace o2::rans
 
 #endif /* RANS_INTERNAL_CONTAINERS_HISTOGRAM_H_ */
