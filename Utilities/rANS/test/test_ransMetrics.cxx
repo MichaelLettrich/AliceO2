@@ -324,21 +324,15 @@ BOOST_AUTO_TEST_CASE(test_emptySizeEstimate)
 
 BOOST_AUTO_TEST_CASE(test_normalSizeEstimate)
 {
-  constexpr size_t EntropyCodingOverhead = []() {
-    using encoderImpl_type = defaults::EncoderImpl<defaults::DefaultTag>;
-    constexpr size_t DefaultRenormingLowerBound = encoderImpl_type::renormingLowerBound;
-    constexpr size_t DefaultNStreams = encoderImpl_type::nStreams;
-    using state_type = typename internal::CoderTraits_t<defaults::DefaultTag, DefaultRenormingLowerBound>::state_type;
-    return DefaultNStreams * sizeof(state_type); // mandatory size of flushing
-  }();
+  constexpr size_t entropySizeB = 17;
 
   using source_type = uint32_t;
   std::vector<uint32_t> frequencies{9, 0, 8, 0, 7, 0, 6, 0, 5, 0, 4, 0, 3, 0, 2, 0, 1};
   Histogram<source_type> histogram{frequencies.begin(), frequencies.end(), 0};
   Metrics<uint32_t> metrics{histogram};
   SizeEstimate estimate{metrics};
-  BOOST_CHECK_EQUAL(estimate.getEntropySizeB(), 17);
-  BOOST_CHECK_EQUAL(estimate.getCompressedDatasetSize<>(1.0), EntropyCodingOverhead + 17);
+  BOOST_CHECK_EQUAL(estimate.getEntropySizeB(), entropySizeB);
+  BOOST_CHECK_EQUAL(estimate.getCompressedDatasetSize<>(1.0), addEncoderOverheadEstimateB<>(entropySizeB));
   BOOST_CHECK_EQUAL(estimate.getCompressedDictionarySize<>(1.0), 29);
   BOOST_CHECK_EQUAL(estimate.getIncompressibleSize<>(1.0), 0);
   BOOST_CHECK_EQUAL(estimate.getPackedDatasetSize<>(1.0), 29);
