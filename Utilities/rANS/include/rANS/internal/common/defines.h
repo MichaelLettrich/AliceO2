@@ -51,8 +51,8 @@
 #endif // SSE4.2
 #if defined(__AVX2__)
 #define RANS_AVX2
-#endif //AVX2
-#endif //x86
+#endif // AVX2
+#endif // x86
 
 #if (defined(RANS_SSE) && !defined(RANS_AVX2))
 #define RANS_SSE_ONLY
@@ -65,15 +65,5 @@
 #if defined(__FMA__)
 #define RANS_FMA
 #endif
-
-#include <cstdint>
-
-namespace o2::rans
-{
-enum class CoderTag : uint8_t { Compat,
-                                SingleStream,
-                                SSE,
-                                AVX2 };
-} // namespace o2::rans
 
 #endif /*RANS_INTERNAL_COMMON_DEFINES_H_*/

@@ -24,7 +24,14 @@
 
 #include <cstdint>
 
-namespace o2::rans::defaults
+namespace o2::rans
+{
+enum class CoderTag : uint8_t { Compat,
+                                SingleStream,
+                                SSE,
+                                AVX2 };
+
+namespace defaults
 {
 
 #if defined(RANS_AVX2)
@@ -47,39 +54,7 @@ inline constexpr size_t RenormingLowerBound = 20;
 inline constexpr size_t MinRenormPrecisionBits = 10;
 inline constexpr size_t MaxRenormPrecisionBits = 20;
 
-template <CoderTag tag_V = DefaultTag>
-struct EncoderImpl;
-
-template <>
-struct EncoderImpl<CoderTag::Compat> {
-  inline static constexpr size_t nStreams = 2;
-  inline static constexpr size_t renormingLowerBound = internal::RenormingLowerBound;
-};
-
-#ifdef RANS_SINGLE_STREAM
-template <>
-struct EncoderImpl<CoderTag::SingleStream> {
-  inline static constexpr size_t nStreams = 2;
-  inline static constexpr size_t renormingLowerBound = internal::RenormingLowerBound;
-};
-#endif
-
-#ifdef RANS_SSE
-template <>
-struct EncoderImpl<CoderTag::SSE> {
-  inline static constexpr size_t nStreams = 16;
-  inline static constexpr size_t renormingLowerBound = internal::RenormingLowerBound;
-};
-#endif
-
-#ifdef RANS_AVX2
-template <>
-struct EncoderImpl<CoderTag::AVX2> {
-  inline static constexpr size_t nStreams = 16;
-  inline static constexpr size_t renormingLowerBound = internal::RenormingLowerBound;
-};
-#endif
-
-} // namespace o2::rans::defaults
+} // namespace defaults
+} // namespace o2::rans
 
 #endif /* RANS_INTERNAL_COMMON_DEFAULTS_H_ */
