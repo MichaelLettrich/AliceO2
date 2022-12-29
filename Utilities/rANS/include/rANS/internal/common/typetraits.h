@@ -38,25 +38,25 @@ namespace o2::rans::internal
 template <typename T>
 struct getCoderTag;
 
-template <size_t V>
-struct getCoderTag<CompatEncoderImpl<V>> : public std::integral_constant<CoderTag, CoderTag::Compat> {
+template <size_t lowerBound_V>
+struct getCoderTag<CompatEncoderImpl<lowerBound_V>> : public std::integral_constant<CoderTag, CoderTag::Compat> {
 };
 
 #ifdef RANS_SINGLE_STREAM
-template <size_t V>
-struct getCoderTag<SingleStreamEncoderImpl<V>> : public std::integral_constant<CoderTag, CoderTag::SingleStream> {
+template <size_t lowerBound_V>
+struct getCoderTag<SingleStreamEncoderImpl<lowerBound_V>> : public std::integral_constant<CoderTag, CoderTag::SingleStream> {
 };
 #endif /* RANS_SINGLE_STREAM */
 
 #ifdef RANS_SSE
-template <size_t V>
-struct getCoderTag<SSEEncoderImpl<V>> : public std::integral_constant<CoderTag, CoderTag::SSE> {
+template <size_t lowerBound_V>
+struct getCoderTag<SSEEncoderImpl<lowerBound_V>> : public std::integral_constant<CoderTag, CoderTag::SSE> {
 };
 #endif /* RANS_SSE */
 
 #ifdef RANS_AVX2
-template <size_t V>
-struct getCoderTag<AVXEncoderImpl<V>> : public std::integral_constant<CoderTag, CoderTag::AVX2> {
+template <size_t lowerBound_V>
+struct getCoderTag<AVXEncoderImpl<lowerBound_V>> : public std::integral_constant<CoderTag, CoderTag::AVX2> {
 };
 #endif /* RANS_AVX2 */
 
@@ -117,46 +117,37 @@ struct SymbolTraits<CoderTag::SingleStream> {
   using type = PrecomputedSymbol;
 };
 
-template <CoderTag tag_V>
-struct CoderTraits {
-};
+template <typename T>
+struct getStreamingLowerBound;
 
-template <>
-struct CoderTraits<CoderTag::Compat> {
-
-  template <size_t lowerBound_V>
-  using type = CompatEncoderImpl<lowerBound_V>;
+template <size_t lowerBound_V>
+struct getStreamingLowerBound<CompatEncoderImpl<lowerBound_V>> : public std::integral_constant<size_t, lowerBound_V> {
 };
 
 #ifdef RANS_SINGLE_STREAM
-template <>
-struct CoderTraits<CoderTag::SingleStream> {
-
-  template <size_t lowerBound_V>
-  using type = SingleStreamEncoderImpl<lowerBound_V>;
+template <size_t lowerBound_V>
+struct getStreamingLowerBound<SingleStreamEncoderImpl<lowerBound_V>> : public std::integral_constant<size_t, lowerBound_V> {
 };
 #endif /* RANS_SINGLE_STREAM */
 
 #ifdef RANS_SSE
-template <>
-struct CoderTraits<CoderTag::SSE> {
-
-  template <size_t lowerBound_V>
-  using type = SSEEncoderImpl<lowerBound_V>;
+template <size_t lowerBound_V>
+struct getStreamingLowerBound<SSEEncoderImpl<lowerBound_V>> : public std::integral_constant<size_t, lowerBound_V> {
 };
 #endif /* RANS_SSE */
 
 #ifdef RANS_AVX2
-template <>
-struct CoderTraits<CoderTag::AVX2> {
-
-  template <size_t lowerBound_V>
-  using type = AVXEncoderImpl<lowerBound_V>;
+template <size_t lowerBound_V>
+struct getStreamingLowerBound<AVXEncoderImpl<lowerBound_V>> : public std::integral_constant<size_t, lowerBound_V> {
 };
 #endif /* RANS_AVX2 */
 
-template <CoderTag tag_V, size_t lowerBound_V>
-using CoderTraits_t = typename CoderTraits<tag_V>::template type<lowerBound_V>;
+template <size_t lowerBound_V>
+struct getStreamingLowerBound<DecoderImpl<lowerBound_V>> : public std::integral_constant<size_t, lowerBound_V> {
+};
+
+template <typename T>
+inline constexpr size_t getStreamingLowerBound_v = getStreamingLowerBound<T>::value;
 
 } // namespace o2::rans::internal
 
