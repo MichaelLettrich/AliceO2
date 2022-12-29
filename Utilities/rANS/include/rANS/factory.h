@@ -16,8 +16,10 @@
 #ifndef RANS_FACTORY_H_
 #define RANS_FACTORY_H_
 
-#include "rANS/internal/common/typetraits.h"
 #include "rANS/internal/common/defaults.h"
+#include "rANS/internal/common/typetraits.h"
+#include "rANS/internal/common/codertraits.h"
+
 #include "rANS/internal/metrics/Metrics.h"
 #include "rANS/internal/transform/renorm.h"
 
@@ -37,8 +39,8 @@ namespace o2::rans
 {
 
 template <typename source_T, CoderTag tag_V = defaults::DefaultTag,
-          size_t lowerBound_V = defaults::EncoderImpl<tag_V>::renormingLowerBound,
-          size_t nStreams_V = defaults::EncoderImpl<tag_V>::nStreams>
+          size_t lowerBound_V = defaults::CoderPreset<tag_V>::renormingLowerBound,
+          size_t nStreams_V = defaults::CoderPreset<tag_V>::nStreams>
 struct EncoderTraits {
 
   inline static constexpr CoderTag coderTag = tag_V;
@@ -90,8 +92,8 @@ struct makeHistogram {
 };
 
 template <CoderTag coderTag_V = defaults::DefaultTag,
-          size_t nStreams_V = defaults::EncoderImpl<coderTag_V>::nStreams,
-          size_t renormingLowerBound_V = defaults::EncoderImpl<coderTag_V>::renormingLowerBound>
+          size_t nStreams_V = defaults::CoderPreset<coderTag_V>::nStreams,
+          size_t renormingLowerBound_V = defaults::CoderPreset<coderTag_V>::renormingLowerBound>
 class makeEncoder
 {
 
