@@ -43,7 +43,7 @@ namespace internal
 inline constexpr size_t RenormingLowerBound = 31;
 } // namespace internal
 
-struct EncoderImpl {
+struct CoderPreset {
   inline static constexpr size_t nStreams = 2;
   inline static constexpr size_t renormingLowerBound = internal::RenormingLowerBound;
 };
@@ -202,8 +202,8 @@ class makeEncoder
 
  private:
   static constexpr CoderTag mCoderTag = CoderTag::SingleStream;
-  static constexpr size_t mNstreams = defaults::EncoderImpl::nStreams;
-  static constexpr size_t mRenormingLowerBound = defaults::EncoderImpl::renormingLowerBound;
+  static constexpr size_t mNstreams = defaults::CoderPreset::nStreams;
+  static constexpr size_t mRenormingLowerBound = defaults::CoderPreset::renormingLowerBound;
 };
 
 class makeDecoder
@@ -249,8 +249,8 @@ class makeDecoder
 
  private:
   static constexpr CoderTag mCoderTag = CoderTag::SingleStream;
-  static constexpr size_t mNstreams = defaults::EncoderImpl::nStreams;
-  static constexpr size_t mRenormingLowerBound = defaults::EncoderImpl::renormingLowerBound;
+  static constexpr size_t mNstreams = defaults::CoderPreset::nStreams;
+  static constexpr size_t mRenormingLowerBound = defaults::CoderPreset::renormingLowerBound;
 };
 
 template <typename source_T>

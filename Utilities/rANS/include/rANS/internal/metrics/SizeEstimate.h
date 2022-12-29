@@ -21,13 +21,25 @@
 
 #include <fairlogger/Logger.h>
 
-#include "rANS/internal/metrics/Metrics.h"
 #include "rANS/internal/common/defaults.h"
-#include "rANS/internal/common/utils.h"
 #include "rANS/internal/common/typetraits.h"
+#include "rANS/internal/common/codertraits.h"
+#include "rANS/internal/common/utils.h"
+#include "rANS/internal/metrics/Metrics.h"
 
 namespace o2::rans
 {
+
+template <CoderTag tag_V = defaults::DefaultTag, size_t lowerBound_V = defaults::CoderPreset<tag_V>::renormingLowerBound>
+inline constexpr size_t addEncoderOverheadEstimateB(size_t sizeB) noexcept
+{
+  constexpr size_t nStreams = defaults::CoderPreset<tag_V>::nStreams;
+  using state_type = typename internal::CoderTraits_t<tag_V>::state_type;
+  constexpr size_t minSize = nStreams * sizeof(state_type); // mandatory size of flushing
+  constexpr size_t overhead = internal::toBytes(lowerBound_V * nStreams);
+
+  return std::max(minSize, sizeB + overhead);
+}
 
 class SizeEstimate
 {
@@ -64,17 +76,9 @@ inline SizeEstimate::SizeEstimate(const Metrics<source_T>& metrics) noexcept
   const auto& coderProperties = metrics.getCoderProperties();
   const auto& nSamples = datasetProperties.numSamples;
 
-  constexpr size_t EntropyCodingOverhead = []() {
-    using encoderImpl_type = defaults::EncoderImpl<defaults::DefaultTag>;
-    constexpr size_t DefaultRenormingLowerBound = encoderImpl_type::renormingLowerBound;
-    constexpr size_t DefaultNStreams = encoderImpl_type::nStreams;
-    using state_type = typename internal::CoderTraits_t<defaults::DefaultTag, DefaultRenormingLowerBound>::state_type;
-    return DefaultNStreams * sizeof(state_type); // mandatory size of flushing
-  }();
-
   if (nSamples > 0) {
     mEntropySizeB = internal::toBytes(datasetProperties.entropy * nSamples);
-    mCompressedDatasetSizeB = mEntropySizeB + EntropyCodingOverhead;
+    mCompressedDatasetSizeB = addEncoderOverheadEstimateB<>(mEntropySizeB);
     mCompressedDictionarySizeB = coderProperties.dictSizeEstimate.getSizeB(datasetProperties.nUsedAlphabetSymbols,
                                                                            coderProperties.renormingPrecisionBits);
     mIncompressibleSizeB = internal::toBytes(datasetProperties.alphabetRangeBits * coderProperties.nIncompressibleSymbols);
