@@ -43,7 +43,7 @@ struct ReferenceState {
 BOOST_AUTO_TEST_CASE(test_emptyHistogramView)
 {
   std::vector<int32_t> a{};
-  HistogramView v{a.begin(), a.end()};
+  const auto v = makeHistogramView(a, 0);
 
   BOOST_CHECK_EQUAL(v.size(), 0);
   BOOST_CHECK_EQUAL(v.getOffset(), 0);
@@ -100,8 +100,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_histogramView, fixture, histogramViewFixtures
 BOOST_AUTO_TEST_CASE(test_trimEmpty)
 {
   std::vector<int32_t> a{};
-  HistogramView v{a.begin(), a.end()};
-  v = trim(v);
+  const auto v = trim(makeHistogramView(a, 0));
 
   BOOST_CHECK_EQUAL(v.size(), 0);
   BOOST_CHECK_EQUAL(v.getOffset(), 0);
@@ -116,8 +115,7 @@ BOOST_AUTO_TEST_CASE(test_trimEmpty)
 BOOST_AUTO_TEST_CASE(test_trimFull)
 {
   std::vector<int32_t> a{0, 0, 0, 0, 0};
-  HistogramView v{a.begin(), a.end()};
-  v = trim(v);
+  const auto v = trim(makeHistogramView(a, 0));
 
   BOOST_CHECK_EQUAL(v.size(), 0);
   BOOST_CHECK_EQUAL(v.getOffset(), 0);
@@ -187,8 +185,8 @@ BOOST_AUTO_TEST_CASE(intersection_disjointLeft)
 {
   std::vector<int32_t> a{-3, -2, -1, 0, 1, 2, 3, 4, 5};
   std::vector<int32_t> b{-10, -9};
-  HistogramView av{a.begin(), a.end(), -3};
-  HistogramView bv{b.begin(), b.end(), -10};
+  auto av = makeHistogramView(a, -3);
+  const auto bv = makeHistogramView(b, -10);
 
   av = getIntersection(av, bv);
 
@@ -206,8 +204,8 @@ BOOST_AUTO_TEST_CASE(intersection_disjointRight)
 {
   std::vector<int32_t> a{-3, -2, -1, 0, 1, 2, 3, 4, 5};
   std::vector<int32_t> b{9, 10};
-  HistogramView av{a.begin(), a.end(), -3};
-  HistogramView bv{b.begin(), b.end(), 9};
+  auto av = makeHistogramView(a, -3);
+  const auto bv = makeHistogramView(b, 9);
 
   av = getIntersection(av, bv);
 
@@ -225,8 +223,8 @@ BOOST_AUTO_TEST_CASE(intersection_leftOverlap)
 {
   std::vector<int32_t> a{-3, -2, -1, 0, 1, 2, 3, 4, 5};
   std::vector<int32_t> b{-5, -4, -3, -2, -1};
-  HistogramView av{a.begin(), a.end(), -3};
-  HistogramView bv{b.begin(), b.end(), -5};
+  auto av = makeHistogramView(a, -3);
+  const auto bv = makeHistogramView(b, -5);
 
   av = getIntersection(av, bv);
 
@@ -244,8 +242,8 @@ BOOST_AUTO_TEST_CASE(intersection_rightOverlap)
 {
   std::vector<int32_t> a{-3, -2, -1, 0, 1, 2, 3, 4, 5};
   std::vector<int32_t> b{4, 5, 6, 7, 8};
-  HistogramView av{a.begin(), a.end(), -3};
-  HistogramView bv{b.begin(), b.end(), 4};
+  auto av = makeHistogramView(a, -3);
+  const auto bv = makeHistogramView(b, 4);
 
   av = getIntersection(av, bv);
 
@@ -263,8 +261,8 @@ BOOST_AUTO_TEST_CASE(intersection_fullOverlap)
 {
   std::vector<int32_t> a{-3, -2, -1, 0, 1, 2, 3, 4, 5};
   std::vector<int32_t> b{-1, 0, 1, 2};
-  HistogramView av{a.begin(), a.end(), -3};
-  HistogramView bv{b.begin(), b.end(), -1};
+  auto av = makeHistogramView(a, -3);
+  const auto bv = makeHistogramView(b, -1);
 
   av = getIntersection(av, bv);
 
@@ -282,8 +280,8 @@ BOOST_AUTO_TEST_CASE(intersection_emptyB)
 {
   std::vector<int32_t> a{-3, -2, -1, 0, 1, 2, 3, 4, 5};
   std::vector<int32_t> b{};
-  HistogramView av{a.begin(), a.end(), -3};
-  HistogramView bv{b.begin(), b.end(), 0};
+  auto av = makeHistogramView(a, -3);
+  const auto bv = makeHistogramView(b, 0);
 
   av = getIntersection(av, bv);
 
@@ -301,8 +299,8 @@ BOOST_AUTO_TEST_CASE(intersection_emptyA)
 {
   std::vector<int32_t> a{};
   std::vector<int32_t> b{-10, -9};
-  HistogramView av{a.begin(), a.end(), 0};
-  HistogramView bv{b.begin(), b.end(), -10};
+  auto av = makeHistogramView(a, 0);
+  const auto bv = makeHistogramView(b, -10);
 
   av = getIntersection(av, bv);
 
@@ -320,8 +318,8 @@ BOOST_AUTO_TEST_CASE(intersection_empty)
 {
   std::vector<int32_t> a{};
   std::vector<int32_t> b{};
-  HistogramView av{a.begin(), a.end(), 0};
-  HistogramView bv{b.begin(), b.end(), 0};
+  auto av = makeHistogramView(a, 0);
+  const auto bv = makeHistogramView(b, 0);
 
   av = getIntersection(av, bv);
 
@@ -339,9 +337,8 @@ BOOST_AUTO_TEST_CASE(tails_empty)
 {
   std::vector<int32_t> a{};
   std::vector<int32_t> b{};
-
-  HistogramView av{a.begin(), a.end()};
-  HistogramView bv{b.begin(), b.end()};
+  const auto av = makeHistogramView(a, 0);
+  const auto bv = makeHistogramView(b, 0);
 
   auto v = getLeftTail(av, bv);
   BOOST_CHECK_EQUAL(v.size(), 0);
@@ -368,9 +365,8 @@ BOOST_AUTO_TEST_CASE(tails_emptyA)
 {
   std::vector<int32_t> a{};
   std::vector<int32_t> b{-10, -9};
-
-  HistogramView av{a.begin(), a.end()};
-  HistogramView bv{b.begin(), b.end(), -10};
+  const auto av = makeHistogramView(a, 0);
+  const auto bv = makeHistogramView(b, -10);
 
   auto v = getLeftTail(av, bv);
   BOOST_CHECK_EQUAL(v.size(), av.size());
@@ -397,9 +393,8 @@ BOOST_AUTO_TEST_CASE(tails_emptyB)
 {
   std::vector<int32_t> a{-3, -2, -1, 0, 1, 2, 3, 4, 5};
   std::vector<int32_t> b{};
-
-  HistogramView av{a.begin(), a.end(), -3};
-  HistogramView bv{b.begin(), b.end()};
+  const auto av = makeHistogramView(a, -3);
+  const auto bv = makeHistogramView(b, 0);
 
   auto v = getLeftTail(av, bv);
   BOOST_CHECK_EQUAL(v.size(), av.size());
@@ -426,8 +421,8 @@ BOOST_AUTO_TEST_CASE(tails_leftTail)
 {
   std::vector<int32_t> a{-3, -2, -1, 0, 1, 2, 3, 4, 5};
   std::vector<int32_t> b{4, 5, 6, 7, 8};
-  HistogramView av{a.begin(), a.end(), -3};
-  HistogramView bv{b.begin(), b.end(), 4};
+  const auto av = makeHistogramView(a, -3);
+  const auto bv = makeHistogramView(b, 4);
 
   auto v = getLeftTail(av, bv);
   BOOST_CHECK_EQUAL(v.size(), 7);
@@ -454,8 +449,8 @@ BOOST_AUTO_TEST_CASE(tails_rightTail)
 {
   std::vector<int32_t> a{-3, -2, -1, 0, 1, 2, 3, 4, 5};
   std::vector<int32_t> b{-4, -3, -2, -1, 0};
-  HistogramView av{a.begin(), a.end(), -3};
-  HistogramView bv{b.begin(), b.end(), -4};
+  const auto av = makeHistogramView(a, -3);
+  const auto bv = makeHistogramView(b, -4);
 
   auto v = getLeftTail(av, bv);
   BOOST_CHECK_EQUAL(v.size(), 0);
@@ -482,8 +477,8 @@ BOOST_AUTO_TEST_CASE(tails_bothTail)
 {
   std::vector<int32_t> a{-3, -2, -1, 0, 1, 2, 3, 4, 5};
   std::vector<int32_t> b{-1, 0, 1, 2};
-  HistogramView av{a.begin(), a.end(), -3};
-  HistogramView bv{b.begin(), b.end(), -1};
+  const auto av = makeHistogramView(a, -3);
+  const auto bv = makeHistogramView(b, -1);
 
   auto v = getLeftTail(av, bv);
   BOOST_CHECK_EQUAL(v.size(), 2);
