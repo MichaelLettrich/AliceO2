@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_CASE(test_emptyDictSizeEstimate)
 
   std::vector<uint32_t> frequencies{};
   Histogram<source_type> histogram{frequencies.begin(), frequencies.end(), 0};
-  const auto view = internal::trim(internal::HistogramView{histogram.begin(), histogram.end(), histogram.getOffset()});
+  const auto view = internal::trim(makeHistogramView(histogram));
 
   DictSizeEstimate estimate{histogram.getNumSamples()};
   DictSizeEstimateCounter counter{&estimate};
@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(test_defaultDictSizeEstimate)
 
   std::vector<uint32_t> frequencies{9, 0, 8, 0, 7, 0, 6, 0, 5, 0, 4, 0, 3, 0, 2, 0, 1};
   Histogram<source_type> histogram{frequencies.begin(), frequencies.end(), 0};
-  const auto view = internal::trim(internal::HistogramView{histogram.begin(), histogram.end(), histogram.getOffset()});
+  const auto view = internal::trim(makeHistogramView(histogram));
 
   DictSizeEstimate estimate{histogram.getNumSamples()};
   DictSizeEstimateCounter counter{&estimate};
@@ -163,7 +163,7 @@ BOOST_AUTO_TEST_CASE(test_emptyMetrics)
 
   std::vector<uint32_t> frequencies{};
   Histogram<source_type> histogram{frequencies.begin(), frequencies.end(), 0};
-  const auto view = internal::trim(internal::HistogramView{histogram.begin(), histogram.end(), histogram.getOffset()});
+  const auto view = internal::trim(makeHistogramView(histogram));
   const float eps = 1e-2;
   const size_t nUsedAlphabetSymbols = 0;
 
@@ -211,7 +211,7 @@ BOOST_AUTO_TEST_CASE(test_singleElementMetrics)
 
   std::vector<uint32_t> frequencies{5};
   Histogram<source_type> histogram{frequencies.begin(), frequencies.end(), 2};
-  const auto view = internal::trim(internal::HistogramView{histogram.begin(), histogram.end(), histogram.getOffset()});
+  const auto view = internal::trim(makeHistogramView(histogram));
   const float eps = 1e-2;
   const size_t nUsedAlphabetSymbols = 1;
 
@@ -255,7 +255,7 @@ BOOST_AUTO_TEST_CASE(test_computeMetrics)
 
   std::vector<uint32_t> frequencies{9, 0, 8, 0, 7, 0, 6, 0, 5, 0, 4, 0, 3, 0, 2, 0, 1};
   Histogram<source_type> histogram{frequencies.begin(), frequencies.end(), 0};
-  const auto view = internal::trim(internal::HistogramView{histogram.begin(), histogram.end(), histogram.getOffset()});
+  const auto view = internal::trim(makeHistogramView(histogram));
   const float eps = 1e-2;
   const size_t nUsedAlphabetSymbols = 9;
 

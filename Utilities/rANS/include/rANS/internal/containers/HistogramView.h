@@ -187,6 +187,46 @@ template <typename HistA_IT, typename HistB_IT>
   }
 };
 
+template <typename container_T>
+inline auto makeHistogramView(container_T& container, std::ptrdiff_t offset) noexcept -> HistogramView<decltype(std::begin(container))>
+{
+  return {std::begin(container), std::end(container), offset};
+}
+
+template <typename container_T>
+inline auto makeHistogramView(const container_T& container, std::ptrdiff_t offset) noexcept -> HistogramView<decltype(std::cbegin(container))>
+{
+  return {std::cbegin(container), std::cend(container), offset};
+}
+
+namespace histogramview_impl
+{
+
+template <class, class = void>
+struct has_getOffset : std::false_type {
+};
+
+template <class T>
+struct has_getOffset<T, std::void_t<decltype(std::declval<T>().getOffset())>> : std::true_type {
+};
+
+template <typename T>
+inline constexpr bool has_getOffset_v = has_getOffset<T>::value;
+
+} // namespace histogramview_impl
+
+template <typename container_T, std::enable_if_t<histogramview_impl::has_getOffset_v<container_T>, bool> = true>
+inline auto makeHistogramView(const container_T& container) noexcept -> HistogramView<decltype(std::cbegin(container))>
+{
+  return {std::cbegin(container), std::cend(container), container.getOffset()};
+}
+
+template <typename container_T, std::enable_if_t<histogramview_impl::has_getOffset_v<container_T>, bool> = true>
+inline auto makeHistogramView(container_T& container) noexcept -> HistogramView<decltype(std::begin(container))>
+{
+  return {std::begin(container), std::end(container), container.getOffset()};
+}
+
 } // namespace o2::rans::internal
 
 #endif /* RANS_INTERNAL_CONTAINERS_HISTOGRAMVIEW_H_ */
