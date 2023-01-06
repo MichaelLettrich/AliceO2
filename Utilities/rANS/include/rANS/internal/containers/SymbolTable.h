@@ -120,7 +120,7 @@ SymbolTable<source_T, value_T>::SymbolTable(const RenormedHistogram<source_type>
   using namespace internal;
   using count_type = typename value_T::value_type;
 
-  auto histogramView = trim(HistogramView(histogram.begin(), histogram.end(), histogram.getOffset()));
+  auto histogramView = trim(makeHistogramView(histogram));
 
   // one cacheline worth of padding in the back of the container to ensure SIMD reads do not cause out of bounds reads
   constexpr size_t padding = nBytesTo<symbol_type>(toBytes(512));
