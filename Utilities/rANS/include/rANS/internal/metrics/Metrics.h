@@ -109,7 +109,7 @@ void Metrics<source_T>::computeMetrics(const Histogram_T<source_T>& histogram)
   mCoderProperties.dictSizeEstimate = DictSizeEstimate{histogram.getNumSamples()};
   DictSizeEstimateCounter dictSizeCounter{&(mCoderProperties.dictSizeEstimate)};
 
-  const auto trimmedFrequencyView = trim(HistogramView{histogram.begin(), histogram.end(), histogram.getOffset()});
+  const auto trimmedFrequencyView = trim(makeHistogramView(histogram));
   mDatasetProperties.min = trimmedFrequencyView.getMin();
   mDatasetProperties.max = trimmedFrequencyView.getMax();
   assert(mDatasetProperties.max >= mDatasetProperties.min);

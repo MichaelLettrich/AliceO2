@@ -81,8 +81,8 @@ double_t computeExpectedCodewordLength(const Histogram<source_T>& histogram, con
   using namespace internal;
   using value_type = typename Histogram<source_T>::value_type;
 
-  HistogramView histogramView{histogram.begin(), histogram.end(), histogram.getOffset()};
-  HistogramView renormedView{rescaledHistogram.begin(), rescaledHistogram.end(), rescaledHistogram.getOffset()};
+  const auto histogramView = makeHistogramView(histogram);
+  const auto renormedView = makeHistogramView(rescaledHistogram);
 
   auto getRescaledFrequency = [&renormedView](source_T sourceSymbol) -> value_type {
     if (sourceSymbol >= renormedView.getMin() && sourceSymbol <= renormedView.getMax()) {

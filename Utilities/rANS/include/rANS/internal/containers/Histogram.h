@@ -231,8 +231,8 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addFrequencie
     return frequency;
   };
 
-  auto thisHistogramView = HistogramView{this->mContainer.begin(), this->mContainer.end(), this->mContainer.getOffset()};
-  auto addedHistogramView = trim(HistogramView{begin, end, offset});
+  const auto thisHistogramView = makeHistogramView(this->mContainer);
+  const auto addedHistogramView = trim(HistogramView{begin, end, offset});
   if (addedHistogramView.empty()) {
     LOG(warning) << "Passed empty Histogram to " << __func__; // RS this is ok for empty columns
   } else {
@@ -248,7 +248,7 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addFrequencie
     } else {
       const difference_type newSize = newMax - newMin + 1;
       typename container_type::container_type newHistogram(newSize, 0);
-      auto newHistogramView = HistogramView{newHistogram.begin(), newHistogram.end(), newMin};
+      const auto newHistogramView = makeHistogramView(newHistogram, newMin);
       auto histogramOverlap = getIntersection(newHistogramView, thisHistogramView);
       assert(!histogramOverlap.empty());
       assert(histogramOverlap.size() == thisHistogramView.size());
@@ -293,7 +293,7 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::resize(source
     return *this;
   } else {
     container_type oldHistogram = std::move(this->mContainer);
-    auto oldHistogramView = HistogramView{oldHistogram.begin(), oldHistogram.end(), oldOffset};
+    const auto oldHistogramView = makeHistogramView(oldHistogram, oldOffset);
     this->mContainer = container_type{newSize, min};
     return this->addFrequencies(oldHistogramView.begin(), oldHistogramView.end(), oldHistogramView.getMin());
   }
@@ -461,8 +461,7 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addFrequencie
   // bounds check
   HistogramView addedHistogramView{begin, end, offset};
   addedHistogramView = trim(addedHistogramView);
-  HistogramView<typename container_type::iterator> thisHistogramView{};
-  thisHistogramView = HistogramView{this->mContainer.begin(), this->mContainer.end(), this->mContainer.getOffset()};
+  const auto thisHistogramView = makeHistogramView(this->mContainer);
   const bool invalidBounds = (getLeftOffset(thisHistogramView, addedHistogramView) < 0) || (getRightOffset(thisHistogramView, addedHistogramView) > 0);
 
   if (invalidBounds) {
