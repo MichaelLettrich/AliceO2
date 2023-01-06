@@ -257,7 +257,7 @@ template <typename source_T>
 inline size_t getAlphabetRangeBits(const Histogram<source_T>& histogram) noexcept
 {
   using namespace o2::rans::internal;
-  const auto view = trim(HistogramView{histogram.begin(), histogram.end(), histogram.getOffset()});
+  const auto view = trim(makeHistogramView(histogram));
   return internal::numBitsForNSymbols(view.size());
 };
 
@@ -265,7 +265,7 @@ template <typename source_T>
 inline size_t getAlphabetRangeBits(const RenormedHistogram<source_T>& histogram) noexcept
 {
   using namespace o2::rans::internal;
-  const auto view = trim(HistogramView{histogram.begin(), histogram.end(), histogram.getOffset()});
+  const auto view = trim(makeHistogramView(histogram));
   return internal::numBitsForNSymbols(view.size() + histogram.hasIncompressibleSymbol());
 };
 

@@ -23,16 +23,11 @@
 #include <iterator>
 #include <cassert>
 
-#include <rANS/internal/common/utils.h>
-
 #include <fairlogger/Logger.h>
 
-namespace o2
-{
-namespace rans
-{
+#include "rANS/internal/common/utils.h"
 
-namespace internal
+namespace o2::rans::internal
 {
 
 template <class source_T, class value_T>
@@ -192,8 +187,7 @@ class ShiftableVector
   source_type mOffset{};
   intptr_t mShiftedBegin{};
 };
-} // namespace internal
-} // namespace rans
-} // namespace o2
+
+} // namespace o2::rans::internal
 
 #endif /* RANS_INTERNAL_CONTAINER_SHIFTABLEVECTOR_H_ */
