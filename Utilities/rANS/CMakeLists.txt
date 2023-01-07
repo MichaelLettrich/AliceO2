@@ -71,6 +71,16 @@ o2_add_test(AlignedArray
             TARGETVARNAME TEST_ALIGNED_ARRAY
             LABELS utils)
             target_compile_options(${TEST_ALIGNED_ARRAY} PRIVATE -march=native)
+
+o2_add_test(AttachableBuffer
+            NAME AttachableBuffer
+            SOURCES test/test_ransAttachableBuffer.cxx
+            PUBLIC_LINK_LIBRARIES O2::rANS
+            COMPONENT_NAME rANS
+            TARGETVARNAME TEST_ATTACHABLEBUFFER
+            LABELS utils)
+            target_compile_options(${TEST_ATTACHABLEBUFFER} PRIVATE -march=native)
+
   
 o2_add_test(HistogramView
             NAME HistogramView
