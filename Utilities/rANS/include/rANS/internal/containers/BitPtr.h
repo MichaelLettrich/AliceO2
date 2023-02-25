@@ -12,8 +12,8 @@
 /// @author Michael Lettrich
 /// @brief  Pointer type helper class for bitwise Packing
 
-#ifndef RANS_INTERNAL_TRANSFORM_BITPTR_H_
-#define RANS_INTERNAL_TRANSFORM_BITPTR_H_
+#ifndef RANS_INTERNAL_CONTAINERS_BITPTR_H_
+#define RANS_INTERNAL_CONTAINERS_BITPTR_H_
 
 #include <cassert>
 #include <cstdint>
@@ -163,4 +163,4 @@ inline std::ostream& operator<<(std::ostream& os, const BitPtr bitPtr)
 
 } // namespace o2::rans::internal
 
-#endif /* RANS_INTERNAL_TRANSFORM_BITPTR_H_ */
+#endif /* RANS_INTERNAL_CONTAINERS_BITPTR_H_ */
