@@ -24,7 +24,8 @@
 #include "rANS/internal/common/utils.h"
 #include "rANS/internal/common/typetraits.h"
 #include "rANS/internal/containers/HistogramView.h"
-#include "rANS/internal/transform/pack.h"
+#include "rANS/internal/pack/pack.h"
+#include "rANS/internal/pack/eliasDelta.h"
 
 namespace o2::rans
 {
@@ -134,6 +135,32 @@ count_t getIncompressibleFrequency(const container_T& container)
   }
 };
 
+// template <typename container_T, typename buffer_T, typename strategy_T>
+// void serializeContainer(const container_T& container, buffer_T& buffer)
+// {
+
+//   if (container.empty()) {
+//     return {};
+//   }
+
+//   FlatContainer<typename container_T::source_type> flattened;
+
+//   flattened.index.reserve(container.size());
+//   flattened.count.reserve(container.size());
+
+//   uint32_t index = container.getOffset();
+//   for (auto iter = container.begin(); iter != container.end(); ++iter) {
+//     const count_t count = getFrequency(container, iter);
+//     if (count > 0) {
+//       flattened.index.push_back(index);
+//       flattened.count.push_back(count);
+//     }
+//     ++index;
+//   };
+
+//   return flattened;
+// };
+
 template <typename container_T>
 auto flattenContainer(const container_T& container) -> FlatContainer<typename container_T::source_type>
 {
@@ -228,29 +255,30 @@ void toJSON(const container_T& container, rapidjson::Writer<jsonBuffer_T>& write
 template <typename container_T, typename dest_IT>
 dest_IT toCompressedBinary(const container_T& container, dest_IT dstBufferBegin)
 {
-  using namespace internal;
-  using source_type = typename container_T::source_type;
-  FlatContainer<source_type> flattened = flattenContainer(container);
-  flattened.incompressibleCount = getIncompressibleFrequency(container);
-  const uint32_t extent = flattened.index.size() > 0 ? flattened.index.back() - flattened.index.front() + 1 : 0;
+  // using namespace internal;
+  // using source_type = typename container_T::source_type;
+  // FlatContainer<source_type> flattened = flattenContainer(container);
+  // flattened.incompressibleCount = getIncompressibleFrequency(container);
+  // const uint32_t extent = flattened.index.size() > 0 ? flattened.index.back() - flattened.index.front() + 1 : 0;
 
-  uint32_t bitOffset = 0;
-  uint64_t* iter = reinterpret_cast<uint64_t*>(dstBufferBegin);
-  //iterate backwards, store all but 0;
-  for (size_t i = flattened.index.size(); i-- > 1ull;) {
-    source_type indexDelta = flattened.index[i] - flattened.index[i - 1];
-    assert(flattened.count[i] > 0);
-    assert(indexDelta > 0);
-    eliasDeltaEncode(iter, bitOffset, flattened.count[i]);
-    eliasDeltaEncode(iter, bitOffset, indexDelta);
-  }
-  eliasDeltaEncode(iter, bitOffset, flattened.count[0]);
-  eliasDeltaEncode(iter, bitOffset, static_cast<uint32_t>(flattened.index[0])); //TODO(milettri): zigzag encode
-  pack(iter, bitOffset, extent, 32);
-  eliasDeltaEncode(iter, bitOffset, (flattened.incompressibleCount + 1));
-  eliasDeltaEncode(iter, bitOffset, 1);
+  // uint32_t bitOffset = 0;
+  // uint64_t* iter = reinterpret_cast<uint64_t*>(dstBufferBegin);
+  // //iterate backwards, store all but 0;
+  // for (size_t i = flattened.index.size(); i-- > 1ull;) {
+  //   source_type indexDelta = flattened.index[i] - flattened.index[i - 1];
+  //   assert(flattened.count[i] > 0);
+  //   assert(indexDelta > 0);
+  //   eliasDeltaEncode(iter, bitOffset, flattened.count[i]);
+  //   eliasDeltaEncode(iter, bitOffset, indexDelta);
+  // }
+  // eliasDeltaEncode(iter, bitOffset, flattened.count[0]);
+  // eliasDeltaEncode(iter, bitOffset, static_cast<uint32_t>(flattened.index[0])); //TODO(milettri): zigzag encode
+  // pack(iter, bitOffset, extent, 32);
+  // eliasDeltaEncode(iter, bitOffset, (flattened.incompressibleCount + 1));
+  // eliasDeltaEncode(iter, bitOffset, 1);
 
-  return reinterpret_cast<dest_IT>(++iter);
+  // return reinterpret_cast<dest_IT>(++iter);
+  return dstBufferBegin;
 }
 
 // template <typename source_T>

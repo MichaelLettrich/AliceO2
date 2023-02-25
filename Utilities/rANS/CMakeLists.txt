@@ -36,7 +36,6 @@ o2_add_test(Iterators
             LABELS utils)
             target_compile_options(${TEST_ITERATORS} PRIVATE -march=native)
 
-
 o2_add_test(BitPtr
             NAME BitPtr
             SOURCES test/test_ransBitPtr.cxx
@@ -168,6 +167,18 @@ if (TARGET benchmark::benchmark)
 
   o2_add_executable(Streaming
                   SOURCES benchmarks/bench_ransStreaming.cxx
+                  COMPONENT_NAME rANS
+                  IS_BENCHMARK
+                  PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+
+  o2_add_executable(Pack
+                  SOURCES benchmarks/bench_ransPack.cxx
+                  COMPONENT_NAME rANS
+                  IS_BENCHMARK
+                  PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+
+  o2_add_executable(UnPack
+                  SOURCES benchmarks/bench_ransUnPack.cxx
                   COMPONENT_NAME rANS
                   IS_BENCHMARK
                   PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
