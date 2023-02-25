@@ -23,7 +23,7 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/mp11.hpp>
 
-#include "rANS/internal/transform/BitPtr.h"
+#include "rANS/internal/containers/BitPtr.h"
 
 using namespace o2::rans::internal;
 
