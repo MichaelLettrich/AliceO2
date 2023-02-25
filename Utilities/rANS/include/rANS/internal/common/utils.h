@@ -74,6 +74,8 @@ inline uint64_t load64(const void* __restrict src)
   return ret;
 };
 
+inline void write64(void* __restrict dest, uint64_t src) { std::memcpy(dest, &src, 8); };
+
 template <typename T>
 inline constexpr uintptr_t adr2Bits(T* address) noexcept
 {
@@ -83,6 +85,12 @@ inline constexpr uintptr_t adr2Bits(T* address) noexcept
 inline constexpr size_t toBytes(size_t bits) noexcept { return (bits / 8) + (bits % 8 != 0); };
 
 inline constexpr size_t toBits(size_t bytes) noexcept { return bytes * 8; };
+
+template <typename T>
+inline constexpr size_t toBits() noexcept
+{
+  return toBits(sizeof(T));
+};
 
 inline constexpr size_t pow2(size_t n) noexcept
 {
@@ -118,7 +126,7 @@ inline constexpr bool isPow2(T x) noexcept
 [[nodiscard]] inline uint32_t symbolLengthBits(uint32_t x) noexcept { return log2UInt(x); };
 
 template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-[[nodiscard]] inline uint32_t getRangeBits(T min, T max) noexcept
+[[nodiscard]] inline constexpr uint32_t getRangeBits(T min, T max) noexcept
 {
   assert(max >= min);
   const int64_t diff = max - min;
