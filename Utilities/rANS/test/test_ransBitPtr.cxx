@@ -138,7 +138,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_BitPtrCasts, source_type, source_types)
   source_type v[5]{};
 
   intptr_t distance = 3;
-  intptr_t bitDistance = toBits(sizeof(source_type));
+  intptr_t bitDistance = toBits<source_type>();
 
   const BitPtr begin{&v[0]};
   const BitPtr belowMinus{&v[1], -distance};

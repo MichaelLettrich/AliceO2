@@ -115,7 +115,7 @@ class ShiftableVector
 
   inline void resize(size_type newSize)
   {
-    assert(newSize <= pow2(toBits(sizeof(source_type))));
+    assert(newSize <= pow2(toBits<source_type>()));
     this->resize(newSize, this->getOffset());
   };
 

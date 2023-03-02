@@ -190,7 +190,7 @@ struct SSERenormFixture {
   static constexpr size_t LowerBoundBits = o2::rans::defaults::internal::RenormingLowerBound;
   static constexpr size_t LowerBound = pow2(LowerBoundBits);
   static constexpr size_t SymbolTablePrecisionBits = 16;
-  static constexpr size_t StreamBits = o2::rans::internal::toBits(sizeof(stream_t));
+  static constexpr size_t StreamBits = o2::rans::internal::toBits<stream_t>();
 
   uint64_t computeLimitState(count_t frequency)
   {

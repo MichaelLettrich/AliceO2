@@ -97,7 +97,7 @@ template <typename T>
 inline T unpack(BitPtr pos, size_t packingWidth)
 {
   assert(pos != internal::BitPtr{});
-  assert(packingWidth <= toBits(sizeof(T)));
+  assert(packingWidth <= toBits<T>());
   assert(packingWidth <= 58);
 
   uint8_t* posPtr = pos.toPtr<uint8_t>();
