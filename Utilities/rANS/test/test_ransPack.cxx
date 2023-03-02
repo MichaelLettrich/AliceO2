@@ -56,7 +56,7 @@ using source_types = boost::mp11::mp_list<uint8_t, uint16_t, uint32_t, uint64_t>
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_computePackingBufferSize, buffer_T, buffer_types)
 {
   size_t nElems{};
-  size_t packingWidth = internal::toBits(sizeof(internal::packing_type)) - 3;
+  size_t packingWidth = internal::toBits<internal::packing_type>() - 3;
 
   BOOST_CHECK_EQUAL(0, (computePackingBufferSize<buffer_T>(0, packingWidth)));
   BOOST_CHECK_EQUAL(sizeof(internal::packing_type) / sizeof(buffer_T), (computePackingBufferSize<buffer_T>(1, packingWidth)));

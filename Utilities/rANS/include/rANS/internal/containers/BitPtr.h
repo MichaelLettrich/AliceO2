@@ -49,8 +49,8 @@ class BitPtr
   inline constexpr intptr_t getOffset() const noexcept
   {
     assert(mBitAdr >= 0);
-    // bit offset from next byte
-    return mBitAdr % toBits(sizeof(T));
+    // bit offset from next T
+    return mBitAdr % toBits<T>();
   };
 
   template <typename T>

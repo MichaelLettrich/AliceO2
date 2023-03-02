@@ -80,7 +80,7 @@ class SIMDEncoderImpl : public EncoderImpl<simd::UnrolledSymbols,
 
   inline static constexpr state_type LowerBound = pow2(streamingLowerBound_V); // lower bound of our normalization interval
 
-  inline static constexpr state_type StreamBits = toBits(sizeof(stream_type)); // lower bound of our normalization interval
+  inline static constexpr state_type StreamBits = toBits<stream_type>(); // lower bound of our normalization interval
 };
 
 template <size_t streamingLowerBound_V, simd::SIMDWidth simdWidth_V>
