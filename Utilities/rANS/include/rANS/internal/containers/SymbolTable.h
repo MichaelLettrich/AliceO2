@@ -46,6 +46,9 @@ class SymbolTable : public internal::Container<source_T, symbol_T, SymbolTable<s
   using pointer = typename base_type::pointer;
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
+  using iterator = typename base_type::iterator;
+  using const_reverse_iterator = typename base_type::const_reverse_iterator;
+  using reverse_iterator = typename base_type::reverse_iterator;
 
   SymbolTable() = default;
 

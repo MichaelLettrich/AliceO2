@@ -98,6 +98,9 @@ class Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>> : public inte
   using pointer = typename containerBase_type::pointer;
   using const_pointer = typename containerBase_type::const_pointer;
   using const_iterator = typename containerBase_type::const_iterator;
+  using iterator = typename containerBase_type::iterator;
+  using const_reverse_iterator = typename containerBase_type::const_reverse_iterator;
+  using reverse_iterator = typename containerBase_type::reverse_iterator;
 
   Histogram() = default;
 
@@ -319,6 +322,9 @@ class Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>> : public inte
   using pointer = typename containerBase_type::pointer;
   using const_pointer = typename containerBase_type::const_pointer;
   using const_iterator = typename containerBase_type::const_iterator;
+  using iterator = typename containerBase_type::iterator;
+  using const_reverse_iterator = typename containerBase_type::const_reverse_iterator;
+  using reverse_iterator = typename containerBase_type::reverse_iterator;
 
   Histogram() = default;
 

@@ -43,6 +43,9 @@ class Container
   using pointer = typename container_type::pointer;
   using const_pointer = typename container_type::const_pointer;
   using const_iterator = typename container_type::const_iterator;
+  using iterator = const_iterator;
+  using const_reverse_iterator = typename container_type::const_reverse_iterator;
+  using reverse_iterator = const_reverse_iterator;
 
   // accessors
   [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const { return this->mContainer[sourceSymbol]; };
@@ -56,6 +59,14 @@ class Container
   [[nodiscard]] inline const_iterator begin() const noexcept { return this->mContainer.begin(); };
 
   [[nodiscard]] inline const_iterator end() const noexcept { return this->mContainer.end(); };
+
+  [[nodiscard]] inline const_reverse_iterator crbegin() const noexcept { return std::reverse_iterator{this->cend()}; };
+
+  [[nodiscard]] inline const_reverse_iterator crend() const noexcept { return std::reverse_iterator{this->cbegin()}; };
+
+  [[nodiscard]] inline const_reverse_iterator rbegin() const noexcept { return crbegin(); };
+
+  [[nodiscard]] inline const_reverse_iterator rend() const noexcept { return crend(); };
 
   [[nodiscard]] inline size_type size() const noexcept { return this->mContainer.size(); };
 

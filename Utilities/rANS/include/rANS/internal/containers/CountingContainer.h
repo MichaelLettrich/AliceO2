@@ -48,6 +48,9 @@ class CountingContainerBase : public Container<source_T, uint32_t, CountingConta
   using pointer = typename base_type::pointer;
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
+  using iterator = typename base_type::iterator;
+  using const_reverse_iterator = typename base_type::const_reverse_iterator;
+  using reverse_iterator = typename base_type::reverse_iterator;
 
   [[nodiscard]] inline bool empty() const noexcept { return mNSamples == 0; };
 
@@ -92,8 +95,11 @@ class CountingContainer<source_T, std::enable_if_t<(sizeof(source_T) <= 2)>> : p
   using pointer = typename base_type::pointer;
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
+  using iterator = typename base_type::iterator;
+  using const_reverse_iterator = typename base_type::const_reverse_iterator;
+  using reverse_iterator = typename base_type::reverse_iterator;
 
-  [[nodiscard]] inline constexpr size_type size() const noexcept { return internal::pow2(internal::toBits(sizeof(source_type))); };
+  [[nodiscard]] inline constexpr size_type size() const noexcept { return internal::pow2(internal::toBits<source_type>()); };
 
   friend void swap(CountingContainer& a, CountingContainer& b) noexcept
   {
@@ -122,6 +128,9 @@ class CountingContainer<source_T, std::enable_if_t<(sizeof(source_T) == 4)>> : p
   using pointer = typename base_type::pointer;
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
+  using iterator = typename base_type::iterator;
+  using const_reverse_iterator = typename base_type::const_reverse_iterator;
+  using reverse_iterator = typename base_type::reverse_iterator;
 
   friend void swap(CountingContainer& a, CountingContainer& b) noexcept
   {
