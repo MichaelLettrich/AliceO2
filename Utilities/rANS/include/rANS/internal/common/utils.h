@@ -99,12 +99,12 @@ inline constexpr size_t pow2(size_t n) noexcept
 
 inline constexpr uint32_t log2UIntNZ(uint32_t x) noexcept
 {
-  return toBits(sizeof(uint32_t)) - __builtin_clz(x) - 1;
+  return toBits<uint32_t>() - __builtin_clz(x) - 1;
 }
 
 inline constexpr uint64_t log2UIntNZ(uint64_t x) noexcept
 {
-  return toBits(sizeof(uint64_t)) - __builtin_clzl(x) - 1;
+  return toBits<uint64_t>() - __builtin_clzl(x) - 1;
 }
 
 inline constexpr uint32_t log2UInt(uint32_t x) noexcept

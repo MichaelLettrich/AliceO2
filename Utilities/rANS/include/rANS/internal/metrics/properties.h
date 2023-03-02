@@ -45,7 +45,7 @@ struct DatasetProperties {
   source_type min{std::numeric_limits<source_type>::min()};
   source_type max{std::numeric_limits<source_type>::max()};
   size_t numSamples{};
-  uint32_t alphabetRangeBits{internal::toBits(sizeof(source_T))};
+  uint32_t alphabetRangeBits{internal::toBits<source_T>()};
   uint32_t nUsedAlphabetSymbols{};
   float_t entropy{};
   std::array<uint32_t, 32> symbolLengthDistribution{{}};

@@ -67,7 +67,7 @@ template <typename T>
 template <typename T>
 [[nodiscard]] inline constexpr SIMDWidth getSimdWidth(size_t nHardwareStreams) noexcept
 {
-  return static_cast<SIMDWidth>(nHardwareStreams * toBits(sizeof(T)));
+  return static_cast<SIMDWidth>(nHardwareStreams * toBits<T>());
 };
 
 template <SIMDWidth>
