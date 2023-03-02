@@ -43,7 +43,7 @@ using namespace o2::rans::internal;
 
 inline constexpr size_t MessageSize = 1ull << 22;
 inline constexpr size_t LowerBound = 1ul << 20;
-inline constexpr size_t StreamBits = toBits(sizeof(stream_t));
+inline constexpr size_t StreamBits = toBits<stream_t>();
 
 template <typename source_T>
 class RenormingData

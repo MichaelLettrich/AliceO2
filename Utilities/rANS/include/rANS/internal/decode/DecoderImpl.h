@@ -62,7 +62,7 @@ class DecoderImpl
 
   inline static constexpr state_type LOWER_BOUND = pow2(LowerBound_V); // lower bound of our normalization interval
 
-  inline static constexpr state_type STREAM_BITS = toBits(sizeof(stream_type)); // lower bound of our normalization interval
+  inline static constexpr state_type STREAM_BITS = toBits<stream_type>(); // lower bound of our normalization interval
 };
 
 template <size_t LowerBound_V>
