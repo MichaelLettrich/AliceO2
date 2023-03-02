@@ -66,7 +66,7 @@ class EncoderImpl
  protected:
   [[nodiscard]] inline static constexpr state_type getStreamOutTypeBits() noexcept
   {
-    return toBits(sizeof(stream_type));
+    return toBits<stream_type>();
   };
 
   EncoderImpl() = default;
