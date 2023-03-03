@@ -47,6 +47,7 @@ class Symbol
   [[nodiscard]] inline constexpr const value_type* data() const noexcept { return mSymbol.data(); };
 
   [[nodiscard]] inline bool operator==(const Symbol& other) const { return this->getCumulative() == other.getCumulative(); };
+  [[nodiscard]] inline bool operator!=(const Symbol& other) const { return !operator==(other); };
 
   friend std::ostream& operator<<(std::ostream& os, const Symbol& symbol)
   {
@@ -153,6 +154,7 @@ class PrecomputedSymbol
   [[nodiscard]] inline constexpr value_type getFrequencyComplement() const noexcept { return mFrequencyComplement; };
   [[nodiscard]] inline constexpr value_type getReciprocalShift() const noexcept { return mReciprocalShift; };
   [[nodiscard]] inline bool operator==(const PrecomputedSymbol& other) const { return this->getCumulative() == other.getCumulative(); };
+  [[nodiscard]] inline bool operator!=(const PrecomputedSymbol& other) const { return !operator==(other); };
 
   friend std::ostream& operator<<(std::ostream& os, const PrecomputedSymbol& symbol)
   {
