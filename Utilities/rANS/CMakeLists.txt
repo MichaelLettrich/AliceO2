@@ -143,6 +143,16 @@ o2_add_test(EncodeDecode
             TARGETVARNAME TEST_ENCODE_DECODE
             LABELS utils)
             target_compile_options(${TEST_ENCODE_DECODE} PRIVATE -march=native)
+
+o2_add_test(Serialize
+            NAME Serialize
+            SOURCES test/test_ransSerialize.cxx
+            PUBLIC_LINK_LIBRARIES O2::rANS
+            COMPONENT_NAME rANS
+            TARGETVARNAME TEST_SERIALIZE
+            LABELS utils)
+            target_compile_options(${TEST_SERIALIZE} PRIVATE -march=native)
+            target_link_libraries(${TEST_SERIALIZE} PRIVATE)            
             
 if (TARGET benchmark::benchmark)
 

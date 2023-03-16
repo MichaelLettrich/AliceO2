@@ -23,7 +23,7 @@
 #include "rANS/internal/pack/utils.h"
 #include "rANS/internal/pack/pack.h"
 
-namespace o2::rans
+namespace o2::rans::internal
 {
 
 [[nodiscard]] inline internal::BitPtr eliasDeltaEncode(internal::BitPtr dst, uint32_t data)
@@ -42,17 +42,20 @@ namespace o2::rans
   return pack(dst, eliasDeltaCode, packedSize);
 };
 
+inline constexpr size_t EliasDeltaDecodeMaxBits = 42;
+
 template <typename dst_T>
-[[nodiscard]] inline dst_T eliasDeltaDecode(internal::BitPtr& srcPos)
+[[nodiscard]] inline dst_T eliasDeltaDecode(internal::BitPtr& srcPos, size_t rBitOffset = EliasDeltaDecodeMaxBits)
 {
   using namespace internal;
+  static_assert(sizeof(dst_T) <= sizeof(uint32_t));
+  assert(rBitOffset <= EliasDeltaDecodeMaxBits);
   constexpr size_t PackingBufferBits = toBits<packing_type>();
-  constexpr uint32_t MaxSymbolBits = 42; // a 32 bit integer can at max use 42 Bits with delta coding;
 
-  auto unpackedData = unpack<packing_type>(srcPos - MaxSymbolBits, MaxSymbolBits);
+  auto unpackedData = unpack<packing_type>(srcPos - rBitOffset, rBitOffset);
 
   // do delta decoding algorithm
-  unpackedData <<= PackingBufferBits - MaxSymbolBits;
+  unpackedData <<= PackingBufferBits - rBitOffset;
   const uint32_t nLeadingZeros = __builtin_clzl(unpackedData);
   uint32_t eliasDeltaBits = 2 * nLeadingZeros + 1;
   const uint32_t highestPow2 = bitExtract(unpackedData, PackingBufferBits - eliasDeltaBits, nLeadingZeros + 1) - 1;
@@ -64,6 +67,6 @@ template <typename dst_T>
   return decodedValue;
 };
 
-} // namespace o2::rans
+} // namespace o2::rans::internal
 
 #endif /* RANS_INTERNAL_PACK_ELIASDELTA_H_ */
