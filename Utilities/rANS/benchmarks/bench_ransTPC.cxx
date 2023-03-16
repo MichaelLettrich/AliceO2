@@ -63,6 +63,45 @@ std::string toString(CoderTag tag)
   };
 };
 
+class TimingDecorator
+{
+ public:
+  using jsonWriter_type = rapidjson::Writer<rapidjson::OStreamWrapper>;
+
+  TimingDecorator() = default;
+  TimingDecorator(jsonWriter_type& writer) : mWriter{&writer} {};
+
+  template <typename F, std::enable_if_t<!std::is_void_v<std::invoke_result_t<F>>, bool> = true>
+  decltype(auto) timeAndLog(const std::string& keyName, const std::string& logMessage, F functor)
+  {
+    mTimer.start();
+    decltype(auto) ret = functor();
+    mTimer.stop();
+    mWriter->Key(keyName.c_str());
+    const double_t msDuration = mTimer.getDurationMS();
+    mWriter->Double(msDuration);
+    LOGP(info, "{} in {} ms", logMessage, msDuration);
+
+    return ret;
+  };
+
+  template <typename F, std::enable_if_t<std::is_void_v<std::invoke_result_t<F>>, bool> = true>
+  void timeAndLog(const std::string& keyName, const std::string& logMessage, F functor)
+  {
+    mTimer.start();
+    functor();
+    mTimer.stop();
+    mWriter->Key(keyName.c_str());
+    const double_t msDuration = mTimer.getDurationMS();
+    mWriter->Double(msDuration);
+    LOGP(info, "{} in {} ms", logMessage, msDuration);
+  };
+
+ private:
+  jsonWriter_type* mWriter{};
+  internal::RANSTimer mTimer{};
+};
+
 // std::ofstream ofFrequencies{"frequencies.json"};
 // rapidjson::OStreamWrapper streamFrequencies{ofFrequencies};
 // rapidjson::Writer<rapidjson::OStreamWrapper> writerFrequencies{streamFrequencies};
@@ -76,6 +115,8 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
 {
   using source_type = source_T;
   internal::RANSTimer timer{};
+  TimingDecorator t{writer};
+
   writer.Key(name.c_str());
   writer.StartObject();
 
@@ -88,57 +129,56 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
   writer.StartObject();
 
   LOGP(info, "processing: {} (nItems: {}, size: {} MiB)", name, inputData.size(), inputData.size() * sizeof(source_type) / 1024.0 / 1024.0);
-  timer.start();
-  auto histogram = makeHistogram::fromSamples(gsl::span<const source_type>(inputData));
-  timer.stop();
+  auto histogram = t.timeAndLog(
+    "FrequencyTable", "Built Frequency Table", [&]() { return makeHistogram::fromSamples(gsl::span<const source_type>(inputData)); });
+
   // writerFrequencies.Key(name.c_str());
   // toJSON(histogram, writerFrequencies);
 
-  writer.Key("FrequencyTable");
-  writer.Double(timer.getDurationMS());
-  LOGP(info, "Built Frequency Table in {} ms", timer.getDurationMS());
-
   auto tmpHist = histogram;
-  timer.start();
-  const Metrics<source_type> metrics{histogram};
-  const auto renormedHistogram = renorm(std::move(tmpHist), metrics);
-  timer.stop();
+  Metrics<source_type> metrics{};
+  RenormedHistogram<source_type> renormedHistogram{};
+  t.timeAndLog("Renorming", "Renormed Frequency Table", [&]() mutable {
+    metrics = Metrics<source_type>{histogram};
+    renormedHistogram = renorm(std::move(tmpHist), metrics);
+    metrics.updateCoderProperties(renormedHistogram);
+  });
   // writerRenormed.Key(name.c_str());
   // toJSON(renormedFrequencyTable, writerRenormed);
-  writer.Key("Renorming");
-  writer.Double(timer.getDurationMS());
-  LOGP(info, "Renormed Frequency Table in {} ms", timer.getDurationMS());
-  timer.start();
-  auto encoder = makeEncoder<coderTag_V>::fromRenormed(renormedHistogram);
-  timer.stop();
-  writer.Key("Encoder");
-  writer.Double(timer.getDurationMS());
-  LOGP(info, "Built Encoder in {} ms", timer.getDurationMS());
-  timer.start();
-#ifdef ENABLE_VTUNE_PROFILER
-  __itt_resume();
-#endif
-  if (renormedHistogram.hasIncompressibleSymbol()) {
-    std::tie(encodeBuffer.encodeBufferEnd, encodeBuffer.literalsEnd) = encoder.process(inputData.data(), inputData.data() + inputData.size(), encodeBuffer.buffer.data(), encodeBuffer.literalsEnd);
-  } else {
-    encodeBuffer.encodeBufferEnd = encoder.process(inputData.data(), inputData.data() + inputData.size(), encodeBuffer.buffer.data());
-  }
-#ifdef ENABLE_VTUNE_PROFILER
-  __itt_pause();
-#endif
-  timer.stop();
-  writer.Key("Encoding");
-  writer.Double(timer.getDurationMS());
-  LOGP(info, "Encoded {} Bytes in {} ms", inputData.size() * sizeof(source_type), timer.getDurationMS());
-  std::vector<uint8_t> dict(histogram.size() * sizeof(uint32_t), 0);
-  timer.start();
-  auto dictEnd = toCompressedBinary(renormedHistogram, dict.data());
-  timer.stop();
-  writer.Key("Dict");
-  writer.Double(timer.getDurationMS());
-  LOGP(info, "Serialized Dict of {} Bytes in {} ms", std::distance(dict.data(), dictEnd), timer.getDurationMS());
 
+  auto encoder = t.timeAndLog("Encoder", "Built Encoder", [&]() { return makeEncoder<coderTag_V>::fromRenormed(renormedHistogram); });
+
+  t.timeAndLog("Encoding", "Encoded", [&]() mutable {
+#ifdef ENABLE_VTUNE_PROFILER
+    __itt_resume();
+#endif
+    if (renormedHistogram.hasIncompressibleSymbol()) {
+      std::tie(encodeBuffer.encodeBufferEnd, encodeBuffer.literalsEnd) = encoder.process(inputData.data(), inputData.data() + inputData.size(), encodeBuffer.buffer.data(), encodeBuffer.literalsEnd);
+    } else {
+      encodeBuffer.encodeBufferEnd = encoder.process(inputData.data(), inputData.data() + inputData.size(), encodeBuffer.buffer.data());
+    }
+#ifdef ENABLE_VTUNE_PROFILER
+    __itt_pause();
+#endif
+  });
+  LOGP(info, "Encoded {} Bytes", inputData.size() * sizeof(source_type));
+
+  std::vector<uint8_t> dict(histogram.size() * sizeof(uint64_t), 0);
+  auto dictEnd = t.timeAndLog("WriteDict", "Serialized Dict", [&]() { return compressRenormedDictionary(encoder.getSymbolTable(), dict.data()); });
+  LOGP(info, "Serialized Dict of {} Bytes", std::distance(dict.data(), dictEnd));
+  auto recoveredHistogram = t.timeAndLog("ReadDict", "Read Dict", [&]() { 
+    const source_type min =  encoder.getSymbolTable().getOffset();
+    const source_type max =  min+ std::max<source_type>(static_cast<int64_t>(encoder.getSymbolTable().size())-1,0);
+    return readRenormedDictionary(dict.data(), dictEnd,min,max,renormedHistogram.getRenormingBits()); });
   auto decoder = makeDecoder<>::fromRenormed(renormedHistogram);
+  auto recoveredDecoder = makeDecoder<>::fromRenormed(recoveredHistogram);
+
+  if (!(std::equal(decoder.getSymbolTable().begin(), decoder.getSymbolTable().end(), recoveredDecoder.getSymbolTable().begin()) &&
+        decoder.getSymbolTable().getOffset() == recoveredDecoder.getSymbolTable().getOffset() &&
+        decoder.getSymbolTable().getEscapeSymbol() == recoveredDecoder.getSymbolTable().getEscapeSymbol())) {
+    LOGP(warning, "Missmatch between original and decoded Dictionary");
+  }
+
   if (encodeBuffer.literalsEnd == encodeBuffer.literals.data()) {
     decoder.process(encodeBuffer.encodeBufferEnd, decodeBuffer.buffer.data(), inputData.size(), encoder.getNStreams());
   } else {
@@ -241,7 +281,7 @@ void encodeTPC(const std::string& name, const TPCCompressedClusters& compressedC
   ransEncodeDecode<uint8_t, coderTag_V>("qPtA", compressedClusters.qPtA, writer);
   ransEncodeDecode<uint8_t, coderTag_V>("rowA", compressedClusters.rowA, writer);
   ransEncodeDecode<uint8_t, coderTag_V>("sliceA", compressedClusters.sliceA, writer);
-  // ransEncodeDecode<uint32_t, coderTag_V>("timeA", compressedClusters.timeA, writer);
+  ransEncodeDecode<uint32_t, coderTag_V>("timeA", compressedClusters.timeA, writer);
   ransEncodeDecode<uint16_t, coderTag_V>("padA", compressedClusters.padA, writer);
   ransEncodeDecode<uint16_t, coderTag_V>("qTotU", compressedClusters.qTotU, writer);
   ransEncodeDecode<uint16_t, coderTag_V>("qMaxU", compressedClusters.qMaxU, writer);
@@ -266,6 +306,7 @@ int main(int argc, char* argv[])
     ("help,h", "print usage message")
     ("in,i",bpo::value<std::string>(), "file to process")
     ("out,o",bpo::value<std::string>(), "json output file")
+    ("mode,m",bpo::value<std::string>(), "compressor processing mode")
     ("log_severity,l",bpo::value<std::string>(), "severity of FairLogger");
   // clang-format on
 
