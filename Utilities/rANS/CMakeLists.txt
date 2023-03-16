@@ -9,10 +9,16 @@
 # granted to it by virtue of its status as an Intergovernmental Organization
 # or submit itself to any jurisdiction.
 
+option(RANS_ENABLE_JSON "compile librans with rapidjson" ON)
+
 o2_add_header_only_library(rANS
                TARGETVARNAME LIBRANS
                INTERFACE_LINK_LIBRARIES FairLogger::FairLogger Microsoft.GSL::GSL)
-#target_compile_options(${LIBRANS} INTERFACE -mavx2 -mfma -march=native)
+if(${RANS_ENABLE_JSON})
+  target_compile_definitions(${LIBRANS} INTERFACE RANS_ENABLE_JSON)
+  target_link_libraries(${LIBRANS} INTERFACE RapidJSON::RapidJSON)
+endif()
+               #target_compile_options(${LIBRANS} INTERFACE -mavx2 -mfma -march=native)
 if(${ENABLE_VTUNE_PROFILER})
   target_compile_definitions(${LIBRANS} INTERFACE ENABLE_VTUNE_PROFILER)
   target_link_libraries(${LIBRANS} INTERFACE PkgConfig::Vtune)
@@ -134,60 +140,72 @@ o2_add_test(EncodeDecode
             TARGETVARNAME TEST_ENCODE_DECODE
             LABELS utils)
             target_compile_options(${TEST_ENCODE_DECODE} PRIVATE -march=native)
-            
-if (TARGET benchmark::benchmark)
 
-  o2_add_header_only_library(libransBenchmark
-                TARGETVARNAME LIB_RANS_BENCHMARK
-                INTERFACE_LINK_LIBRARIES O2::rANS RapidJSON::RapidJSON benchmark::benchmark)
-  target_compile_options(${LIB_RANS_BENCHMARK} INTERFACE -O3 -march=native)
-  target_link_libraries(${LIB_RANS_BENCHMARK} INTERFACE -ltbb)
-  if(${ENABLE_VTUNE_PROFILER})
-    target_compile_definitions(${LIB_RANS_BENCHMARK} INTERFACE ENABLE_VTUNE_PROFILER)
-    target_link_libraries(${LIB_RANS_BENCHMARK} INTERFACE PkgConfig::Vtune)
+o2_add_test(Serialize
+            NAME Serialize
+            SOURCES test/test_ransSerialize.cxx
+            PUBLIC_LINK_LIBRARIES O2::rANS
+            COMPONENT_NAME rANS
+            TARGETVARNAME TEST_SERIALIZE
+            LABELS utils)
+            target_compile_options(${TEST_SERIALIZE} PRIVATE -march=native)
+            target_link_libraries(${TEST_SERIALIZE} PRIVATE)
+
+if(${RANS_ENABLE_JSON})
+  if (TARGET benchmark::benchmark)
+
+    o2_add_header_only_library(libransBenchmark
+                  TARGETVARNAME LIB_RANS_BENCHMARK
+                  INTERFACE_LINK_LIBRARIES O2::rANS RapidJSON::RapidJSON benchmark::benchmark)
+    target_compile_options(${LIB_RANS_BENCHMARK} INTERFACE -O3 -march=native)
+    target_link_libraries(${LIB_RANS_BENCHMARK} INTERFACE -ltbb)
+    if(${ENABLE_VTUNE_PROFILER})
+      target_compile_definitions(${LIB_RANS_BENCHMARK} INTERFACE ENABLE_VTUNE_PROFILER)
+      target_link_libraries(${LIB_RANS_BENCHMARK} INTERFACE PkgConfig::Vtune)
+    endif()
+
+    o2_add_executable(CombinedIterator
+                      SOURCES benchmarks/bench_ransCombinedIterator.cxx
+                      COMPONENT_NAME rANS
+                      IS_BENCHMARK
+                      PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+
+    o2_add_executable(Encode
+                      SOURCES benchmarks/bench_ransEncode.cxx
+                      COMPONENT_NAME rANS
+                      IS_BENCHMARK
+                      PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+
+    o2_add_executable(EncodeImpl
+                      SOURCES benchmarks/bench_ransEncodeImpl.cxx
+                      COMPONENT_NAME rANS
+                      IS_BENCHMARK
+                      PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+
+    o2_add_executable(Streaming
+                    SOURCES benchmarks/bench_ransStreaming.cxx
+                    COMPONENT_NAME rANS
+                    IS_BENCHMARK
+                    PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+
+    o2_add_executable(Pack
+                    SOURCES benchmarks/bench_ransPack.cxx
+                    COMPONENT_NAME rANS
+                    IS_BENCHMARK
+                    PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+
+    o2_add_executable(UnPack
+                    SOURCES benchmarks/bench_ransUnPack.cxx
+                    COMPONENT_NAME rANS
+                    IS_BENCHMARK
+                    PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+
+    o2_add_executable(TPCEncodeDecode
+                      SOURCES benchmarks/bench_ransTPC.cxx
+                      COMPONENT_NAME rANS
+                      IS_BENCHMARK
+                      PUBLIC_LINK_LIBRARIES O2::libransBenchmark Boost::program_options)
   endif()
-
-  o2_add_executable(CombinedIterator
-                    SOURCES benchmarks/bench_ransCombinedIterator.cxx
-                    COMPONENT_NAME rANS
-                    IS_BENCHMARK
-                    PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
-
-  o2_add_executable(Encode
-                    SOURCES benchmarks/bench_ransEncode.cxx
-                    COMPONENT_NAME rANS
-                    IS_BENCHMARK
-                    PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
-
-  o2_add_executable(EncodeImpl
-                    SOURCES benchmarks/bench_ransEncodeImpl.cxx
-                    COMPONENT_NAME rANS
-                    IS_BENCHMARK
-                    PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
-
-  o2_add_executable(Streaming
-                  SOURCES benchmarks/bench_ransStreaming.cxx
-                  COMPONENT_NAME rANS
-                  IS_BENCHMARK
-                  PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
-
-  o2_add_executable(Pack
-                  SOURCES benchmarks/bench_ransPack.cxx
-                  COMPONENT_NAME rANS
-                  IS_BENCHMARK
-                  PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
-
-  o2_add_executable(UnPack
-                  SOURCES benchmarks/bench_ransUnPack.cxx
-                  COMPONENT_NAME rANS
-                  IS_BENCHMARK
-                  PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
-
-  o2_add_executable(TPCEncodeDecode
-                    SOURCES benchmarks/bench_ransTPC.cxx
-                    COMPONENT_NAME rANS
-                    IS_BENCHMARK
-                    PUBLIC_LINK_LIBRARIES O2::libransBenchmark Boost::program_options)
 endif()
 
 o2_add_executable(rans-encode-decode-8

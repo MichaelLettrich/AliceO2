@@ -20,7 +20,9 @@
 #include <cstdint>
 #include <stdexcept>
 
+#ifdef RANS_ENABLE_JSON
 #include <rapidjson/writer.h>
+#endif
 #include "rANS/internal/common/utils.h"
 #include "rANS/internal/common/typetraits.h"
 #include "rANS/internal/containers/HistogramView.h"
@@ -30,92 +32,11 @@
 namespace o2::rans
 {
 
-enum class SourceType : uint8_t { Char,
-                                  Uint8,
-                                  Int8,
-                                  Uint16,
-                                  Int16,
-                                  Uint32,
-                                  Int32 };
-
 namespace internal
 {
-template <typename T>
-struct toSourceType;
-
-template <>
-struct toSourceType<char> : public std::integral_constant<SourceType, SourceType::Char> {
-};
-template <>
-struct toSourceType<uint8_t> : public std::integral_constant<SourceType, SourceType::Uint8> {
-};
-template <>
-struct toSourceType<int8_t> : public std::integral_constant<SourceType, SourceType::Int8> {
-};
-template <>
-struct toSourceType<uint16_t> : public std::integral_constant<SourceType, SourceType::Uint16> {
-};
-template <>
-struct toSourceType<int16_t> : public std::integral_constant<SourceType, SourceType::Int16> {
-};
-template <>
-struct toSourceType<uint32_t> : public std::integral_constant<SourceType, SourceType::Uint32> {
-};
-template <>
-struct toSourceType<int32_t> : public std::integral_constant<SourceType, SourceType::Int32> {
-};
-
-template <typename T>
-inline constexpr SourceType toSourceType_v = toSourceType<T>::value;
-
-template <SourceType sourceType_V>
-struct getSourceType;
-
-template <>
-struct getSourceType<SourceType::Char> : public std::integral_constant<char, 0> {
-};
-template <>
-struct getSourceType<SourceType::Uint8> : public std::integral_constant<uint8_t, 0> {
-};
-template <>
-struct getSourceType<SourceType::Int8> : public std::integral_constant<int8_t, 0> {
-};
-template <>
-struct getSourceType<SourceType::Uint16> : public std::integral_constant<uint16_t, 0> {
-};
-template <>
-struct getSourceType<SourceType::Int16> : public std::integral_constant<int16_t, 0> {
-};
-template <>
-struct getSourceType<SourceType::Uint32> : public std::integral_constant<uint32_t, 0> {
-};
-template <>
-struct getSourceType<SourceType::Int32> : public std::integral_constant<int32_t, 0> {
-};
-
-template <SourceType sourceType_V>
-using getSourceType_t = typename getSourceType<sourceType_V>::value_type;
-
-template <typename source_T>
-struct FlatContainer {
-  std::vector<source_T> index{};
-  std::vector<count_t> count{};
-  count_t incompressibleCount{};
-};
 
 template <typename container_T>
-count_t getFrequency(const container_T& container, typename container_T::source_type sourceSymbol)
-{
-  const auto& ret = container[sourceSymbol];
-  if constexpr (isSymbolTable_v<container_T>) {
-    return container.isEscapeSymbol(ret) ? 0 : ret.getFrequency();
-  } else {
-    return ret;
-  }
-};
-
-template <typename container_T>
-count_t getFrequency(const container_T& container, typename container_T::const_iterator iter)
+inline constexpr count_t getFrequency(const container_T& container, typename container_T::const_iterator iter)
 {
   const auto& ret = *iter;
   if constexpr (isSymbolTable_v<container_T>) {
@@ -126,189 +47,199 @@ count_t getFrequency(const container_T& container, typename container_T::const_i
 };
 
 template <typename container_T>
-count_t getIncompressibleFrequency(const container_T& container)
+inline constexpr count_t getIncompressibleFrequency(const container_T& container) noexcept
 {
   if constexpr (isSymbolTable_v<container_T>) {
-    container.getEscapeSymbol().getFrequency();
+    return container.getEscapeSymbol().getFrequency();
+  } else if constexpr (isRenormedHistogram_v<container_T>) {
+    return container.getIncompressibleSymbolFrequency();
   } else {
     return 0;
   }
 };
 
-// template <typename container_T, typename buffer_T, typename strategy_T>
-// void serializeContainer(const container_T& container, buffer_T& buffer)
-// {
-
-//   if (container.empty()) {
-//     return {};
-//   }
-
-//   FlatContainer<typename container_T::source_type> flattened;
-
-//   flattened.index.reserve(container.size());
-//   flattened.count.reserve(container.size());
-
-//   uint32_t index = container.getOffset();
-//   for (auto iter = container.begin(); iter != container.end(); ++iter) {
-//     const count_t count = getFrequency(container, iter);
-//     if (count > 0) {
-//       flattened.index.push_back(index);
-//       flattened.count.push_back(count);
-//     }
-//     ++index;
-//   };
-
-//   return flattened;
-// };
-
-template <typename container_T>
-auto flattenContainer(const container_T& container) -> FlatContainer<typename container_T::source_type>
+template <typename T>
+[[nodiscard]] inline constexpr size_t getDictExtent(T min, T max, size_t renormingPrecision) noexcept
 {
-  if (container.empty()) {
-    return {};
+  assert(max >= min);
+  // special case - empty dictionary
+  if (renormingPrecision == 0) {
+    return 0;
+  } else {
+    return static_cast<size_t>(max - min) + 1;
   }
-
-  FlatContainer<typename container_T::source_type> flattened;
-
-  flattened.index.reserve(container.size());
-  flattened.count.reserve(container.size());
-
-  uint32_t index = container.getOffset();
-  for (auto iter = container.begin(); iter != container.end(); ++iter) {
-    const count_t count = getFrequency(container, iter);
-    if (count > 0) {
-      flattened.index.push_back(index);
-      flattened.count.push_back(count);
-    }
-    ++index;
-  };
-
-  return flattened;
 };
 
-// template <typename container_T>
-// class makeFrequencyContainer
-// {
-//   using source_type = typename container_T::source_type;
-//   using index_type = typename container_T::index_type;
-//   using container_type = typename container_T::container_type;
+template <typename buffer_IT>
+[[nodiscard]] inline constexpr BitPtr seekEliasDeltaEnd(buffer_IT begin, buffer_IT end)
+{
+  using value_type = uint64_t;
+  assert(end >= begin);
 
-//  public:
-//   static container_T fromFlatContainer(FlatContainer<source_type>& flatContainer)
-//   {
-//     constexpr ContainerTag tag = getContainerTag_v<container_T>;
-//     const size_t size = flatContainer.index.back() - index.front() + 1;
-//     std::vector<source_type> container(size, 0);
+  for (buffer_IT iter = end; iter-- != begin;) {
+    auto value = static_cast<value_type>(*iter);
+    if (value > 0) {
+      const intptr_t offset = toBits<value_type>() - __builtin_clzl(value);
+      return {iter, offset};
+    }
+  }
 
-//     container_type container();
-//   }
+  return {};
+};
 
-//  private:
-//   static container_type makeBaseContainer(
+[[nodiscard]] inline constexpr intptr_t getEliasDeltaOffset(BitPtr begin, BitPtr iter)
+{
+  assert(iter >= begin);
+  intptr_t delta = (iter - begin);
+  assert(delta > 0);
+  return std::min<intptr_t>(delta, EliasDeltaDecodeMaxBits);
+}
 
-//   )
-// };
+}; // namespace internal
 
-// template <typename source_T, ContainerTag tag_V, std::enable_if_t<tag_V == ContainerTag::Static, bool> = true>
-// decltype(auto) makeContainerImpl(FlatContainer<source_T>)
-// {
-//   using source_type = source_T;
-//   using frequencyTable_type = typename ContainerTraits<tag_V>::frequencyTable_type<source_T>;
-//   using container_type = typename frequencyTable_type::container_type;
-//   using index_type = typename frequencyTable_type::index_type;
-
-//   container_type container;
-
-// }
-
-} // namespace internal
-
+#ifdef RANS_ENABLE_JSON
 template <typename container_T, typename jsonBuffer_T>
 void toJSON(const container_T& container, rapidjson::Writer<jsonBuffer_T>& writer)
 {
   using namespace internal;
-  using source_type = typename container_T::source_type;
-
-  auto writeArray = [&](const auto& array, const std::string& name) {
-    writer.Key(name.c_str());
-    writer.StartArray();
-    for (auto& i : array) {
-      writer.Int64(i);
-    }
-    writer.EndArray();
-  };
-
-  FlatContainer<source_type> flattened = flattenContainer(container);
-  flattened.incompressibleCount = getIncompressibleFrequency(container);
-  const uint32_t extent = flattened.index.size() > 0 ? flattened.index.back() - flattened.index.front() + 1 : 0;
 
   writer.StartObject();
-  writer.Key("SourceType");
-  writer.Uint(static_cast<uint32_t>(toSourceType_v<source_type>));
-  writer.Key("Extent");
-  writer.Uint(extent);
-  writeArray(flattened.index, "Index");
-  writeArray(flattened.count, "Value");
+  writer.Key("Offset");
+  writer.Int64(container.getOffset());
+  writer.Key("Index");
+  uint32_t index = 0;
+  std::vector<count_t> nonzeroFrequencies;
+  writer.StartArray();
+  for (auto iter = container.begin(); iter != container.end(); ++iter) {
+    auto frequency = getFrequency(container, iter);
+    if (frequency > 0) {
+      nonzeroFrequencies.push_back(frequency);
+      writer.Uint(index);
+    }
+    ++index;
+  }
+  writer.EndArray();
+
+  writer.Key("Value");
+  writer.StartArray();
+  for (auto freq : nonzeroFrequencies) {
+    writer.Uint(freq);
+  }
+  writer.EndArray();
+
+  writer.Key("Incompressible");
+  writer.Int64(getIncompressibleFrequency(container));
   writer.EndObject();
 };
+#endif /* RANS_ENABLE_JSON */
 
 template <typename container_T, typename dest_IT>
-dest_IT toCompressedBinary(const container_T& container, dest_IT dstBufferBegin)
+dest_IT compressRenormedDictionary(const container_T& container, dest_IT dstBufferBegin)
 {
-  // using namespace internal;
-  // using source_type = typename container_T::source_type;
-  // FlatContainer<source_type> flattened = flattenContainer(container);
-  // flattened.incompressibleCount = getIncompressibleFrequency(container);
-  // const uint32_t extent = flattened.index.size() > 0 ? flattened.index.back() - flattened.index.front() + 1 : 0;
+  using namespace internal;
+  static_assert(std::is_pointer_v<dest_IT>, "only raw pointers are permited as a target for serialization");
+  static_assert((isSymbolTable_v<container_T> || isRenormedHistogram_v<container_T>), "only renormed Histograms and symbol tables are accepted. Non-renormed histograms might not compress well");
 
-  // uint32_t bitOffset = 0;
-  // uint64_t* iter = reinterpret_cast<uint64_t*>(dstBufferBegin);
-  // //iterate backwards, store all but 0;
-  // for (size_t i = flattened.index.size(); i-- > 1ull;) {
-  //   source_type indexDelta = flattened.index[i] - flattened.index[i - 1];
-  //   assert(flattened.count[i] > 0);
-  //   assert(indexDelta > 0);
-  //   eliasDeltaEncode(iter, bitOffset, flattened.count[i]);
-  //   eliasDeltaEncode(iter, bitOffset, indexDelta);
-  // }
-  // eliasDeltaEncode(iter, bitOffset, flattened.count[0]);
-  // eliasDeltaEncode(iter, bitOffset, static_cast<uint32_t>(flattened.index[0])); //TODO(milettri): zigzag encode
-  // pack(iter, bitOffset, extent, 32);
-  // eliasDeltaEncode(iter, bitOffset, (flattened.incompressibleCount + 1));
-  // eliasDeltaEncode(iter, bitOffset, 1);
+  auto getNextNonzeroIter = [&container](auto begin, auto end) {
+    for (auto iter = begin; iter != end; ++iter) {
+      if (getFrequency(container, iter) > 0) {
+        return iter;
+      }
+    }
+    return end;
+  };
 
-  // return reinterpret_cast<dest_IT>(++iter);
-  return dstBufferBegin;
+  BitPtr dstIter{dstBufferBegin};
+  // encoding the container values back-to-front, so that the decoder can run in correct order.
+
+  //find the first non-zero entry
+  const auto begin = getNextNonzeroIter(container.cbegin(), container.cend());
+  // and write it;
+  auto iter = begin;
+  uint32_t offset{};
+  if (iter != container.cend()) {
+    auto frequency = getFrequency(container, iter);
+    dstIter = eliasDeltaEncode(dstIter, getFrequency(container, iter));
+    ++iter;
+    offset = 1;
+  }
+
+  // all subsequent entries
+  for (; iter != container.end(); ++iter) {
+    auto frequency = getFrequency(container, iter);
+    if (frequency > 0) {
+      dstIter = eliasDeltaEncode(dstIter, offset);
+      dstIter = eliasDeltaEncode(dstIter, frequency);
+      offset = 1;
+    } else {
+      ++offset;
+    }
+  }
+  //write out incompressibleFrequency
+  dstIter = eliasDeltaEncode(dstIter, getIncompressibleFrequency(container) + 1);
+  //finish off by a 1 to identify start of the sequence.
+  dstIter = eliasDeltaEncode(dstIter, 1);
+
+  // extract raw Pointer from BitPtr
+  const dest_IT iterEnd = [dstIter]() {
+    using buffer_type = typename std::iterator_traits<dest_IT>::value_type;
+    dest_IT iterEnd = dstIter.toPtr<buffer_type>();
+    // one past the end
+    return ++iterEnd;
+  }();
+
+  return iterEnd;
 }
 
-// template <typename source_T>
-// dest_IT toCompressedBinary(const container_T&, dest_IT dstBufferBegin)
-// {
-//   using source_type = typename container_T::source_type;
-//   FlatContainer<source_type> flattened = flattenContainer(container);
-//   flattened.incompressibleCount = getIncompressibleFrequency(container);
-//   const uint32_t extent = flattened.index.size() > 0 ? flattened.index.back() - flattened.index.front() + 1 : 0;
+template <typename source_T, typename buffer_IT>
+RenormedHistogram<source_T> readRenormedDictionary(buffer_IT begin, buffer_IT end, source_T min, source_T max, size_t renormingPrecision)
+{
+  static_assert(std::is_pointer_v<buffer_IT>, "can only deserialize from raw pointers");
 
-//   uint32_t bitOffset = 0;
-//   uint64_t* iter = reinterpret_cast<uint64_t*>(dstBufferBegin);
-//   //iterate backwards, store all but 0;
-//   for (size_t i = flattened.index.size(); flattened-- > 1;) {
-//     source_type indexDelta = flattened.index[i] - flattened.index[i - 1];
-//     assert(flattened.count[i] > 0);
-//     assert(indexDelta > 0);
-//     eliasDeltaEncode(iter, bitOffset, flattened.count[i]);
-//     eliasDeltaEncode(iter, bitOffset, indexDelta);
-//   }
-//   eliasDeltaEncode(iter, bitOffset, flattened.count[0]);
-//   eliasDeltaEncode(iter, bitOffset, static_cast<uint32_t>(flattened.index[0])); //TODO(milettri): zigzag encode
-//   pack(iter, bitOffset, extent, 32);
-//   eliasDeltaEncode(iter, bitOffset, (flattened.incompressibleCount + 1));
-//   eliasDeltaEncode(iter, bitOffset, static_cast<uint32_t>(toSourceType_v<source_type>));
-//   eliasDeltaEncode(iter, bitOffset, 1);
+  using namespace internal;
+  using container_type = typename RenormedHistogram<source_T>::container_type;
+  using value_type = typename container_type::value_type;
 
-//   return ++iter;
-// }
+  const size_t dictExtent = getDictExtent(min, max, renormingPrecision);
 
+  container_type container(dictExtent, min);
+
+  BitPtr iter = seekEliasDeltaEnd(begin, end);
+  BitPtr beginPos{begin};
+
+  auto deltaDecode = [beginPos](BitPtr& iter) -> value_type {
+    intptr_t delta = getEliasDeltaOffset(beginPos, iter);
+    return eliasDeltaDecode<value_type>(iter, delta);
+  };
+
+  if (iter == BitPtr{}) {
+    throw std::runtime_error{"failed to read renormed dictionary: could not find end of data stream"};
+  }
+
+  if (deltaDecode(iter) != 1) {
+    throw std::runtime_error{"failed to read renormed dictionary: could not find end of stream delimiter"};
+  }
+
+  const value_type incompressibleSymbolFrequency = deltaDecode(iter) - 1;
+
+  source_T idx = max;
+  if (iter != beginPos) {
+    // first value at max, without index offset
+    container[idx] = deltaDecode(iter);
+  }
+
+  while (iter != beginPos) {
+    const auto offset = deltaDecode(iter);
+    const auto frequency = deltaDecode(iter);
+    idx -= offset;
+    container[idx] = frequency;
+  }
+
+  if (idx != min) {
+    throw std::runtime_error{fmt::format("failed to read renormed dictionary: reached EOS at index {} before parsing min {} ", idx, min)};
+  }
+  return {std::move(container), renormingPrecision, incompressibleSymbolFrequency};
+};
 } // namespace o2::rans
 
 #endif /* RANS_SERIALIZE_H_ */
