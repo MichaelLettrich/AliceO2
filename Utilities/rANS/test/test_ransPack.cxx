@@ -34,6 +34,7 @@
 #include "rANS/internal/containers/BitPtr.h"
 
 using namespace o2::rans;
+using namespace o2::rans::internal;
 
 inline constexpr size_t BufferSize = 257;
 
@@ -143,21 +144,23 @@ BOOST_AUTO_TEST_CASE(test_packUnpackStream)
 
 BOOST_AUTO_TEST_CASE(test_packRUnpackEliasDelta)
 {
-  using source_type = uint64_t;
+  using source_type = uint32_t;
 
   for (size_t packingWidth = 1; packingWidth <= 32; ++packingWidth) {
     BOOST_TEST_MESSAGE(fmt::format("Checking {} Bit Elias Delta Coder", packingWidth));
     auto source = makeRandomUniformVector<source_type>(BufferSize, 1ull, internal::pow2(packingWidth) - 1);
-    std::vector<source_type> packingBuffer(source.size(), 0);
+    std::vector<uint64_t> packingBuffer(source.size(), 0);
 
     internal::BitPtr iter{packingBuffer.data()};
     for (auto i : source) {
       iter = eliasDeltaEncode(iter, i);
     };
 
+    internal::BitPtr iterBegin{packingBuffer.data()};
     std::vector<source_type> unpackBuffer(source.size(), 0);
     for (size_t i = 0; i < source.size(); ++i) {
-      unpackBuffer[i] = eliasDeltaDecode<source_type>(iter);
+      const size_t maxOffset = std::min(static_cast<size_t>(iter - iterBegin), EliasDeltaDecodeMaxBits);
+      unpackBuffer[i] = eliasDeltaDecode<source_type>(iter, maxOffset);
     };
 
     // compare if both yield the correct result
