@@ -205,7 +205,7 @@ class TPCJsonHandler : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, TP
       LOGP(info, "parsing {}", str);
       mCurrentVector = CurrentVector{mCompressedClusters.nSliceRowClusters};
     } else {
-      throw std::runtime_error(fmt::format("invalid key: {}", str));
+      throw o2::rans::IOError(fmt::format("invalid key: {}", str));
       return false;
     }
     return true;
@@ -251,7 +251,7 @@ TPCCompressedClusters readFile(const std::string& filename)
     compressedClusters.nTracks = compressedClusters.nTrackClusters.size();
     is.close();
   } else {
-    throw std::runtime_error(fmt::format("Could not open file {}", filename));
+    throw o2::rans::IOError(fmt::format("Could not open file {}", filename));
   }
   return compressedClusters;
 };

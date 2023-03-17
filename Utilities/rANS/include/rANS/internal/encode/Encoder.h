@@ -69,7 +69,7 @@ class Encoder
     const size_t symbolTablePrecission = mSymbolTable.getPrecision();
     const size_t encoderLowerBound = coder_type::getStreamingLowerBound();
     if (symbolTablePrecission > encoderLowerBound) {
-      throw std::runtime_error(fmt::format(
+      throw EncodingError(fmt::format(
         "Renorming precision of symbol table ({} Bits) exceeds renorming lower bound of encoder ({} Bits).\
       This can cause overflows during encoding.",
         symbolTablePrecission, encoderLowerBound));
@@ -115,7 +115,7 @@ decltype(auto) Encoder<encoder_T, symbolTable_T, nStreams_V>::process(source_IT 
   }
 
   if (std::is_null_pointer_v<literals_IT> && mSymbolTable.hasEscapeSymbol()) {
-    throw std::runtime_error("The Symbol table used requires you to pass a literals iterator");
+    throw HistogramError("The Symbol table used requires you to pass a literals iterator");
   }
 
   std::array<coder_type, NCoders> coders;

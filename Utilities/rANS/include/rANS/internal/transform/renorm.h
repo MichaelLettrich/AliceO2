@@ -134,7 +134,7 @@ RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, size_t newPrec
   }
 
   if (std::abs(nCorrections) > 0) {
-    throw std::runtime_error(fmt::format("rANS rescaling incomplete: {} corrections Remaining", nCorrections));
+    throw HistogramError(fmt::format("rANS rescaling incomplete: {} corrections Remaining", nCorrections));
   }
 
   return RenormedHistogram<source_type>(std::move(rescaledHistogram), newPrecision, incompressibleSymbolFrequency);
