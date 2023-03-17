@@ -104,7 +104,7 @@ decltype(auto) Encoder<encoder_T, symbolTable_T, nStreams_V>::process(source_IT 
   }
 
   if (std::is_null_pointer_v<literals_IT> && mSymbolTable.hasEscapeSymbol()) {
-    throw std::runtime_error("The Symbol table used requires you to pass a literals iterator");
+    throw HistogramError("The Symbol table used requires you to pass a literals iterator");
   }
 
   std::array<coder_type, NCoders> coders;

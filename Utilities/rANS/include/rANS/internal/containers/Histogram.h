@@ -25,6 +25,7 @@
 #include <utility>
 
 #include "rANS/internal/common/utils.h"
+#include "rANS/internal/common/exceptions.h"
 #include "rANS/internal/containers/HistogramInterface.h"
 #include "rANS/internal/containers/CountingContainer.h"
 #include "rANS/internal/containers/HistogramView.h"
@@ -262,7 +263,7 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addFrequencie
       assert(histogramOverlap.size() == addedHistogramView.size());
       std::transform(addedHistogramView.begin(), addedHistogramView.end(),
                      histogramOverlap.begin(), histogramOverlap.begin(),
-                     [this, frequencyCountingDecorator](const count_t& a, const count_t& b) { return frequencyCountingDecorator(a) + b; });
+                     [this, frequencyCountingDecorator](const count_t& a, const count_t& b) { return safeadd(frequencyCountingDecorator(a), b); });
 
       this->mContainer = container_type{std::move(newHistogram), static_cast<source_type>(newHistogramView.getOffset())};
     }
@@ -284,7 +285,7 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::resize(source
   max = std::max(max, getMaxSymbol());
 
   if (min > max) {
-    throw std::runtime_error(fmt::format("{} failed: min {} > max {} ", __func__, min, max));
+    throw HistogramError(fmt::format("{} failed: min {} > max {} ", __func__, min, max));
   }
 
   const size_type newSize = max - min + 1;
@@ -471,18 +472,19 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addFrequencie
   const bool invalidBounds = (getLeftOffset(thisHistogramView, addedHistogramView) < 0) || (getRightOffset(thisHistogramView, addedHistogramView) > 0);
 
   if (invalidBounds) {
-    throw std::runtime_error(fmt::format("Incompatible Frequency table dimensions: Cannot add [{},{}] to [{}, {}] ",
-                                         addedHistogramView.getMin(),
-                                         addedHistogramView.getMax(),
-                                         thisHistogramView.getMin(),
-                                         thisHistogramView.getMax()));
+    throw HistogramError(fmt::format("Incompatible Frequency table dimensions: Cannot add [{},{}] to [{}, {}] ",
+                                     addedHistogramView.getMin(),
+                                     addedHistogramView.getMax(),
+                                     thisHistogramView.getMin(),
+                                     thisHistogramView.getMax()));
   }
 
   source_type idx = addedHistogramView.getOffset();
   for (freq_IT iter = addedHistogramView.begin(); iter != addedHistogramView.end(); ++iter) {
     auto frequency = *iter;
     this->mNSamples += frequency;
-    this->mContainer[idx++] += frequency;
+    this->mContainer[idx] = safeadd(this->mContainer[idx], frequency);
+    ++idx;
   }
   return *this;
 }

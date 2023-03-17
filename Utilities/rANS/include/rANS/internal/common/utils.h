@@ -29,6 +29,7 @@
 
 #include "rANS/utils.h"
 #include "rANS/internal/common/defaults.h"
+#include "rANS/internal/common/exceptions.h"
 
 #define rans_likely(x) __builtin_expect((x), 1)
 #define rans_unlikely(x) __builtin_expect((x), 0)
@@ -276,7 +277,7 @@ inline uint32_t safeadd(uint32_t a, uint32_t b)
 {
   uint32_t result;
   if (rans_unlikely(__builtin_uadd_overflow(a, b, &result))) {
-    throw std::overflow_error("arithmetic overflow during addition");
+    throw OverflowError("arithmetic overflow during addition");
   }
   return result;
 }

@@ -28,6 +28,7 @@
 #include "rANS/internal/containers/HistogramView.h"
 #include "rANS/internal/pack/pack.h"
 #include "rANS/internal/pack/eliasDelta.h"
+#include "rANS/internal/common/exceptions.h"
 
 namespace o2::rans
 {
@@ -213,11 +214,11 @@ RenormedHistogram<source_T> readRenormedDictionary(buffer_IT begin, buffer_IT en
   };
 
   if (iter == BitPtr{}) {
-    throw std::runtime_error{"failed to read renormed dictionary: could not find end of data stream"};
+    throw ParsingError{"failed to read renormed dictionary: could not find end of data stream"};
   }
 
   if (deltaDecode(iter) != 1) {
-    throw std::runtime_error{"failed to read renormed dictionary: could not find end of stream delimiter"};
+    throw ParsingError{"failed to read renormed dictionary: could not find end of stream delimiter"};
   }
 
   const value_type incompressibleSymbolFrequency = deltaDecode(iter) - 1;
@@ -236,7 +237,7 @@ RenormedHistogram<source_T> readRenormedDictionary(buffer_IT begin, buffer_IT en
   }
 
   if (idx != min) {
-    throw runtime_error{fmt::format("failed to read renormed dictionary: reached EOS at index {} before parsing min {} ", idx, min)};
+    throw ParsingError{fmt::format("failed to read renormed dictionary: reached EOS at index {} before parsing min {} ", idx, min)};
   }
   return {std::move(container), renormingPrecision, incompressibleSymbolFrequency};
 };
