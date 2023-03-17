@@ -54,7 +54,7 @@ class Decoder
       }
 
       if (!(nStreams > 1 && internal::isPow2(nStreams))) {
-        throw std::runtime_error(fmt::format("Invalid number of decoder streams {}", nStreams));
+        throw DecodingError(fmt::format("Invalid number of decoder streams {}", nStreams));
       }
 
       stream_IT inputIter = inputEnd;

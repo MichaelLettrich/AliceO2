@@ -34,7 +34,7 @@
 BOOST_AUTO_TEST_CASE(test_checkBounds)
 {
   std::vector<size_t> A(2);
-  BOOST_CHECK_THROW(o2::rans::checkBounds(std::end(A), std::begin(A)), std::runtime_error);
+  BOOST_CHECK_THROW(o2::rans::checkBounds(std::end(A), std::begin(A)), o2::rans::OutOfBoundsError);
   BOOST_CHECK_NO_THROW(o2::rans::checkBounds(std::begin(A), std::end(A)));
 };
 
