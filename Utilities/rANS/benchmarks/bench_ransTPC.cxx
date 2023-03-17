@@ -58,7 +58,7 @@ std::string toString(CoderTag tag)
       return {"AVX2"};
       break;
     default:
-      throw std::runtime_error("Invalid");
+      throw Exception("Invalid");
       break;
   };
 };

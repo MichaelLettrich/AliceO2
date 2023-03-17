@@ -87,7 +87,7 @@ template <size_t streamingLowerBound_V, simd::SIMDWidth simdWidth_V>
 SIMDEncoderImpl<streamingLowerBound_V, simdWidth_V>::SIMDEncoderImpl(size_t symbolTablePrecision) : mSymbolTablePrecision{symbolTablePrecision}, mStates{}, mNSamples{}
 {
   if (mSymbolTablePrecision > LowerBound) {
-    throw std::runtime_error(fmt::format("[{}]: SymbolTable Precision of {} Bits is larger than allowed by the rANS Encoder (max {} Bits)", __PRETTY_FUNCTION__, mSymbolTablePrecision, LowerBound));
+    throw HistogramError(fmt::format("SymbolTable Precision of {} Bits is larger than allowed by the rANS Encoder (max {} Bits)", mSymbolTablePrecision, LowerBound));
   }
 
   mStates[0] = simd::setAll<simdWidth_V>(LowerBound);

@@ -26,6 +26,7 @@
 #include <cstring>
 
 #include <fairlogger/Logger.h>
+#include "rANS/internal/common/exceptions.h"
 
 namespace o2::rans
 {
@@ -37,7 +38,7 @@ void checkBounds(IT iteratorPosition, IT upperBound)
 {
   const auto diff = std::distance(iteratorPosition, upperBound);
   if (diff < 0) {
-    throw std::runtime_error(fmt::format("Bounds of buffer violated by {} elements", std::abs(diff)));
+    throw OutOfBoundsError(fmt::format("Bounds of buffer violated by {} elements", std::abs(diff)));
   }
 }
 

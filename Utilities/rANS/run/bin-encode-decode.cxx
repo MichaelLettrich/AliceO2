@@ -48,7 +48,7 @@ std::vector<T> readFile(const std::string& filename)
     is.seekg(0, is.beg);
 
     if (length % sizeof(T)) {
-      throw std::runtime_error("Filesize is not a multiple of datatype.");
+      throw o2::rans::IOError("Filesize is not a multiple of datatype.");
     }
     // size the vector appropriately
     tokens.resize(length / sizeof(T));

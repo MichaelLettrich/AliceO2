@@ -155,7 +155,7 @@ class SourceMessageProxy
     } else if constexpr (std::is_same_v<int32_t, T>) {
       return sourceMessage32.get();
     } else {
-      throw std::runtime_error{"unsupported source type"};
+      throw Exception{"unsupported source type"};
     }
   };
 
