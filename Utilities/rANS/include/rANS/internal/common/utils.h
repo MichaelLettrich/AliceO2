@@ -74,6 +74,12 @@ inline uint64_t load64(const void* __restrict src)
   return ret;
 };
 
+template <typename T>
+inline constexpr uintptr_t adr2Bits(T* address) noexcept
+{
+  return (reinterpret_cast<uintptr_t>(address) << 3ull);
+};
+
 inline constexpr size_t toBytes(size_t bits) noexcept { return (bits / 8) + (bits % 8 != 0); };
 
 inline constexpr size_t toBits(size_t bytes) noexcept { return bytes * 8; };

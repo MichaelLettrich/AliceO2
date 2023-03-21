@@ -36,6 +36,16 @@ o2_add_test(Iterators
             LABELS utils)
             target_compile_options(${TEST_ITERATORS} PRIVATE -march=native)
 
+
+o2_add_test(BitPtr
+            NAME BitPtr
+            SOURCES test/test_ransBitPtr.cxx
+            PUBLIC_LINK_LIBRARIES O2::rANS
+            COMPONENT_NAME rANS
+            TARGETVARNAME TEST_BITPTR
+            LABELS utils)
+            target_compile_options(${TEST_BITPTR} PRIVATE -march=native)
+
 o2_add_test(Pack
             NAME Pack
             SOURCES test/test_ransPack.cxx
@@ -81,7 +91,6 @@ o2_add_test(AttachableBuffer
             LABELS utils)
             target_compile_options(${TEST_ATTACHABLEBUFFER} PRIVATE -march=native)
 
-  
 o2_add_test(HistogramView
             NAME HistogramView
             SOURCES test/test_ransHistogramView.cxx
