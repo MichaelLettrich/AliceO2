@@ -107,8 +107,10 @@ struct Metadata {
     EENCODE,                      // entropy encoding applied
     ROOTCompression,              // original data repacked to array with slot-size = streamSize and saved with root compression
     NONE,                         // original data repacked to array with slot-size = streamSize and saved w/o compression
-    NODATA                        // no data was provided
+    NODATA,                       // no data was provided
+    PACK                          // use Bitpacking
   };
+  uint8_t nStreams = 0;
   size_t messageLength = 0;
   size_t nLiterals = 0;
   uint8_t messageWordSize = 0;
@@ -126,18 +128,19 @@ struct Metadata {
   size_t getCompressedSize() const { return (nDictWords + nDataWords + nLiteralWords) * streamSize; }
   void clear()
   {
-    min = max = 0;
+    uint8_t nStreams = 0;
     messageLength = 0;
-    messageWordSize = 0;
     nLiterals = 0;
+    messageWordSize = 0;
     coderType = 0;
     streamSize = 0;
     probabilityBits = 0;
+    min = max = 0;
     nDictWords = 0;
     nDataWords = 0;
     nLiteralWords = 0;
   }
-  ClassDefNV(Metadata, 2);
+  ClassDefNV(Metadata, 3);
 };
 
 /// registry struct for the buffer start and offsets of writable space
@@ -861,7 +864,7 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::encode(const input_IT srcBegin,      
 
   // case 1: empty source message
   if (messageLength == 0) {
-    mMetadata[slot] = Metadata{0, 0, sizeof(input_t), sizeof(ransState_t), sizeof(ransStream_t), symbolTablePrecision, Metadata::OptStore::NODATA, 0, 0, 0, 0, 0};
+    mMetadata[slot] = Metadata{static_cast<uint8_t>(0), 0, 0, sizeof(input_t), sizeof(ransState_t), sizeof(ransStream_t), symbolTablePrecision, Metadata::OptStore::NODATA, 0, 0, 0, 0, 0};
     return {};
   }
 
@@ -945,20 +948,21 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::encode(const input_IT srcBegin,      
 
     LOGP(info, "Min, {} Max, {}, size, {}, nusedAlphabetSymbols {}, nSamples {}", view.getMin(), view.getMax(), view.size(), frequencyTable.countNUsedAlphabetSymbols(), frequencyTable.getNumSamples());
 
-    *thisMetadata = Metadata{messageLength,
-                             nLiteralSymbols,
-                             sizeof(input_t),
-                             sizeof(ransState_t),
-                             sizeof(ransStream_t),
-                             static_cast<uint8_t>(encoder->getSymbolTable().getPrecision()),
-                             opt,
-                             static_cast<int32_t>(view.getMin()),
-                             static_cast<int32_t>(view.getMax()),
-                             static_cast<int32_t>(view.size()),
-                             dataSize,
-                             static_cast<int32_t>(nLiteralWords)};
+    *thisMetadata = Metadata{
+      static_cast<uint8_t>(encoder->getNStreams()),
+      messageLength,
+      nLiteralSymbols,
+      sizeof(input_t),
+      sizeof(ransState_t),
+      sizeof(ransStream_t),
+      static_cast<uint8_t>(encoder->getSymbolTable().getPrecision()),
+      opt,
+      static_cast<int32_t>(view.getMin()),
+      static_cast<int32_t>(view.getMax()),
+      static_cast<int32_t>(view.size()),
+      dataSize,
+      static_cast<int32_t>(nLiteralWords)};
   } else { // store original data w/o EEncoding
-    // FIXME(milettri): we should be able to do without an intermediate vector;
     //  provided iterator is not necessarily pointer, need to use intermediate vector!!!
 
     // introduce padding in case literals don't align;
@@ -970,7 +974,7 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::encode(const input_IT srcBegin,      
     expandStorage(nBufferElems);
     thisBlock->storeData(nBufferElems, reinterpret_cast<const storageBuffer_t*>(tmp.data()));
 
-    *thisMetadata = Metadata{messageLength, 0, sizeof(input_t), sizeof(ransState_t), sizeof(storageBuffer_t), symbolTablePrecision, opt, 0, 0, 0, static_cast<int>(nBufferElems), 0};
+    *thisMetadata = Metadata{static_cast<uint8_t>(0), messageLength, 0, sizeof(input_t), sizeof(ransState_t), sizeof(storageBuffer_t), symbolTablePrecision, opt, 0, 0, 0, static_cast<int>(nBufferElems), 0};
   }
   return {0, thisMetadata->getUncompressedSize(), thisMetadata->getCompressedSize()};
 }

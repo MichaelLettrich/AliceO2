@@ -333,7 +333,7 @@ size_t CTFWriterSpec::processDet(o2::framework::ProcessingContext& pc, DetID det
                 }()) {
               auto newProbBits = static_cast<uint8_t>(o2::rans::compat::computeRenormingPrecision(freq.countNUsedAlphabetSymbols()));
               auto histogramView = o2::rans::internal::trim(o2::rans::internal::HistogramView{freq.begin(), freq.end(), freq.getOffset()});
-              mdSave = o2::ctf::Metadata{0, 0, md.messageWordSize,
+              mdSave = o2::ctf::Metadata{static_cast<uint8_t>(0), 0, 0, md.messageWordSize,
                                          md.coderType,
                                          md.streamSize,
                                          newProbBits,
