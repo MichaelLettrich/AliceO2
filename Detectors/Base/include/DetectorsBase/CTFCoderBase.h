@@ -383,7 +383,7 @@ template <typename source_T>
     const auto* encoder = reinterpret_cast<const o2::rans::compat::encoder_type<source_T>*>(coder);
     const auto& symbolTable = encoder->getSymbolTable();
     const size_t alphabetRangeBits = o2::rans::internal::toBits(symbolTable.size() - symbolTable.getOffset());
-    return rans::compat::calculateMaxBufferSize(samples.size(), alphabetRangeBits);
+    return rans::compat::calculateMaxBufferSizeB(samples.size(), alphabetRangeBits);
   } else {
     return samples.size() * sizeof(source_T);
   }
