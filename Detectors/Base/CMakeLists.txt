@@ -79,6 +79,15 @@ if(BUILD_SIMULATION)
                 VMCWORKDIR=${CMAKE_BINARY_DIR}/stage/${CMAKE_INSTALL_DATADIR})
 endif()
 
+o2_add_test(CTFEntropyCoder
+            NAME CTFEntropyCoder
+            SOURCES test/testCTFEntropyCoder.cxx
+            PUBLIC_LINK_LIBRARIES O2::DetectorsBase O2::rANS
+            COMPONENT_NAME DetectorsBase
+            TARGETVARNAME TEST_CTF_ENTROPY_CODER
+            LABELS detectorsbase)
+            target_compile_options(${TEST_CTF_ENTROPY_CODER} PRIVATE -march=native)
+
 install(FILES test/buildMatBudLUT.C
               test/extractLUTLayers.C
               DESTINATION share/macro/)
