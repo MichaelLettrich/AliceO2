@@ -9,9 +9,9 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// @file   test_ransSerialize
+/// @file   testCTFEntropyCoder
 /// @author Michael Lettrich
-/// @brief  Test serialization and deserialization of metadata
+/// @brief  Test entropy coding using rANS algorithm
 
 #define BOOST_TEST_MODULE Test CTFEntropyCoder class
 #define BOOST_TEST_MAIN
@@ -29,7 +29,7 @@
 #include <boost/mp11.hpp>
 #include <fmt/core.h>
 
-#include "DetectorsBase/CTFEntropyCoder.h"
+#include "DetectorsCommonDataFormats/CTFEntropyCoder.h"
 #include "rANS/histogram.h"
 #include "rANS/metrics.h"
 #include "rANS/factory.h"
