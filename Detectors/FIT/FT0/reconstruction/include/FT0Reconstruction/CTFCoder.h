@@ -72,15 +72,15 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const gsl::span<const Digit>& dig
   using MD = o2::ctf::Metadata::OptStore;
   // what to do which each field: see o2::ctd::Metadata explanation
   constexpr MD optField[CTF::getNBlocks()] = {
-    MD::EENCODE, // BLC_trigger
-    MD::EENCODE, // BLC_bcInc
-    MD::EENCODE, // BLC_orbitInc
-    MD::EENCODE, // BLC_nChan
-    MD::EENCODE, // BLC_status
-    MD::EENCODE, // BLC_idChan
-    MD::EENCODE, // BLC_qtcChain
-    MD::EENCODE, // BLC_cfdTime
-    MD::EENCODE  // BLC_qtcAmpl
+    MD::EENCODE_OR_PACK, // BLC_trigger
+    MD::EENCODE_OR_PACK, // BLC_bcInc
+    MD::EENCODE_OR_PACK, // BLC_orbitInc
+    MD::EENCODE_OR_PACK, // BLC_nChan
+    MD::EENCODE_OR_PACK, // BLC_status
+    MD::EENCODE_OR_PACK, // BLC_idChan
+    MD::EENCODE_OR_PACK, // BLC_qtcChain
+    MD::EENCODE_OR_PACK, // BLC_cfdTime
+    MD::EENCODE_OR_PACK  // BLC_qtcAmpl
   };
   CompressedDigits cd;
   if (mExtHeader.isValidDictTimeStamp()) {
