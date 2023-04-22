@@ -27,6 +27,7 @@
 #include "Framework/Logger.h"
 #include "DetectorsCommonDataFormats/CTFDictHeader.h"
 #include "DetectorsCommonDataFormats/CTFIOSize.h"
+#include "DetectorsCommonDataFormats/ANSHeader.h"
 #include "rANS/compat.h"
 #include "rANS/histogram.h"
 
@@ -93,14 +94,6 @@ inline size_t calculatePaddedSize(size_t nElems) noexcept
 };
 
 ///>>======================== Auxiliary classes =======================>>
-
-struct ANSHeader {
-  uint8_t majorVersion;
-  uint8_t minorVersion;
-
-  void clear() { majorVersion = minorVersion = 0; }
-  ClassDefNV(ANSHeader, 1);
-};
 
 struct Metadata {
   enum class OptStore : uint8_t { // describe how the store the data described by this metadata
