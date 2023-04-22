@@ -167,29 +167,29 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const CompressedClusters& ccl, co
   using namespace detail;
   // what to do which each field: see o2::ctf::Metadata explanation
   constexpr MD optField[CTF::getNBlocks()] = {
-    MD::EENCODE, // qTotA
-    MD::EENCODE, // qMaxA
-    MD::EENCODE, // flagsA
-    MD::EENCODE, // rowDiffA
-    MD::EENCODE, // sliceLegDiffA
-    MD::EENCODE, // padResA
-    MD::EENCODE, // timeResA
-    MD::EENCODE, // sigmaPadA
-    MD::EENCODE, // sigmaTimeA
-    MD::EENCODE, // qPtA
-    MD::EENCODE, // rowA
-    MD::EENCODE, // sliceA
-    MD::EENCODE, // timeA
-    MD::EENCODE, // padA
-    MD::EENCODE, // qTotU
-    MD::EENCODE, // qMaxU
-    MD::EENCODE, // flagsU
-    MD::EENCODE, // padDiffU
-    MD::EENCODE, // timeDiffU
-    MD::EENCODE, // sigmaPadU
-    MD::EENCODE, // sigmaTimeU
-    MD::EENCODE, // nTrackClusters
-    MD::EENCODE  // nSliceRowClusters
+    MD::EENCODE_OR_PACK, // qTotA
+    MD::EENCODE_OR_PACK, // qMaxA
+    MD::EENCODE_OR_PACK, // flagsA
+    MD::EENCODE_OR_PACK, // rowDiffA
+    MD::EENCODE_OR_PACK, // sliceLegDiffA
+    MD::EENCODE_OR_PACK, // padResA
+    MD::EENCODE_OR_PACK, // timeResA
+    MD::EENCODE_OR_PACK, // sigmaPadA
+    MD::EENCODE_OR_PACK, // sigmaTimeA
+    MD::EENCODE_OR_PACK, // qPtA
+    MD::EENCODE_OR_PACK, // rowA
+    MD::EENCODE_OR_PACK, // sliceA
+    MD::EENCODE_OR_PACK, // timeA
+    MD::EENCODE_OR_PACK, // padA
+    MD::EENCODE_OR_PACK, // qTotU
+    MD::EENCODE_OR_PACK, // qMaxU
+    MD::EENCODE_OR_PACK, // flagsU
+    MD::EENCODE_OR_PACK, // padDiffU
+    MD::EENCODE_OR_PACK, // timeDiffU
+    MD::EENCODE_OR_PACK, // sigmaPadU
+    MD::EENCODE_OR_PACK, // sigmaTimeU
+    MD::EENCODE_OR_PACK, // nTrackClusters
+    MD::EENCODE_OR_PACK  // nSliceRowClusters
   };
 
   // book output size with some margin
