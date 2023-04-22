@@ -62,13 +62,13 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const CTFHelper::TFData& tfData)
   using MD = o2::ctf::Metadata::OptStore;
   // what to do which each field: see o2::ctd::Metadata explanation
   constexpr MD optField[CTF::getNBlocks()] = {
-    MD::EENCODE, // BLC_bcIncROF
-    MD::EENCODE, // BLC_orbitIncROF
-    MD::EENCODE, // BLC_entriesROF
-    MD::EENCODE, // BLC_evtypeROF
-    MD::EENCODE, // BLC_pattern
-    MD::EENCODE, // BLC_deId
-    MD::EENCODE  // BLC_colId
+    MD::EENCODE_OR_PACK, // BLC_bcIncROF
+    MD::EENCODE_OR_PACK, // BLC_orbitIncROF
+    MD::EENCODE_OR_PACK, // BLC_entriesROF
+    MD::EENCODE_OR_PACK, // BLC_evtypeROF
+    MD::EENCODE_OR_PACK, // BLC_pattern
+    MD::EENCODE_OR_PACK, // BLC_deId
+    MD::EENCODE_OR_PACK  // BLC_colId
   };
   CTFHelper helper(tfData);
 

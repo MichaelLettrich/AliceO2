@@ -84,14 +84,14 @@ o2::ctf::CTFIOSize CTFCoder::encode_impl(VEC& buff, const gsl::span<const Trigge
   using MD = o2::ctf::Metadata::OptStore;
   // what to do which each field: see o2::ctd::Metadata explanation
   constexpr MD optField[CTF::getNBlocks()] = {
-    MD::EENCODE, // BLC_bcIncTrig
-    MD::EENCODE, // BLC_orbitIncTrig
-    MD::EENCODE, // BLC_entriesDig
-    MD::EENCODE, // BLC_ChID
-    MD::EENCODE, // BLC_Q
-    MD::EENCODE, // BLC_Ph
-    MD::EENCODE, // BLC_X
-    MD::EENCODE  // BLC_Y
+    MD::EENCODE_OR_PACK, // BLC_bcIncTrig
+    MD::EENCODE_OR_PACK, // BLC_orbitIncTrig
+    MD::EENCODE_OR_PACK, // BLC_entriesDig
+    MD::EENCODE_OR_PACK, // BLC_ChID
+    MD::EENCODE_OR_PACK, // BLC_Q
+    MD::EENCODE_OR_PACK, // BLC_Ph
+    MD::EENCODE_OR_PACK, // BLC_X
+    MD::EENCODE_OR_PACK  // BLC_Y
   };
 
   CTFHelper helper(trigData, digData);
