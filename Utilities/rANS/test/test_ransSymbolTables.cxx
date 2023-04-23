@@ -62,7 +62,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_empty, histogram_T, histogram_t)
   BOOST_CHECK_EQUAL(escapeSymbol.getCumulative(), 0);
   BOOST_CHECK_EQUAL(symbolTable.isEscapeSymbol(escapeSymbol), true);
 
-  //test in range
+  // test in range
   for (const auto& symbol : symbolTable) {
     BOOST_CHECK_EQUAL(symbolTable.isEscapeSymbol(symbol), true);
   }

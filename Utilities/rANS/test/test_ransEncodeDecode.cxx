@@ -105,7 +105,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_encodeDecode, test_types, testCase_types)
   const auto& dictString = dictString_type::Data;
   const auto& encodeString = encodeString_type::Data;
 
-  //TODO(milettri): renorming is not satisfactory.
+  // TODO(milettri): renorming is not satisfactory.
   size_t precision = dictString.size() == 0 ? 0 : RansRenormingPrecision;
 
   auto encoder = makeEncoder<coderTag>::template fromSamples<>(dictString.begin(), dictString.end(), precision);

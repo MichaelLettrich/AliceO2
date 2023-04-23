@@ -69,7 +69,7 @@ struct RANSEncodeFixture {
     const std::vector<uint32_t> cumulative{0, 321, 1, (1u << 16) - 1234};
     const uint64_t normalization = 1ul << 16;
 
-    //copy and convert to double
+    // copy and convert to double
     mState = static_cast<double>(state);
     mNormalization = static_cast<double>(normalization);
     std::copy(std::begin(frequency), std::end(frequency), std::back_inserter(mFrequency));

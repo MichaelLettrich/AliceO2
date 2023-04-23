@@ -129,7 +129,7 @@ inline uint64_t unpackLong(BitPtr pos, size_t packingWidth)
   } else {
     // first part
     ret = bitExtract(buffer, bitOffset, PackingBufferBits - bitOffset);
-    //second part
+    // second part
     bitOffset = bitOffsetEnd - PackingBufferBits;
     posPtr += sizeof(packing_type);
     buffer = load64(reinterpret_cast<void*>(posPtr));

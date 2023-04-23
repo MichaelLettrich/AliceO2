@@ -115,7 +115,7 @@ class InplaceEntropyCoder
 
   void makeEncoder();
 
-  //getters
+  // getters
 
   inline const metrics_type& getMetrics() const noexcept { return mMetrics; };
 
@@ -128,7 +128,7 @@ class InplaceEntropyCoder
   template <typename dst_T = uint8_t>
   inline size_t getPackedIncompressibleSize() const noexcept;
 
-  //operations
+  // operations
   template <typename src_IT, typename dst_IT>
   dst_IT encode(src_IT srcBegin, src_IT srcEnd, dst_IT dstBegin, dst_IT dstEnd);
 

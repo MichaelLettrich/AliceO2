@@ -113,7 +113,7 @@ class CompatEncoderImpl : public SingleStreamEncoderImplBase<lowerBound_V, const
     assert(symbol->getFrequency() != 0);
 
     const auto [newState, streamPosition] = this->renorm(this->mState, outputIter, symbol->getFrequency());
-    //coding function
+    // coding function
     this->mState = ((newState / symbol->getFrequency()) << this->mSymbolTablePrecision) + symbol->getCumulative() + (newState % symbol->getFrequency());
 
     return streamPosition;
@@ -148,7 +148,7 @@ class SingleStreamEncoderImpl : public SingleStreamEncoderImplBase<lowerBound_V,
     const state_type old = this->mState;
 
     const auto [newState, streamPosition] = this->renorm(this->mState, outputIter, symbol->getFrequency());
-    //coding function
+    // coding function
     state_type quotient = static_cast<state_type>((static_cast<uint128_t>(newState) * symbol->getReciprocalFrequency()) >> 64);
     quotient = quotient >> symbol->getReciprocalShift();
     this->mState = newState + symbol->getCumulative() + quotient * symbol->getFrequencyComplement();

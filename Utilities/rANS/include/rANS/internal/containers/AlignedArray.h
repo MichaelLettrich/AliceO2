@@ -144,7 +144,7 @@ class alignas(getAlignment(width_V)) AlignedArray
   static inline constexpr size_t nElementsPerLane() noexcept { return getElementCount<value_type>(width_V); };
   static inline constexpr size_t nElements() noexcept { return size() * nElementsPerLane(); };
 
-  inline constexpr AlignedArray() noexcept {}; //NOLINT
+  inline constexpr AlignedArray() noexcept {}; // NOLINT
 
   template <typename elem_T, std::enable_if_t<std::is_convertible_v<elem_T, value_type>, bool> = true>
   inline constexpr AlignedArray(elem_T value) noexcept
@@ -255,7 +255,7 @@ std::ostream& operator<<(std::ostream& stream, const AlignedArray<T, width_V, si
 {
   stream << "[";
   for (auto subspan : array) {
-    operator<<<const T, getElementCount<T>(width_V), formater_T>(stream, subspan);
+    operator<< <const T, getElementCount<T>(width_V), formater_T>(stream, subspan);
     stream << ", ";
   }
   stream << "]";
@@ -266,7 +266,7 @@ template <typename T, SIMDWidth width_V, size_t size_V>
 std::string asHex(const AlignedArray<T, width_V, size_V>& array)
 {
   std::ostringstream stream;
-  operator<<<T, width_V, size_V, alignedArrayImpl::HexFormatingFunctor>(stream, array);
+  operator<< <T, width_V, size_V, alignedArrayImpl::HexFormatingFunctor>(stream, array);
   return stream.str();
 };
 

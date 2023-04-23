@@ -35,8 +35,8 @@ class Symbol
   using size_type = size_t;
   using difference_type = std::ptrdiff_t;
 
-  //TODO(milettri): fix once ROOT cling respects the standard http://wg21.link/p1286r2
-  constexpr Symbol() noexcept {}; //NOLINT
+  // TODO(milettri): fix once ROOT cling respects the standard http://wg21.link/p1286r2
+  constexpr Symbol() noexcept {}; // NOLINT
   constexpr Symbol(value_type frequency, value_type cumulative, size_t symbolTablePrecision = 0)
     : mSymbol{frequency, cumulative}
   {
@@ -67,8 +67,8 @@ class PrecomputedSymbol
   using size_type = size_t;
   using difference_type = std::ptrdiff_t;
 
-  //TODO(milettri): fix once ROOT cling respects the standard http://wg21.link/p1286r2
-  constexpr PrecomputedSymbol() noexcept {}; //NOLINT
+  // TODO(milettri): fix once ROOT cling respects the standard http://wg21.link/p1286r2
+  constexpr PrecomputedSymbol() noexcept {}; // NOLINT
 
   constexpr PrecomputedSymbol(value_type frequency, value_type cumulative, size_t symbolTablePrecision)
   {
