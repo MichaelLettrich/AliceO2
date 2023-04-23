@@ -17,7 +17,10 @@
 #include <cstring>
 #include <random>
 #include <algorithm>
+#include <version>
+#ifdef __cpp_lib_execution
 #include <execution>
+#endif
 #include <iterator>
 
 #include <benchmark/benchmark.h>
@@ -48,7 +51,11 @@ class SourceMessageProxy
       std::binomial_distribution<source_T> dist(draws, probability);
       const size_t sourceSize = messageSize / sizeof(source_T) + 1;
       mSourceMessage.resize(sourceSize);
+#ifdef __cpp_lib_execution
       std::generate(std::execution::par_unseq, mSourceMessage.begin(), mSourceMessage.end(), [&dist, &mt]() { return dist(mt); });
+#else
+      std::generate(mSourceMessage.begin(), mSourceMessage.end(), [&dist, &mt]() { return dist(mt); });
+#endif
     }
   }
 
