@@ -149,7 +149,6 @@ o2_add_test(Serialize
             TARGETVARNAME TEST_SERIALIZE
             LABELS utils)
             target_compile_options(${TEST_SERIALIZE} PRIVATE -march=native)
-            target_link_libraries(${TEST_SERIALIZE} PRIVATE)
 
 if(${RANS_ENABLE_JSON})
   if (TARGET benchmark::benchmark)
