@@ -1,4 +1,4 @@
-// Copyright 2019-2020 CERN and copyright holders of ALICE O2.
+// Copyright 2019-2023 CERN and copyright holders of ALICE O2.
 // See https://alice-o2.web.cern.ch/copyright for details of the copyright holders.
 // All rights not expressly granted are reserved.
 //
@@ -216,9 +216,9 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addSamples(so
   } else {
     this->resize(min, max);
     // add new symbols
-    std::for_each(begin, end, [this](source_type symbol) { 
+    std::for_each(begin, end, [this](source_type symbol) {
       ++this->mContainer[symbol];
-          ++this->mNSamples; });
+      ++this->mNSamples; });
   }
   return *this;
 }
@@ -358,9 +358,9 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addSamples(so
   if constexpr (std::is_pointer_v<source_IT>) {
     return addSamples({begin, end});
   } else {
-    std::for_each(begin, end, [this](const source_type& symbol) { 
+    std::for_each(begin, end, [this](const source_type& symbol) {
       ++this->mNSamples;
-       ++this->mContainer[symbol]; });
+      ++this->mContainer[symbol]; });
   }
   return *this;
 }
