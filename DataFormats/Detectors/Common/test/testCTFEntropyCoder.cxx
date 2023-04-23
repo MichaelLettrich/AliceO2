@@ -24,6 +24,7 @@
 #include <cstring>
 #include <random>
 #include <algorithm>
+#include <version>
 
 #include <boost/test/unit_test.hpp>
 #include <boost/mp11.hpp>
@@ -112,12 +113,12 @@ void encodeInplace(source_IT begin, source_IT end)
   auto histogram = rans::makeHistogram::fromSamples(begin, end);
 
   ctf::InplaceEntropyCoder<source_type> entropyCoder{begin, end};
+  BOOST_CHECK_THROW(entropyCoder.getEncoder(), std::runtime_error);
+  entropyCoder.makeEncoder();
 
   const rans::Metrics<source_type>& metrics = entropyCoder.getMetrics();
   const rans::SizeEstimate& sizeEstimate = entropyCoder.getSizeEstimate();
-  BOOST_CHECK_THROW(entropyCoder.getEncoder(), std::runtime_error);
 
-  entropyCoder.makeEncoder();
   std::vector<buffer_type> encodeBuffer(sizeEstimate.getCompressedDatasetSize<buffer_type>(), 0);
   std::vector<buffer_type> literalSymbolsBuffer(sizeEstimate.getIncompressibleSize<buffer_type>(), 0);
   std::vector<buffer_type> dictBuffer(sizeEstimate.getCompressedDictionarySize<buffer_type>(), 0);
@@ -125,7 +126,6 @@ void encodeInplace(source_IT begin, source_IT end)
   auto encoderEnd = entropyCoder.encode(begin, end, encodeBuffer.data(), encodeBuffer.data() + encodeBuffer.size());
   auto literalsEnd = entropyCoder.writeIncompressible(literalSymbolsBuffer.data(), literalSymbolsBuffer.data() + literalSymbolsBuffer.size());
   auto dictEnd = entropyCoder.writeDictionary(dictBuffer.data(), dictBuffer.data() + dictBuffer.size());
-
   // decode
   const auto& coderProperties = metrics.getCoderProperties();
   auto decoder = rans::makeDecoder<>::fromRenormed(rans::readRenormedDictionary(dictBuffer.data(), dictEnd,
