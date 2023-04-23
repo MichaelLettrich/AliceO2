@@ -152,8 +152,8 @@ o2_add_test(Serialize
             TARGETVARNAME TEST_SERIALIZE
             LABELS utils)
             target_compile_options(${TEST_SERIALIZE} PRIVATE -march=native)
-            target_link_libraries(${TEST_SERIALIZE} PRIVATE)            
-            
+            target_link_libraries(${TEST_SERIALIZE} PRIVATE)
+
 if (TARGET benchmark::benchmark)
 
   o2_add_header_only_library(libransBenchmark
@@ -196,8 +196,8 @@ if (TARGET benchmark::benchmark)
                   IS_BENCHMARK
                   PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
 
-  o2_add_executable(UnPack
-                  SOURCES benchmarks/bench_ransUnPack.cxx
+  o2_add_executable(Unpack
+                  SOURCES benchmarks/bench_ransUnpack.cxx
                   COMPONENT_NAME rANS
                   IS_BENCHMARK
                   PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
