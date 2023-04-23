@@ -17,7 +17,10 @@
 #include <cstring>
 #include <random>
 #include <algorithm>
+#include <version>
+#ifdef __cpp_lib_execution
 #include <execution>
+#endif
 #include <iterator>
 
 #include <gsl/span>
@@ -62,7 +65,11 @@ class SymbolTableData
     std::binomial_distribution<source_T> dist(draws, probability);
     const size_t sourceSize = messageSize / sizeof(source_T);
     mSourceMessage.resize(sourceSize);
+#ifdef __cpp_lib_execution
     std::generate(std::execution::par_unseq, mSourceMessage.begin(), mSourceMessage.end(), [&dist, &mt]() { return dist(mt); });
+#else
+    std::generate(mSourceMessage.begin(), mSourceMessage.end(), [&dist, &mt]() { return dist(mt); });
+#endif
 
     const auto histogram = makeHistogram::fromSamples(gsl::span<const source_T>(mSourceMessage));
     Metrics<source_T> metrics{histogram};

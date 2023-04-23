@@ -23,6 +23,7 @@
 #include <vector>
 #include <cstring>
 #include <random>
+#include <algorithm>
 
 #include <boost/test/unit_test.hpp>
 #include <boost/mp11.hpp>
@@ -44,7 +45,6 @@ std::vector<source_T>
   std::vector<source_T> result(nelems, 0);
   std::mt19937 mt(0); // same seed we want always the same distrubution of random numbers;
   std::uniform_int_distribution<source_T> dist(min, max);
-
   std::generate(result.begin(), result.end(), [&dist, &mt]() { return dist(mt); });
   return result;
 };
