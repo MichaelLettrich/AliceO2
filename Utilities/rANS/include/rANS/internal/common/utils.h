@@ -98,24 +98,30 @@ inline constexpr size_t pow2(size_t n) noexcept
   return 1ull << n;
 }
 
-inline constexpr uint32_t log2UIntNZ(uint32_t x) noexcept
+template <typename T>
+inline constexpr T log2UIntNZ(T x) noexcept
 {
-  return toBits<uint32_t>() - __builtin_clz(x) - 1;
+  static_assert(std::is_integral_v<T>, "Type is not integral");
+  static_assert(std::is_unsigned_v<T>, "only defined for unsigned numbers");
+  assert(x > 0);
+
+  if constexpr (sizeof(T) <= 4) {
+    return static_cast<T>(toBits<uint32_t>() - __builtin_clz(x) - 1);
+  } else {
+    return static_cast<T>(toBits<uint64_t>() - __builtin_clzl(x) - 1);
+  }
 }
 
-inline constexpr uint64_t log2UIntNZ(uint64_t x) noexcept
+template <typename T>
+inline constexpr T log2UInt(T x) noexcept
 {
-  return toBits<uint64_t>() - __builtin_clzl(x) - 1;
-}
-
-inline constexpr uint32_t log2UInt(uint32_t x) noexcept
-{
-  return x > 0 ? log2UIntNZ(x) : 0;
-}
-
-inline constexpr uint64_t log2UInt(uint64_t x) noexcept
-{
-  return x > 0 ? log2UIntNZ(x) : 0;
+  static_assert(std::is_integral_v<T>, "Type is not integral");
+  static_assert(std::is_unsigned_v<T>, "only defined for unsigned numbers");
+  if (x > static_cast<T>(0)) {
+    return log2UIntNZ<T>(x);
+  } else {
+    return static_cast<T>(0);
+  }
 }
 
 template <typename T, std::enable_if_t<std::is_unsigned_v<T>, bool> = true>

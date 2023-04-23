@@ -25,8 +25,15 @@
 #include <rapidjson/istreamwrapper.h>
 #include <rapidjson/ostreamwrapper.h>
 
+#include <fairlogger/Logger.h>
 #include <algorithm>
+
+#include "rANS/internal/common/exceptions.h"
+
+#include <version>
+#ifdef __cpp_lib_execution
 #include <execution>
+#endif
 
 struct TPCCompressedClusters {
 
@@ -296,7 +303,11 @@ struct DecodeBuffer {
   template <typename T>
   bool operator==(const T& correct)
   {
+#ifdef __cpp_lib_execution
     return std::equal(std::execution::par_unseq, buffer.begin(), buffer.end(), std::begin(correct), std::end(correct));
+#else
+    return std::equal(buffer.begin(), buffer.end(), std::begin(correct), std::end(correct));
+#endif
   }
 
   std::vector<source_T> buffer{};
