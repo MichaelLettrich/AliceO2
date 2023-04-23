@@ -1,4 +1,4 @@
-// Copyright 2019-2020 CERN and copyright holders of ALICE O2.
+// Copyright 2019-2023 CERN and copyright holders of ALICE O2.
 // See https://alice-o2.web.cern.ch/copyright for details of the copyright holders.
 // All rights not expressly granted are reserved.
 //
@@ -11,7 +11,7 @@
 
 /// @file   test_BitPtr.cxx
 /// @author michael.lettrich@cern.ch
-/// @brief
+/// @brief test helper class that allows to point to a Bit in memory
 
 #define BOOST_TEST_MODULE Utility test
 #define BOOST_TEST_MAIN
