@@ -1,4 +1,4 @@
-// Copyright 2019-2020 CERN and copyright holders of ALICE O2.
+// Copyright 2019-2023 CERN and copyright holders of ALICE O2.
 // See https://alice-o2.web.cern.ch/copyright for details of the copyright holders.
 // All rights not expressly granted are reserved.
 //
@@ -9,10 +9,9 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// @file   DecoderSymbol.h
+/// @file   test_ransPack.h
 /// @author Michael Lettrich
-/// @since  2020-04-15
-/// @brief  Test rANS encoder/ decoder
+/// @brief  test pack/unpack features
 
 #define BOOST_TEST_MODULE Utility test
 #define BOOST_TEST_MAIN

@@ -1,4 +1,4 @@
-// Copyright 2019-2020 CERN and copyright holders of ALICE O2.
+// Copyright 2019-2023 CERN and copyright holders of ALICE O2.
 // See https://alice-o2.web.cern.ch/copyright for details of the copyright holders.
 // All rights not expressly granted are reserved.
 //
@@ -10,7 +10,8 @@
 // or submit itself to any jurisdiction.
 
 /// \file CTFEntropyCoder.h
-/// \brief ANS Entropy Coder for CTF
+/// \author michael.lettrich@cern.ch
+/// \brief ANS Entropy Coding and packing specialization for CTF Coders
 
 #ifndef ALICEO2_CTFENTROPYCODER_H_
 #define ALICEO2_CTFENTROPYCODER_H_
@@ -114,7 +115,7 @@ class InplaceEntropyCoder
 
   void makeEncoder();
 
-  //getters
+  // getters
 
   inline const metrics_type& getMetrics() const noexcept { return mMetrics; };
 
@@ -127,7 +128,7 @@ class InplaceEntropyCoder
   template <typename dst_T = uint8_t>
   inline size_t getPackedIncompressibleSize() const noexcept;
 
-  //operations
+  // operations
   template <typename src_IT, typename dst_IT>
   dst_IT encode(src_IT srcBegin, src_IT srcEnd, dst_IT dstBegin, dst_IT dstEnd);
 
