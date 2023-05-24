@@ -80,8 +80,8 @@ inline SizeEstimate::SizeEstimate(const Metrics<source_T>& metrics) noexcept
     mEntropySizeB = internal::toBytes(datasetProperties.entropy * nSamples);
     mCompressedDatasetSizeB = addEncoderOverheadEstimateB<>(mEntropySizeB);
     mCompressedDictionarySizeB = coderProperties.dictSizeEstimate.getSizeB(datasetProperties.nUsedAlphabetSymbols,
-                                                                           coderProperties.renormingPrecisionBits);
-    mIncompressibleSizeB = internal::toBytes(datasetProperties.alphabetRangeBits * coderProperties.nIncompressibleSymbols);
+                                                                           *coderProperties.renormingPrecisionBits);
+    mIncompressibleSizeB = internal::toBytes(datasetProperties.alphabetRangeBits * (*coderProperties.nIncompressibleSamples));
     mPackedDatasetSizeB = internal::toBytes(datasetProperties.alphabetRangeBits * nSamples);
   } else {
     // special case: store no data for empty dataset
