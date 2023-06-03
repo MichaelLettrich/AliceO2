@@ -114,7 +114,7 @@ class TimingDecorator
 
  private:
   jsonWriter_type* mWriter{};
-  internal::RANSTimer mTimer{};
+  utils::RANSTimer mTimer{};
 };
 
 // std::ofstream ofFrequencies{"frequencies.json"};
@@ -129,7 +129,7 @@ template <typename source_T, CoderTag coderTag_V>
 void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inputData, rapidjson::Writer<rapidjson::OStreamWrapper>& writer)
 {
   using source_type = source_T;
-  internal::RANSTimer timer{};
+  utils::RANSTimer timer{};
   TimingDecorator t{writer};
 
   writer.Key(name.c_str());

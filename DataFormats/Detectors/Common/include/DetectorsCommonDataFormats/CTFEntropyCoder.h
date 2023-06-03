@@ -42,21 +42,20 @@ class Packer
   template <typename source_IT>
   Packer(source_IT srcBegin, source_IT srcEnd)
   {
-    static_assert(rans::internal::isCompatibleIter_v<source_type, source_IT>);
+    static_assert(rans::utils::isCompatibleIter_v<source_type, source_IT>);
     if (srcBegin != srcEnd) {
 
-      source_type min{};
-      source_type max{};
+      const auto [min, max] = [&]() {
+        if constexpr (std::is_pointer_v<source_IT>) {
+          return rans::utils::minmax(gsl::span<const source_type>(srcBegin, srcEnd));
+        } else {
+          const auto [minIter, maxIter] = std::minmax_element(srcBegin, srcEnd);
+          return std::make_pair<source_type>(*minIter, *maxIter);
+        }
+      }();
 
-      if constexpr (std::is_pointer_v<source_IT>) {
-        std::tie(min, max) = rans::internal::minmax(gsl::span<const source_type>(srcBegin, srcEnd));
-      } else {
-        const auto [minIter, maxIter] = std::minmax_element(srcBegin, srcEnd);
-        min = *minIter;
-        max = *maxIter;
-      }
       mOffset = min;
-      mPackingWidth = rans::internal::getRangeBits(min, max);
+      mPackingWidth = rans::utils::getRangeBits(min, max);
     }
   };
 
@@ -80,10 +79,10 @@ class Packer
       return dstBegin;
     }
 
-    rans::internal::BitPtr packEnd = rans::pack(srcBegin, extent, dstBegin, mPackingWidth, mOffset);
+    rans::BitPtr packEnd = rans::pack(srcBegin, extent, dstBegin, mPackingWidth, mOffset);
     auto* end = packEnd.toPtr<dst_T>();
     ++end; // one past end iterator;
-    rans::checkBounds(end, dstEnd);
+    rans::utils::checkBounds(end, dstEnd);
     return end;
   };
 
@@ -205,7 +204,7 @@ dst_IT InplaceEntropyCoder<source_T>::encode(src_IT srcBegin, src_IT srcEnd, dst
   } else {
     messageEnd = encoder.process(srcBegin, srcEnd, dstBegin);
   }
-  rans::checkBounds(messageEnd, dstEnd);
+  rans::utils::checkBounds(messageEnd, dstEnd);
   return messageEnd;
 };
 
@@ -214,7 +213,7 @@ template <typename dst_IT>
 inline dst_IT InplaceEntropyCoder<source_T>::writeDictionary(dst_IT dstBegin, dst_IT dstEnd)
 {
   dst_IT end = rans::compressRenormedDictionary(mEncoder->getSymbolTable(), dstBegin);
-  rans::checkBounds(end, dstEnd);
+  rans::utils::checkBounds(end, dstEnd);
   return end;
 };
 
@@ -252,10 +251,10 @@ class ExternalEntropyCoder
   template <typename dst_T = uint8_t>
   inline size_t computePayloadSizeEstimate(size_t nElements, double_t safetyFactor = 1)
   {
-    constexpr size_t Overhead = 10 * rans::internal::pow2(10); // 10KB overhead safety margin
+    constexpr size_t Overhead = 10 * rans::utils::pow2(10); // 10KB overhead safety margin
     const double_t RelativeSafetyFactor = 2.0 * safetyFactor;
     const size_t messageSizeB = nElements * sizeof(source_type);
-    return rans::internal::nBytesTo<dst_T>(std::ceil(safetyFactor * messageSizeB) + Overhead);
+    return rans::utils::nBytesTo<dst_T>(std::ceil(safetyFactor * messageSizeB) + Overhead);
   }
 
   template <typename src_IT, typename dst_IT>
@@ -263,13 +262,13 @@ class ExternalEntropyCoder
   {
     const size_t incompressibleSymbolFrequency = [&]() {
       const auto& symbolTable = mEncoder->getSymbolTable();
-      const double_t incompressibleSymbolProbability = static_cast<double_t>(symbolTable.getEscapeSymbol().getFrequency()) / rans::internal::pow2(symbolTable.getPrecision());
+      const double_t incompressibleSymbolProbability = static_cast<double_t>(symbolTable.getEscapeSymbol().getFrequency()) / rans::utils::pow2(symbolTable.getPrecision());
       return std::ceil(std::distance(srcBegin, srcEnd) * incompressibleSymbolProbability);
     }();
 
     mIncompressibleBuffer.reserve(incompressibleSymbolFrequency);
     auto [encodedMessageEnd, literalsEnd] = mEncoder->process(srcBegin, srcEnd, dstBegin, std::back_inserter(mIncompressibleBuffer));
-    rans::checkBounds(encodedMessageEnd, dstEnd);
+    rans::utils::checkBounds(encodedMessageEnd, dstEnd);
     mIncompressiblePacker = Packer<source_type>{mIncompressibleBuffer.data(), mIncompressibleBuffer.data() + mIncompressibleBuffer.size()};
 
     return encodedMessageEnd;

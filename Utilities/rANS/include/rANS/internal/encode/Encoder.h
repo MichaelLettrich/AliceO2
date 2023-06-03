@@ -68,7 +68,7 @@ class Encoder
 
   [[nodiscard]] inline static constexpr size_type getNStreams() noexcept { return NStreams; };
 
-  template <typename stream_IT, typename source_IT, typename literals_IT = std::nullptr_t, std::enable_if_t<internal::isCompatibleIter_v<typename symbolTable_T::source_type, source_IT>, bool> = true>
+  template <typename stream_IT, typename source_IT, typename literals_IT = std::nullptr_t, std::enable_if_t<utils::isCompatibleIter_v<typename symbolTable_T::source_type, source_IT>, bool> = true>
   decltype(auto) process(source_IT inputBegin, source_IT inputEnd, stream_IT outputBegin, literals_IT literalsBegin = nullptr) const;
 
   template <typename literals_IT = std::nullptr_t>
@@ -90,11 +90,12 @@ class Encoder
 };
 
 template <class encoder_T, class symbolTable_T, std::size_t nStreams_V>
-template <typename stream_IT, typename source_IT, typename literals_IT, std::enable_if_t<internal::isCompatibleIter_v<typename symbolTable_T::source_type, source_IT>, bool>>
+template <typename stream_IT, typename source_IT, typename literals_IT, std::enable_if_t<utils::isCompatibleIter_v<typename symbolTable_T::source_type, source_IT>, bool>>
 decltype(auto) Encoder<encoder_T, symbolTable_T, nStreams_V>::process(source_IT inputBegin, source_IT inputEnd, stream_IT outputBegin, literals_IT literalsBegin) const
 {
 
   using namespace internal;
+  using namespace utils;
   using namespace encoderImpl;
 
   if (inputBegin == inputEnd) {

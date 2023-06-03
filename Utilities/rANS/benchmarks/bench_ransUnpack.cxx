@@ -69,10 +69,10 @@ static void unpackingBenchmark(benchmark::State& state)
 {
   size_t packingBits = state.range(0);
 
-  std::vector<source_type> src = makeRandomUniformVector<source_type>(MessageSize, 0, internal::pow2(packingBits) - 1);
+  std::vector<source_type> src = makeRandomUniformVector<source_type>(MessageSize, 0, utils::pow2(packingBits) - 1);
   std::vector<uint32_t> dst(MessageSize, 0);
 
-  internal::BitPtr iter{dst.data()};
+  BitPtr iter{dst.data()};
   for (auto i : src) {
     iter = internal::pack(iter, i, packingBits);
   }
@@ -80,7 +80,7 @@ static void unpackingBenchmark(benchmark::State& state)
   std::vector<uint32_t> unpacked(MessageSize, 0);
 
   for (auto _ : state) {
-    internal::BitPtr iter{dst.data()};
+    BitPtr iter{dst.data()};
     for (size_t i = 0; i < src.size(); ++i) {
       unpacked[i] = internal::unpack<uint32_t>(iter, packingBits);
       iter += packingBits;

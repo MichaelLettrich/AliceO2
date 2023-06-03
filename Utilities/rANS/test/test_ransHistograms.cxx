@@ -288,7 +288,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_renormIncompressible, histogram_T, countingCo
 
   const size_t scaleBits = 8;
 
-  auto renormedHistogram = renorm(std::move(histogram), scaleBits, true, 1);
+  auto renormedHistogram = renorm(std::move(histogram), scaleBits, RenormingPolicy::ForceIncompressible, 1);
 
   const std::vector<uint32_t> rescaledFrequencies{1, 2, 1, 3, 2, 3, 3, 5, 6, 7, 8, 9, 10, 11, 13, 11, 12, 10, 14, 13, 10, 13, 12, 8, 12, 7, 8, 6, 7, 5, 4, 3, 4, 2, 2, 1, 2, 1, 1};
   BOOST_CHECK_EQUAL(renormedHistogram.isRenormedTo(scaleBits), true);
@@ -315,6 +315,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_renormLegacy, histogram_T, countingContainer_
 BOOST_AUTO_TEST_CASE(test_ExpectedCodewordLength)
 {
   using namespace internal;
+  using namespace utils;
   using source_type = uint32_t;
   constexpr double_t eps = 1e-2;
 

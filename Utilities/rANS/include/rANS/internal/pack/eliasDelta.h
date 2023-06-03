@@ -27,9 +27,10 @@
 namespace o2::rans::internal
 {
 
-[[nodiscard]] inline internal::BitPtr eliasDeltaEncode(internal::BitPtr dst, uint32_t data)
+[[nodiscard]] inline BitPtr eliasDeltaEncode(BitPtr dst, uint32_t data)
 {
   using namespace internal;
+  using namespace utils;
 
   assert(data > 0);
 
@@ -46,9 +47,10 @@ namespace o2::rans::internal
 inline constexpr size_t EliasDeltaDecodeMaxBits = 42;
 
 template <typename dst_T>
-[[nodiscard]] inline dst_T eliasDeltaDecode(internal::BitPtr& srcPos, size_t rBitOffset = EliasDeltaDecodeMaxBits)
+[[nodiscard]] inline dst_T eliasDeltaDecode(BitPtr& srcPos, size_t rBitOffset = EliasDeltaDecodeMaxBits)
 {
   using namespace internal;
+  using namespace utils;
   static_assert(sizeof(dst_T) <= sizeof(uint32_t));
   assert(rBitOffset <= EliasDeltaDecodeMaxBits);
   constexpr size_t PackingBufferBits = toBits<packing_type>();

@@ -72,8 +72,8 @@ class PrecomputedSymbol
 
   constexpr PrecomputedSymbol(value_type frequency, value_type cumulative, size_t symbolTablePrecision)
   {
-    assert(cumulative <= pow2(symbolTablePrecision));
-    assert(frequency <= pow2(symbolTablePrecision) - cumulative);
+    assert(cumulative <= utils::pow2(symbolTablePrecision));
+    assert(frequency <= utils::pow2(symbolTablePrecision) - cumulative);
 
     // Say M := 1 << symbolTablePrecision.
     //
@@ -93,7 +93,7 @@ class PrecomputedSymbol
     // the fast encoder agree.
 
     mFrequency = frequency;
-    mFrequencyComplement = static_cast<state_type>((pow2(symbolTablePrecision)) - frequency);
+    mFrequencyComplement = static_cast<state_type>((utils::pow2(symbolTablePrecision)) - frequency);
     if (frequency < 2) {
       // frequency=0 symbols are never valid to encode, so it doesn't matter what
       // we set our values to.
@@ -123,7 +123,7 @@ class PrecomputedSymbol
       //   bias = cumulative + M - 1.
       mReciprocalFrequency = static_cast<state_type>(~0ul);
       mReciprocalShift = 0;
-      mCumulative = cumulative + (pow2(symbolTablePrecision)) - 1;
+      mCumulative = cumulative + (utils::pow2(symbolTablePrecision)) - 1;
     } else {
       // Alverson, "Integer Division using reciprocals"
       const uint32_t shift = std::ceil(std::log2(frequency));

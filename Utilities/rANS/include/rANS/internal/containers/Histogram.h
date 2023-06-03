@@ -54,13 +54,13 @@ inline std::pair<source_T, source_T> minmaxImpl(const source_T* begin, const sou
 template <>
 inline std::pair<uint32_t, uint32_t> minmaxImpl<uint32_t>(const uint32_t* begin, const uint32_t* end)
 {
-  return o2::rans::internal::simd::minmax(begin, end);
+  return internal::simd::minmax(begin, end);
 };
 
 template <>
 inline std::pair<int32_t, int32_t> minmaxImpl<int32_t>(const int32_t* begin, const int32_t* end)
 {
-  return o2::rans::internal::simd::minmax(begin, end);
+  return internal::simd::minmax(begin, end);
 };
 #endif /* RANS_SIMD */
 
@@ -75,6 +75,15 @@ inline std::pair<source_T, source_T> minmax(gsl::span<const source_T> range)
 };
 
 } // namespace internal
+
+namespace utils
+{
+template <typename source_T>
+inline std::pair<source_T, source_T> minmax(gsl::span<const source_T> range)
+{
+  return internal::minmax(range);
+}
+} // namespace utils
 
 template <typename source_T, typename = void>
 class Histogram;
@@ -168,6 +177,7 @@ template <typename source_T>
 inline auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addSamples(gsl::span<const source_type> samples, source_type min, source_type max) -> Histogram&
 {
   using namespace internal;
+  using namespace utils;
 
   if (samples.empty()) {
     return *this;
@@ -227,7 +237,6 @@ template <typename source_T>
 template <typename freq_IT>
 auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addFrequencies(freq_IT begin, freq_IT end, source_type offset) -> Histogram&
 {
-
   using namespace internal;
 
   auto frequencyCountingDecorator = [this](value_type frequency) {
@@ -275,7 +284,7 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addFrequencie
 template <typename source_T>
 auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::resize(source_type min, source_type max) -> Histogram&
 {
-  using namespace internal;
+  using namespace utils;
 
   auto getMaxSymbol = [this]() {
     return static_cast<source_type>(this->getOffset() + std::max(0l, static_cast<int32_t>(this->size()) - 1l));
@@ -368,8 +377,8 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addSamples(so
 template <typename source_T>
 auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addSamples(gsl::span<const source_type> samples) -> Histogram&
 {
-
   using namespace internal;
+  using namespace utils;
 
   if (samples.empty()) {
     return *this;
@@ -492,7 +501,7 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addFrequencie
 template <typename source_T>
 std::pair<source_T, source_T> getMinMax(const Histogram<source_T>& histogram)
 {
-  auto view = internal::trim(internal::makeHistogramView(histogram));
+  auto view = trim(makeHistogramView(histogram));
   return {view.getMin(), view.getMax()};
 };
 

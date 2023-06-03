@@ -80,7 +80,7 @@ template <typename buffer_IT>
   for (buffer_IT iter = end; iter-- != begin;) {
     auto value = static_cast<value_type>(*iter);
     if (value > 0) {
-      const intptr_t offset = toBits<value_type>() - __builtin_clzl(value);
+      const intptr_t offset = utils::toBits<value_type>() - __builtin_clzl(value);
       return {iter, offset};
     }
   }
@@ -102,7 +102,7 @@ template <typename buffer_IT>
 template <typename container_T, typename jsonBuffer_T>
 void toJSON(const container_T& container, rapidjson::Writer<jsonBuffer_T>& writer)
 {
-  using namespace internal;
+  using namespace utils;
 
   writer.StartObject();
   writer.Key("Offset");

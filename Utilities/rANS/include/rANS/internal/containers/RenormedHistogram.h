@@ -49,12 +49,12 @@ class RenormedHistogram : public internal::CountingContainer<source_T>
   inline RenormedHistogram(container_type frequencies, size_t renormingBits, value_type nIncompressible) : mNIncompressible(nIncompressible)
   {
     this->mContainer = std::move(frequencies);
-    this->mNSamples = internal::pow2(renormingBits);
+    this->mNSamples = utils::pow2(renormingBits);
 
     // TODO(milettri): do some checks when nDebug is active;
   };
 
-  [[nodiscard]] inline size_t getRenormingBits() const noexcept { return internal::log2UInt(this->mNSamples); };
+  [[nodiscard]] inline size_t getRenormingBits() const noexcept { return utils::log2UInt(this->mNSamples); };
 
   [[nodiscard]] inline bool isRenormedTo(size_t nBits) const noexcept { return nBits == this->getRenormingBits(); };
 
@@ -76,7 +76,7 @@ class RenormedHistogram : public internal::CountingContainer<source_T>
 template <typename source_T>
 std::pair<source_T, source_T> getMinMax(const RenormedHistogram<source_T>& histogram)
 {
-  auto view = internal::trim(internal::makeHistogramView(histogram));
+  auto view = trim(makeHistogramView(histogram));
   return {view.getMin(), view.getMax()};
 };
 

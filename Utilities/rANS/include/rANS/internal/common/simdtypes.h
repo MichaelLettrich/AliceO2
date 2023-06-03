@@ -34,7 +34,7 @@ enum class SIMDWidth : uint32_t { SSE = 128u,
 
 [[nodiscard]] inline constexpr size_t getLaneWidthBits(SIMDWidth width) noexcept { return static_cast<size_t>(width); };
 
-[[nodiscard]] inline constexpr size_t getLaneWidthBytes(SIMDWidth width) noexcept { return toBytes(static_cast<size_t>(width)); };
+[[nodiscard]] inline constexpr size_t getLaneWidthBytes(SIMDWidth width) noexcept { return utils::toBytes(static_cast<size_t>(width)); };
 
 [[nodiscard]] inline constexpr size_t getAlignment(SIMDWidth width) noexcept { return getLaneWidthBytes(width); };
 
@@ -68,7 +68,7 @@ template <typename T>
 template <typename T>
 [[nodiscard]] inline constexpr SIMDWidth getSimdWidth(size_t nHardwareStreams) noexcept
 {
-  return static_cast<SIMDWidth>(nHardwareStreams * toBits<T>());
+  return static_cast<SIMDWidth>(nHardwareStreams * utils::toBits<T>());
 };
 
 template <SIMDWidth>
