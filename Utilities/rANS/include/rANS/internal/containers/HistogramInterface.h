@@ -35,7 +35,7 @@ class HistogramInterface
   template <typename source_IT>
   inline derived_T& addSamples(source_IT begin, source_IT end)
   {
-    static_assert(isCompatibleIter_v<source_type, source_IT>);
+    static_assert(utils::isCompatibleIter_v<source_type, source_IT>);
 
     if (begin == end) {
       return static_cast<derived_T&>(*this);
@@ -52,7 +52,7 @@ class HistogramInterface
   template <typename freq_IT>
   inline derived_T& addFrequencies(freq_IT begin, freq_IT end, source_type offset)
   {
-    static_assert(isCompatibleIter_v<value_type, freq_IT>);
+    static_assert(utils::isCompatibleIter_v<value_type, freq_IT>);
 
     if (begin == end) {
       return static_cast<derived_T&>(*this);
@@ -77,7 +77,7 @@ class HistogramInterface
   template <typename freq_IT>
   HistogramInterface(freq_IT begin, freq_IT end, source_type offset)
   {
-    static_assert(isIntegralIter_v<freq_IT>);
+    static_assert(utils::isIntegralIter_v<freq_IT>);
     addFrequencies(begin, end, offset);
   };
 };

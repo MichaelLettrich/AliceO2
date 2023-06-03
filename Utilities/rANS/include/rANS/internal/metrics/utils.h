@@ -36,6 +36,8 @@ double_t computeExpectedCodewordLength(const Histogram<source_T>& histogram, con
   assert(rescaledHistogram.getNumSamples() > 0);
 
   using namespace internal;
+  using namespace utils;
+
   using value_type = typename Histogram<source_T>::value_type;
 
   const auto histogramView = makeHistogramView(histogram);
