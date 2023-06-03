@@ -92,7 +92,7 @@ void ransCompressionBenchmark(benchmark::State& st)
 
   const auto histogram = makeHistogram::fromSamples(gsl::span<const source_type>(inputData));
   Metrics<source_type> metrics{histogram};
-  const auto renormedHistogram = renorm(histogram, metrics, false, 10);
+  const auto renormedHistogram = renorm(histogram, metrics, RenormingPolicy::Auto, 10);
   auto encoder = makeEncoder<coderTag_V>::fromRenormed(renormedHistogram);
 
 #ifdef ENABLE_VTUNE_PROFILER

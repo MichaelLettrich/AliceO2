@@ -25,7 +25,7 @@
 
 #include "rANS/internal/containers/HistogramView.h"
 
-using namespace o2::rans::internal;
+using namespace o2::rans;
 
 struct ReferenceState {
   ReferenceState(std::vector<int32_t> v) : mV{std::move(v)} {};

@@ -366,9 +366,9 @@ class EncodedBlocks
       // dictionary is loaded from an explicit dict file and is stored densly
       if (getANSHeader() == ANSVersionUnspecified) {
         rans::Histogram<source_T> histogram{block.getDict(), block.getDict() + block.getNDict(), static_cast<source_T>(metadata.min)};
-        size_t renormingBits = rans::internal::sanitizeRenormingBitRange(metadata.probabilityBits);
+        size_t renormingBits = rans::utils::sanitizeRenormingBitRange(metadata.probabilityBits);
         LOG_IF(debug, renormingBits != metadata.probabilityBits) << fmt::format("While reading metadata from external dictionary, rANSV1 is rounding renorming precision from {} to {}");
-        return rans::renorm(std::move(histogram), renormingBits, true);
+        return rans::renorm(std::move(histogram), renormingBits, rans::RenormingPolicy::ForceIncompressible);
       } else {
         // dictionary is elias-delta coded inside the block
         return rans::readRenormedDictionary(block.getDict(), block.getDict() + block.getNDict(),
@@ -966,7 +966,7 @@ CTFIOSize EncodedBlocks<H, N, W>::decodeRansV1Impl(dst_IT dstBegin, int slot, co
         md.probabilityBits, decoderSymbolTablePrecision));
     }
 
-    if (md.streamSize != rans::internal::getStreamingLowerBound_v<typename decoder_type::coder_type>) {
+    if (md.streamSize != rans::utils::getStreamingLowerBound_v<typename decoder_type::coder_type>) {
       throw std::runtime_error("Streaming lower bound of dataset and decoder do not match");
     }
   }();
@@ -1122,7 +1122,7 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::entropyCodeRANSCompat(const input_IT 
   int dataSize = rans::compat::calculateMaxBufferSizeB(messageLength, rans::compat::getAlphabetRangeBits(encoder->getSymbolTable())); // size in bytes
   // preliminary expansion of storage based on dict size + estimated size of encode buffer
   dataSize = SizeEstMarginAbs + int(SizeEstMarginRel * (dataSize / sizeof(storageBuffer_t))) + (sizeof(input_t) < sizeof(storageBuffer_t)); // size in words of output stream
-  const auto view = rans::internal::trim(rans::internal::HistogramView{frequencyTable.begin(), frequencyTable.end(), frequencyTable.getOffset()});
+  const auto view = rans::trim(rans::HistogramView{frequencyTable.begin(), frequencyTable.end(), frequencyTable.getOffset()});
   std::tie(thisBlock, thisMetadata) = expandStorage(slot, view.size() + dataSize, buffer);
 
   // store dictionary first
@@ -1137,7 +1137,7 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::entropyCodeRANSCompat(const input_IT 
   storageBuffer_t* const blockBufferBegin = thisBlock->getCreateData();
   const size_t maxBufferSize = thisBlock->registry->getFreeSize(); // note: "this" might be not valid after expandStorage call!!!
   const auto [encodedMessageEnd, literalsEnd] = encoder->process(srcBegin, srcEnd, blockBufferBegin, std::back_inserter(literals));
-  rans::checkBounds(encodedMessageEnd, blockBufferBegin + maxBufferSize / sizeof(W));
+  rans::utils::checkBounds(encodedMessageEnd, blockBufferBegin + maxBufferSize / sizeof(W));
   dataSize = encodedMessageEnd - thisBlock->getDataPointer();
   thisBlock->setNData(dataSize);
   thisBlock->realignBlock();
@@ -1235,7 +1235,7 @@ CTFIOSize EncodedBlocks<H, N, W>::encodeRANSV1External(const input_IT srcBegin, 
   // write metadata
   const auto& symbolTable = encoder.getEncoder().getSymbolTable();
   *thisMetadata = detail::makeMetadataRansV1<input_t, ransState_t, ransStream_t>(encoder.getEncoder().getNStreams(),
-                                                                                 rans::internal::getStreamingLowerBound_v<typename ransEncoder_t::coder_type>,
+                                                                                 rans::utils::getStreamingLowerBound_v<typename ransEncoder_t::coder_type>,
                                                                                  messageLength,
                                                                                  encoder.getNIncompressibleSamples(),
                                                                                  symbolTable.getPrecision(),
@@ -1277,10 +1277,10 @@ CTFIOSize EncodedBlocks<H, N, W>::encodeRANSV1Inplace(const input_IT srcBegin, c
   encoder.makeEncoder();
 
   const rans::SizeEstimate sizeEstimate = metrics.getSizeEstimate();
-  const size_t bufferSizeWords = rans::internal::nBytesTo<storageBuffer_t>((sizeEstimate.getCompressedDictionarySize() +
-                                                                            sizeEstimate.getCompressedDatasetSize() +
-                                                                            sizeEstimate.getIncompressibleSize()) *
-                                                                           sizeEstimateSafetyFactor);
+  const size_t bufferSizeWords = rans::utils::nBytesTo<storageBuffer_t>((sizeEstimate.getCompressedDictionarySize() +
+                                                                         sizeEstimate.getCompressedDatasetSize() +
+                                                                         sizeEstimate.getIncompressibleSize()) *
+                                                                        sizeEstimateSafetyFactor);
   std::tie(thisBlock, thisMetadata) = expandStorage(slot, bufferSizeWords, buffer);
 
   // encode dict
@@ -1310,7 +1310,7 @@ CTFIOSize EncodedBlocks<H, N, W>::encodeRANSV1Inplace(const input_IT srcBegin, c
 
   // write metadata
   *thisMetadata = detail::makeMetadataRansV1<input_t, ransState_t, ransStream_t>(encoder.getEncoder().getNStreams(),
-                                                                                 rans::internal::getStreamingLowerBound_v<typename ransEncoder_t::coder_type>,
+                                                                                 rans::utils::getStreamingLowerBound_v<typename ransEncoder_t::coder_type>,
                                                                                  std::distance(srcBegin, srcEnd),
                                                                                  encoder.getNIncompressibleSamples(),
                                                                                  encoder.getEncoder().getSymbolTable().getPrecision(),
@@ -1375,7 +1375,6 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::store(const input_IT srcBegin, const 
 template <typename H, int N, typename W>
 std::vector<char> EncodedBlocks<H, N, W>::createDictionaryBlocks(const std::vector<rans::Histogram<int32_t>>& vfreq, const std::vector<Metadata>& vmd)
 {
-  using namespace rans::internal;
 
   if (vfreq.size() != N) {
     throw std::runtime_error(fmt::format("mismatch between the size of frequencies vector {} and number of blocks {}", vfreq.size(), N));
@@ -1388,7 +1387,7 @@ std::vector<char> EncodedBlocks<H, N, W>::createDictionaryBlocks(const std::vect
   auto dictBlocks = create(vdict.data(), sz);
   for (int ib = 0; ib < N; ib++) {
     const auto& thisVec = vfreq[ib];
-    const auto view = trim(HistogramView{thisVec.begin(), thisVec.end(), thisVec.getOffset()});
+    const auto view = rans::trim(rans::HistogramView{thisVec.begin(), thisVec.end(), thisVec.getOffset()});
 
     if (!view.empty()) {
       LOG(info) << "adding dictionary of " << view.size() << " words for block " << ib << ", min/max= " << view.getMin() << "/" << view.getMax();

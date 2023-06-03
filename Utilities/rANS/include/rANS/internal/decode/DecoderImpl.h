@@ -44,7 +44,7 @@ class DecoderImpl
   template <typename stream_IT>
   stream_IT init(stream_IT inputIter);
 
-  inline cumulative_frequency_type get() { return mState & ((pow2(mSymbolTablePrecission)) - 1); };
+  inline cumulative_frequency_type get() { return mState & ((utils::pow2(mSymbolTablePrecission)) - 1); };
 
   template <typename stream_IT>
   stream_IT advanceSymbol(stream_IT inputIter, const symbol_type& sym);
@@ -60,9 +60,9 @@ class DecoderImpl
 
   inline static constexpr size_type N_STREAMS = 1;
 
-  inline static constexpr state_type LOWER_BOUND = pow2(LowerBound_V); // lower bound of our normalization interval
+  inline static constexpr state_type LOWER_BOUND = utils::pow2(LowerBound_V); // lower bound of our normalization interval
 
-  inline static constexpr state_type STREAM_BITS = toBits<stream_type>(); // lower bound of our normalization interval
+  inline static constexpr state_type STREAM_BITS = utils::toBits<stream_type>(); // lower bound of our normalization interval
 };
 
 template <size_t LowerBound_V>
@@ -89,7 +89,7 @@ inline stream_IT DecoderImpl<LowerBound_V>::advanceSymbol(stream_IT inputIter, c
 {
   static_assert(std::is_same<typename std::iterator_traits<stream_IT>::value_type, stream_type>::value);
 
-  state_type mask = (pow2(mSymbolTablePrecission)) - 1;
+  state_type mask = (utils::pow2(mSymbolTablePrecission)) - 1;
 
   // s, x = D(x)
   state_type newState = mState;

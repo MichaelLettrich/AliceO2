@@ -31,6 +31,8 @@ enum class CoderTag : uint8_t { Compat,
                                 SSE,
                                 AVX2 };
 
+using count_t = uint32_t;
+
 namespace defaults
 {
 

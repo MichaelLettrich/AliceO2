@@ -25,7 +25,9 @@
 
 #include "rANS/internal/containers/BitPtr.h"
 
+using namespace o2::rans;
 using namespace o2::rans::internal;
+using namespace o2::rans::utils;
 
 using source_types = boost::mp11::mp_list<int8_t, int16_t, int32_t>;
 

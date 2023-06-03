@@ -43,6 +43,7 @@ using stream_t = uint32_t;
 
 using namespace o2::rans;
 using namespace o2::rans::internal;
+using namespace o2::rans::utils;
 
 inline constexpr size_t MessageSize = 1ull << 22;
 inline constexpr size_t LowerBound = 1ul << 20;
