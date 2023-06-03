@@ -42,7 +42,7 @@ inline __m128i ransEncode(__m128i state, __m128d frequency, __m128d cumulative, 
 #if !defined(NDEBUG)
   auto vec = store<uint64_t>(state);
   for (auto i : gsl::make_span(vec)) {
-    assert(i < pow2(52));
+    assert(i < utils::pow2(52));
   }
 #endif
 
@@ -67,7 +67,7 @@ inline __m256i ransEncode(__m256i state, __m256d frequency, __m256d cumulative, 
 #if !defined(NDEBUG)
   auto vec = store<uint64_t>(state);
   for (auto i : gsl::make_span(vec)) {
-    assert(i < pow2(52));
+    assert(i < utils::pow2(52));
   }
 #endif
 

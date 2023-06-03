@@ -67,7 +67,7 @@ class SingleStreamEncoderImplBase : public EncoderImpl<symbol_T,
     return putSymbols(outputIter, encodeSymbols);
   };
 
-  [[nodiscard]] inline static constexpr state_type getStreamingLowerBound() noexcept { return static_cast<state_type>(pow2(streamingLowerBound_V)); };
+  [[nodiscard]] inline static constexpr state_type getStreamingLowerBound() noexcept { return static_cast<state_type>(utils::pow2(streamingLowerBound_V)); };
 
  protected:
   state_type mState{getStreamingLowerBound()};
