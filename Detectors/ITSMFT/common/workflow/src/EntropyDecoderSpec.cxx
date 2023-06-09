@@ -141,7 +141,7 @@ DataProcessorSpec getEntropyDecoderSpec(o2::header::DataOrigin orig, int verbosi
   inputs.emplace_back(std::string("ctf") + nm, orig, "CTFDATA", sspec, Lifetime::Timeframe);
   inputs.emplace_back(std::string("noise") + nm, orig, "NOISEMAP", 0, Lifetime::Condition, ccdbParamSpec(fmt::format("{}/Calib/NoiseMap", orig.as<std::string>())));
   inputs.emplace_back(std::string("cldict") + nm, orig, "CLUSDICT", 0, Lifetime::Condition, ccdbParamSpec(fmt::format("{}/Calib/ClusterDictionary", orig.as<std::string>())));
-  inputs.emplace_back(std::string("ctfdict") + nm, orig, "CTFDICT", 0, Lifetime::Condition, ccdbParamSpec(fmt::format("{}/Calib/CTFDictionary", orig.as<std::string>())));
+  inputs.emplace_back(std::string("ctfdict") + nm, orig, "CTFDICT", 0, Lifetime::Condition, ccdbParamSpec(fmt::format("{}/Calib/CTFDictionaryTree", orig.as<std::string>())));
   inputs.emplace_back(std::string("trigoffset"), "CTP", "Trig_Offset", 0, Lifetime::Condition, ccdbParamSpec("CTP/Config/TriggerOffsets"));
 
   return DataProcessorSpec{

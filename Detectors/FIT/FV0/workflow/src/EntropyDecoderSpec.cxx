@@ -82,7 +82,7 @@ DataProcessorSpec getEntropyDecoderSpec(int verbosity, unsigned int sspec)
 
   std::vector<InputSpec> inputs;
   inputs.emplace_back("ctf_FV0", "FV0", "CTFDATA", sspec, Lifetime::Timeframe);
-  inputs.emplace_back("ctfdict_FV0", "FV0", "CTFDICT", 0, Lifetime::Condition, ccdbParamSpec("FV0/Calib/CTFDictionary"));
+  inputs.emplace_back("ctfdict_FV0", "FV0", "CTFDICT", 0, Lifetime::Condition, ccdbParamSpec("FV0/Calib/CTFDictionaryTree"));
   inputs.emplace_back("trigoffset", "CTP", "Trig_Offset", 0, Lifetime::Condition, ccdbParamSpec("CTP/Config/TriggerOffsets"));
 
   return DataProcessorSpec{
