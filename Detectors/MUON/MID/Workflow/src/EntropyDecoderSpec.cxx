@@ -93,7 +93,7 @@ DataProcessorSpec getEntropyDecoderSpec(int verbosity, unsigned int sspec)
   outputs.emplace_back(OutputSpec{{"ctfrep"}, "MID", "CTFDECREP", 0, Lifetime::Timeframe});
   std::vector<InputSpec> inputs;
   inputs.emplace_back("ctf_MID", "MID", "CTFDATA", sspec, Lifetime::Timeframe);
-  inputs.emplace_back("ctfdict_MID", "MID", "CTFDICT", 0, Lifetime::Condition, ccdbParamSpec("MID/Calib/CTFDictionary"));
+  inputs.emplace_back("ctfdict_MID", "MID", "CTFDICT", 0, Lifetime::Condition, ccdbParamSpec("MID/Calib/CTFDictionaryTree"));
   inputs.emplace_back("trigoffset", "CTP", "Trig_Offset", 0, Lifetime::Condition, ccdbParamSpec("CTP/Config/TriggerOffsets"));
 
   return DataProcessorSpec{
