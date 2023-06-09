@@ -76,7 +76,7 @@ DataProcessorSpec getEntropyEncoderSpec(bool selIR)
   std::vector<InputSpec> inputs;
   inputs.emplace_back("digits", "FV0", "DIGITSBC", 0, Lifetime::Timeframe);
   inputs.emplace_back("channels", "FV0", "DIGITSCH", 0, Lifetime::Timeframe);
-  inputs.emplace_back("ctfdict", "FV0", "CTFDICT", 0, Lifetime::Condition, ccdbParamSpec("FV0/Calib/CTFDictionary"));
+  inputs.emplace_back("ctfdict", "FV0", "CTFDICT", 0, Lifetime::Condition, ccdbParamSpec("FV0/Calib/CTFDictionaryTree"));
   if (selIR) {
     inputs.emplace_back("selIRFrames", "CTF", "SELIRFRAMES", 0, Lifetime::Timeframe);
   }
