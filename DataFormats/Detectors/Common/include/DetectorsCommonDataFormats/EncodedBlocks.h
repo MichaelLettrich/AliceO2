@@ -1047,16 +1047,20 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::encode(const input_IT srcBegin,      
 
 template <typename H, int N, typename W>
 template <typename T>
-[[nodiscard]] auto EncodedBlocks<H, N, W>::expandStorage(size_t slot, size_t nBytes, T* buffer) -> decltype(auto)
+[[nodiscard]] auto EncodedBlocks<H, N, W>::expandStorage(size_t slot, size_t nElements, T* buffer) -> decltype(auto)
 {
-  auto* thisBlock = &mBlocks[slot];
-  auto* thisMetadata = &mMetadata[slot];
+  //  auto* thisBlock = &mBlocks[slot];
+  //  auto* thisMetadata = &mMetadata[slot];
+  // after previous relocation this (hence its data members) are not guaranteed to be valid
+  auto* old = get(buffer->data());
+  auto* thisBlock = &(old->mBlocks[slot]);
+  auto* thisMetadata = &(old->mMetadata[slot]);
 
   // resize underlying buffer of block if necessary and update all pointers.
   auto* const blockHead = get(thisBlock->registry->head);             // extract pointer from the block, as "this" might be invalid
-  const size_t additionalSize = blockHead->estimateBlockSize(nBytes); // size in bytes!!!
+  const size_t additionalSize = blockHead->estimateBlockSize(nElements); // size in bytes!!!
   if (additionalSize >= thisBlock->registry->getFreeSize()) {
-    LOGP(debug, "Slot {} with {} available words needs to allocate n Words {} of additional words for a total of {} words.", slot, thisBlock->registry->getFreeSize(), additionalSize, nBytes / sizeof(W));
+    LOGP(debug, "Slot {} with {} available words needs to allocate {} bytes for a total of {} words.", slot, thisBlock->registry->getFreeSize(), additionalSize, nElements);
     if (buffer) {
       blockHead->expand(*buffer, blockHead->size() + (additionalSize - blockHead->getFreeSize()));
       thisMetadata = &(get(buffer->data())->mMetadata[slot]);
@@ -1192,9 +1196,10 @@ CTFIOSize EncodedBlocks<H, N, W>::encodeRANSV1External(const input_IT srcBegin, 
 
   const size_t messageLength = std::distance(srcBegin, srcEnd);
   ExternalEntropyCoder<input_t> encoder{reinterpret_cast<ransEncoder_t const* const>(encoderExt)};
-  const size_t payloadSizeBytes = encoder.template computePayloadSizeEstimate<storageBuffer_t>(messageLength) * sizeof(storageBuffer_t);
-
-  std::tie(thisBlock, thisMetadata) = expandStorage(slot, payloadSizeBytes, buffer);
+  // const size_t payloadSizeBytes = encoder.template computePayloadSizeEstimate<storageBuffer_t>(messageLength) * sizeof(storageBuffer_t);
+  // std::tie(thisBlock, thisMetadata) = expandStorage(slot, payloadSizeBytes, buffer);
+  const size_t payloadSizeWords = encoder.template computePayloadSizeEstimate<storageBuffer_t>(messageLength);
+  std::tie(thisBlock, thisMetadata) = expandStorage(slot, payloadSizeWords, buffer);
 
   // encode payload
   auto encodedMessageEnd = encoder.encode(srcBegin, srcEnd, thisBlock->getCreateData(), thisBlock->getEndOfBlock());
@@ -1207,8 +1212,10 @@ CTFIOSize EncodedBlocks<H, N, W>::encodeRANSV1External(const input_IT srcBegin, 
   // encode literals
   size_t literalsSize = 0;
   if (encoder.getNIncompressibleSamples() > 0) {
-    const size_t literalsBufferSizeBytes = encoder.template computePackedIncompressibleSize<storageBuffer_t>() * sizeof(storageBuffer_t);
-    std::tie(thisBlock, thisMetadata) = expandStorage(slot, literalsBufferSizeBytes, buffer);
+    //    const size_t literalsBufferSizeBytes = encoder.template computePackedIncompressibleSize<storageBuffer_t>() * sizeof(storageBuffer_t);
+    //    std::tie(thisBlock, thisMetadata) = expandStorage(slot, literalsBufferSizeBytes, buffer);
+    const size_t literalsBufferSizeWords = encoder.template computePackedIncompressibleSize<storageBuffer_t>();
+    std::tie(thisBlock, thisMetadata) = expandStorage(slot, literalsBufferSizeWords, buffer);
     auto literalsEnd = encoder.writeIncompressible(thisBlock->getCreateLiterals(), thisBlock->getEndOfBlock());
     literalsSize = std::distance(thisBlock->getCreateLiterals(), literalsEnd);
     thisBlock->setNLiterals(literalsSize);
@@ -1260,13 +1267,19 @@ CTFIOSize EncodedBlocks<H, N, W>::encodeRANSV1Inplace(const input_IT srcBegin, c
   }
 
   encoder.makeEncoder();
-
+  /*
   const size_t bufferSizeB = rans::internal::nBytesTo<storageBuffer_t>((sizeEstimate.getCompressedDictionarySize() +
                                                                         sizeEstimate.getCompressedDatasetSize() +
                                                                         sizeEstimate.getIncompressibleSize()) *
                                                                        sizeEstimateSafetyFactor) *
                              sizeof(storageBuffer_t);
   std::tie(thisBlock, thisMetadata) = expandStorage(slot, bufferSizeB, buffer);
+  */
+  const size_t bufferSizeWords = rans::internal::nBytesTo<storageBuffer_t>((sizeEstimate.getCompressedDictionarySize() +
+                                                                            sizeEstimate.getCompressedDatasetSize() +
+                                                                            sizeEstimate.getIncompressibleSize()) *
+                                                                           sizeEstimateSafetyFactor);
+  std::tie(thisBlock, thisMetadata) = expandStorage(slot, bufferSizeWords, buffer);
 
   // encode dict
   auto encodedDictEnd = encoder.writeDictionary(thisBlock->getCreateDict(), thisBlock->getEndOfBlock());
@@ -1320,8 +1333,10 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::pack(const input_IT srcBegin, const i
   const size_t messageLength = std::distance(srcBegin, srcEnd);
 
   Packer<input_t> packer{metrics};
-  size_t packingBufferSize = packer.template getPackingBufferSize<storageBuffer_t>(messageLength) * sizeof(storageBuffer_t);
-  auto [thisBlock, thisMetadata] = expandStorage(slot, packingBufferSize, buffer);
+  //  size_t packingBufferSize = packer.template getPackingBufferSize<storageBuffer_t>(messageLength) * sizeof(storageBuffer_t);
+  //  auto [thisBlock, thisMetadata] = expandStorage(slot, packingBufferSize, buffer);
+  size_t packingBufferWords = packer.template getPackingBufferSize<storageBuffer_t>(messageLength);
+  auto [thisBlock, thisMetadata] = expandStorage(slot, packingBufferWords, buffer);
 
   auto packedMessageEnd = packer.pack(srcBegin, srcEnd, thisBlock->getCreateData(), thisBlock->getEndOfBlock());
   const size_t packeSize = std::distance(thisBlock->getCreateData(), packedMessageEnd);
