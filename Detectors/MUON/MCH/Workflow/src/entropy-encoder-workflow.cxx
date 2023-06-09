@@ -90,7 +90,7 @@ DataProcessorSpec getEntropyEncoderSpec(const char* specName, bool selIR)
   std::vector<InputSpec> inputs;
   inputs.emplace_back("rofs", "MCH", "DIGITROFS", 0, Lifetime::Timeframe);
   inputs.emplace_back("digits", "MCH", "DIGITS", 0, Lifetime::Timeframe);
-  inputs.emplace_back("ctfdict", "MCH", "CTFDICT", 0, Lifetime::Condition, ccdbParamSpec("MCH/Calib/CTFDictionary"));
+  inputs.emplace_back("ctfdict", "MCH", "CTFDICT", 0, Lifetime::Condition, ccdbParamSpec("MCH/Calib/CTFDictionaryTree"));
   if (selIR) {
     inputs.emplace_back("selIRFrames", "CTF", "SELIRFRAMES", 0, Lifetime::Timeframe);
   }
