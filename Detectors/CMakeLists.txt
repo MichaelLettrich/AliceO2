@@ -8,7 +8,7 @@
 # In applying this license CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization
 # or submit itself to any jurisdiction.
-
+add_compile_options(-O0 -g -fPIC)
 add_subdirectory(Base)
 add_subdirectory(Raw)
 add_subdirectory(CTF)

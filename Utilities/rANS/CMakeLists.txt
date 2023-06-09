@@ -8,7 +8,7 @@
 # In applying this license CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization
 # or submit itself to any jurisdiction.
-
+add_compile_options(-O0 -g -fPIC)
 option(RANS_ENABLE_JSON "compile librans with rapidjson" ON)
 set(RANS_TARGET_ARCH "native" CACHE STRING "Compile librans for a given CPU type,\
  see https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html.\

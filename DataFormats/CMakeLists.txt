@@ -1,3 +1,4 @@
+add_compile_options(-O0 -g -fPIC)
 add_subdirectory(common)
 add_subdirectory(Headers)
 add_subdirectory(Detectors)
