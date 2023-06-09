@@ -75,7 +75,7 @@ DataProcessorSpec getEntropyEncoderSpec(bool selIR)
   std::vector<InputSpec> inputs;
   inputs.emplace_back("triggers", "PHS", "CELLTRIGREC", 0, Lifetime::Timeframe);
   inputs.emplace_back("cells", "PHS", "CELLS", 0, Lifetime::Timeframe);
-  inputs.emplace_back("ctfdict", "PHS", "CTFDICT", 0, Lifetime::Condition, ccdbParamSpec("PHS/Calib/CTFDictionary"));
+  inputs.emplace_back("ctfdict", "PHS", "CTFDICT", 0, Lifetime::Condition, ccdbParamSpec("PHS/Calib/CTFDictionaryTree"));
   if (selIR) {
     inputs.emplace_back("selIRFrames", "CTF", "SELIRFRAMES", 0, Lifetime::Timeframe);
   }
