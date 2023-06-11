@@ -51,7 +51,7 @@ void EntropyDecoderSpec::run(ProcessingContext& pc)
   mTimer.Start(false);
   o2::ctf::CTFIOSize iosize;
 
-  mCTFCoder.updateTimeDependentParams(pc);
+  mCTFCoder.updateTimeDependentParams(pc, true);
   auto buff = pc.inputs().get<gsl::span<o2::ctf::BufferType>>("ctf_FV0");
 
   auto& digits = pc.outputs().make<std::vector<o2::fv0::Digit>>(OutputRef{"digits"});

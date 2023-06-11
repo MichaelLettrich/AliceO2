@@ -53,8 +53,9 @@ void EntropyDecoderSpec::run(ProcessingContext& pc)
   mTimer.Start(false);
   o2::ctf::CTFIOSize iosize;
 
-  mCTFCoder.updateTimeDependentParams(pc);
+  mCTFCoder.updateTimeDependentParams(pc, true);
   auto buff = pc.inputs().get<gsl::span<o2::ctf::BufferType>>("ctf_MID");
+
   std::array<std::vector<o2::mid::ROFRecord>, NEvTypes> rofs{};
   std::array<std::vector<o2::mid::ColumnData>, NEvTypes> cols{};
   // since the buff is const, we cannot use EncodedBlocks::relocate directly, instead we wrap its data to another flat object

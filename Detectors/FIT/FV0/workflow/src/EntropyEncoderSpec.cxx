@@ -48,7 +48,7 @@ void EntropyEncoderSpec::run(ProcessingContext& pc)
 {
   auto cput = mTimer.CpuTime();
   mTimer.Start(false);
-  mCTFCoder.updateTimeDependentParams(pc);
+  mCTFCoder.updateTimeDependentParams(pc, true);
   auto digits = pc.inputs().get<gsl::span<o2::fv0::Digit>>("digits");
   auto channels = pc.inputs().get<gsl::span<o2::fv0::ChannelData>>("channels");
   if (mSelIR) {

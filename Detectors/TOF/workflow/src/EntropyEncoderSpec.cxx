@@ -48,7 +48,7 @@ void EntropyEncoderSpec::run(ProcessingContext& pc)
 {
   auto cput = mTimer.CpuTime();
   mTimer.Start(false);
-  mCTFCoder.updateTimeDependentParams(pc);
+  mCTFCoder.updateTimeDependentParams(pc, true);
   auto compDigits = pc.inputs().get<gsl::span<Digit>>("compDigits");
   auto pspan = pc.inputs().get<gsl::span<uint8_t>>("patterns");
   auto rofs = pc.inputs().get<gsl::span<ReadoutWindowData>>("ROframes");
