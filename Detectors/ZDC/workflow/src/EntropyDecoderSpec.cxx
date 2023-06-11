@@ -58,7 +58,7 @@ void EntropyDecoderSpec::run(ProcessingContext& pc)
   mTimer.Start(false);
   o2::ctf::CTFIOSize iosize;
 
-  mCTFCoder.updateTimeDependentParams(pc);
+  mCTFCoder.updateTimeDependentParams(pc, true);
   auto buff = pc.inputs().get<gsl::span<o2::ctf::BufferType>>("ctf_ZDC");
 
   auto& bcdata = pc.outputs().make<std::vector<o2::zdc::BCData>>(OutputRef{"trig"});

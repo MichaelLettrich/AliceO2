@@ -48,7 +48,7 @@ void EntropyEncoderSpec::run(ProcessingContext& pc)
 {
   auto cput = mTimer.CpuTime();
   mTimer.Start(false);
-  mCTFCoder.updateTimeDependentParams(pc);
+  mCTFCoder.updateTimeDependentParams(pc, true);
   auto triggers = pc.inputs().get<gsl::span<TriggerRecord>>("triggers");
   auto clusters = pc.inputs().get<gsl::span<Cluster>>("clusters");
   if (mSelIR) {

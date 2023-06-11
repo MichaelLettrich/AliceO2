@@ -68,7 +68,7 @@ void EntropyEncoderSpec::run(ProcessingContext& pc)
 {
   auto cput = mTimer.CpuTime();
   mTimer.Start(false);
-  mCTFCoder.updateTimeDependentParams(pc);
+  mCTFCoder.updateTimeDependentParams(pc, true);
   auto triggers = pc.inputs().get<gsl::span<TriggerRecord>>("triggers");
   auto tracklets = pc.inputs().get<gsl::span<Tracklet64>>("tracklets");
   auto digits = pc.inputs().get<gsl::span<Digit>>("digits");

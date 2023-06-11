@@ -74,7 +74,7 @@ void EntropyEncoderSpec::endOfStream(EndOfStreamContext& ec)
 
 void EntropyEncoderSpec::updateTimeDependentParams(ProcessingContext& pc)
 {
-  mCTFCoder.updateTimeDependentParams(pc);
+  mCTFCoder.updateTimeDependentParams(pc, true);
   if (pc.services().get<o2::framework::TimingInfo>().globalRunNumberChanged) { // this params need to be queried only once
     if (mSelIR) {
       pc.inputs().get<o2::itsmft::TopologyDictionary*>("cldict");

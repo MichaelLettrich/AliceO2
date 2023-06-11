@@ -52,7 +52,7 @@ void EntropyDecoderSpec::run(ProcessingContext& pc)
   mTimer.Start(false);
   o2::ctf::CTFIOSize iosize;
 
-  mCTFCoder.updateTimeDependentParams(pc);
+  mCTFCoder.updateTimeDependentParams(pc, true);
   auto buff = pc.inputs().get<gsl::span<o2::ctf::BufferType>>("ctf_TOF");
 
   auto& digitheader = pc.outputs().make<DigitHeader>(OutputRef{"digitheader"});
