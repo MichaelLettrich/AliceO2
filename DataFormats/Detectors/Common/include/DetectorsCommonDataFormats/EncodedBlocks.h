@@ -366,7 +366,7 @@ class EncodedBlocks
       // dictionary is loaded from an explicit dict file and is stored densly
       if (getANSHeader() == ANSVersionUnspecified) {
         rans::Histogram<source_T> histogram{block.getDict(), block.getDict() + block.getNDict(), static_cast<source_T>(metadata.min)};
-        return rans::renorm(std::move(histogram), metadata.probabilityBits, rans::RenormingPolicy::ForceIncompressible);
+        return rans::renorm(std::move(histogram), rans::RenormingPolicy::ForceIncompressible);
       } else {
         // dictionary is elias-delta coded inside the block
         return rans::readRenormedDictionary(block.getDict(), block.getDict() + block.getNDict(),
@@ -945,10 +945,6 @@ CTFIOSize EncodedBlocks<H, N, W>::decodeRansV1Impl(dst_IT dstBegin, int slot, co
     throw std::runtime_error("no dictionary nor external decoder provided");
   }
 
-  if (md.streamSize != rans::utils::getStreamingLowerBound_v<typename decoder_type::coder_type>) {
-    throw std::runtime_error("Streaming Lower Bound of Dataset and Decoder does not match");
-  }
-
   auto getDecoder = [&]() -> const decoder_type& {
     if (inplaceDecoder.has_value()) {
       return inplaceDecoder.value();
@@ -957,6 +953,23 @@ CTFIOSize EncodedBlocks<H, N, W>::decodeRansV1Impl(dst_IT dstBegin, int slot, co
     }
   };
 
+  // verify decoders
+  [&]() {
+    const decoder_type& decoder = getDecoder();
+    const size_t decoderSymbolTablePrecision = decoder.getSymbolTable().getPrecision();
+
+    if (md.probabilityBits != decoderSymbolTablePrecision) {
+      throw std::runtime_error(fmt::format(
+        "Missmatch in decoder renorming precision vs metadata:{} Bits vs {} Bits.",
+        md.probabilityBits, decoderSymbolTablePrecision));
+    }
+
+    if (md.streamSize != rans::utils::getStreamingLowerBound_v<typename decoder_type::coder_type>) {
+      throw std::runtime_error("Streaming lower bound of dataset and decoder do not match");
+    }
+  }();
+
+  // do the actual decoding
   if (block.getNLiterals()) {
     std::vector<dst_type> literals(md.nLiterals);
     rans::unpack(block.getLiterals(), md.nLiterals, literals.data(), md.literalsPackingWidth, md.literalsPackingOffset);
