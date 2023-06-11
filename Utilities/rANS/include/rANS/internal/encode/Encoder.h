@@ -62,7 +62,17 @@ class Encoder
 
   Encoder() = default;
   template <typename renormedSymbolTable_T>
-  Encoder(const renormedSymbolTable_T& renormedFrequencyTable) : mSymbolTable{renormedFrequencyTable} {};
+  Encoder(const renormedSymbolTable_T& renormedFrequencyTable) : mSymbolTable{renormedFrequencyTable}
+  {
+    const size_t symbolTablePrecission = mSymbolTable.getPrecision();
+    const size_t encoderLowerBound = coder_type::getStreamingLowerBound();
+    if (symbolTablePrecission > encoderLowerBound) {
+      throw EncodingError(fmt::format(
+        "Renorming precision of symbol table ({} Bits) exceeds renorming lower bound of encoder ({} Bits).\
+      This can cause overflows during encoding.",
+        symbolTablePrecission, encoderLowerBound));
+    }
+  };
 
   [[nodiscard]] inline const symbolTable_type& getSymbolTable() const noexcept { return mSymbolTable; };
 
