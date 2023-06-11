@@ -50,7 +50,7 @@ void EntropyEncoderSpec::run(ProcessingContext& pc)
 {
   auto cput = mTimer.CpuTime();
   mTimer.Start(false);
-  mCTFCoder.updateTimeDependentParams(pc);
+  mCTFCoder.updateTimeDependentParams(pc, true);
   auto bcdata = pc.inputs().get<gsl::span<o2::zdc::BCData>>("trig");
   auto chans = pc.inputs().get<gsl::span<o2::zdc::ChannelData>>("chan");
   auto peds = pc.inputs().get<gsl::span<o2::zdc::OrbitData>>("peds");

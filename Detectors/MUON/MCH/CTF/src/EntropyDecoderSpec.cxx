@@ -69,7 +69,7 @@ void EntropyDecoderSpec::run(ProcessingContext& pc)
   mTimer.Start(false);
   o2::ctf::CTFIOSize iosize;
 
-  mCTFCoder.updateTimeDependentParams(pc);
+  mCTFCoder.updateTimeDependentParams(pc, true);
   auto buff = pc.inputs().get<gsl::span<o2::ctf::BufferType>>("ctf_MCH");
 
   auto& rofs = pc.outputs().make<std::vector<o2::mch::ROFRecord>>(OutputRef{"rofs", 0});

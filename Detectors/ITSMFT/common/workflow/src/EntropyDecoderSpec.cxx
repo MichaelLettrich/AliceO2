@@ -99,7 +99,7 @@ void EntropyDecoderSpec::updateTimeDependentParams(ProcessingContext& pc)
       pc.inputs().get<o2::itsmft::TopologyDictionary*>(std::string("cldict") + mDetPrefix);
     }
   }
-  mCTFCoder.updateTimeDependentParams(pc);
+  mCTFCoder.updateTimeDependentParams(pc, true);
 }
 
 void EntropyDecoderSpec::finaliseCCDB(o2::framework::ConcreteDataMatcher& matcher, void* obj)

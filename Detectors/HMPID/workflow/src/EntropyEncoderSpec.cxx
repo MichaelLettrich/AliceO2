@@ -66,7 +66,7 @@ void EntropyEncoderSpec::run(ProcessingContext& pc)
 {
   auto cput = mTimer.CpuTime();
   mTimer.Start(false);
-  mCTFCoder.updateTimeDependentParams(pc);
+  mCTFCoder.updateTimeDependentParams(pc, true);
   auto triggers = pc.inputs().get<gsl::span<Trigger>>("triggers");
   auto digits = pc.inputs().get<gsl::span<Digit>>("digits");
   if (mSelIR) {

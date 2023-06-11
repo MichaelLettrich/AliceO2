@@ -66,7 +66,7 @@ void EntropyEncoderSpec::run(ProcessingContext& pc)
 {
   auto cput = mTimer.CpuTime();
   mTimer.Start(false);
-  mCTFCoder.updateTimeDependentParams(pc);
+  mCTFCoder.updateTimeDependentParams(pc, true);
   auto rofs = pc.inputs().get<gsl::span<o2::mch::ROFRecord>>("rofs", 0);
   auto digits = pc.inputs().get<gsl::span<o2::mch::Digit>>("digits", 0);
   if (mSelIR) {
