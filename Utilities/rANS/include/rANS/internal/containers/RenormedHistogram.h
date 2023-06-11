@@ -16,6 +16,7 @@
 #ifndef RANS_INTERNAL_CONTAINERS_RENORMEDHISTOGRAM_H_
 #define RANS_INTERNAL_CONTAINERS_RENORMEDHISTOGRAM_H_
 
+#include <numeric>
 #include <fairlogger/Logger.h>
 
 #include "rANS/internal/containers/CountingContainer.h"
@@ -51,7 +52,12 @@ class RenormedHistogram : public internal::CountingContainer<source_T>
     this->mContainer = std::move(frequencies);
     this->mNSamples = utils::pow2(renormingBits);
 
-    // TODO(milettri): do some checks when nDebug is active;
+#if !defined(NDEBUG)
+    size_t nSamples = std::accumulate(this->begin(), this->end(), 0);
+    nSamples += this->mNIncompressible;
+    assert(internal::isPow2(nSamples));
+    assert(nSamples == this->mNSamples);
+#endif
   };
 
   [[nodiscard]] inline size_t getRenormingBits() const noexcept { return utils::log2UInt(this->mNSamples); };
