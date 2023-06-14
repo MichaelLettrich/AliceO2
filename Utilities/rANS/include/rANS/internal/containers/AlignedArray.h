@@ -255,7 +255,7 @@ std::ostream& operator<<(std::ostream& stream, const AlignedArray<T, width_V, si
 {
   stream << "[";
   for (auto subspan : array) {
-    operator<<<const T, getElementCount<T>(width_V), formater_T>(stream, subspan);
+    operator<< <const T, getElementCount<T>(width_V), formater_T>(stream, subspan);
     stream << ", ";
   }
   stream << "]";
@@ -266,7 +266,7 @@ template <typename T, SIMDWidth width_V, size_t size_V>
 std::string asHex(const AlignedArray<T, width_V, size_V>& array)
 {
   std::ostringstream stream;
-  operator<<<T, width_V, size_V, alignedArrayImpl::HexFormatingFunctor>(stream, array);
+  operator<< <T, width_V, size_V, alignedArrayImpl::HexFormatingFunctor>(stream, array);
   return stream.str();
 };
 

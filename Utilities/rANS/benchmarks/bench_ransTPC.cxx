@@ -227,7 +227,7 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
   writer.EndObject(); // FrequencyTable
 
   // RescaledFrequencies
-  //##########################
+  // ##########################
   const Metrics<source_type> renormedMetrics{histogram};
   const auto& renormedDatasetProperties = renormedMetrics.getDatasetProperties();
 
@@ -250,7 +250,7 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
   writer.EndObject(); // RescaledFrequencies
 
   // Message Properties
-  //##########################
+  // ##########################
   writer.Key("Message");
   writer.StartObject();
   writer.Key("Size");
@@ -264,7 +264,7 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
   writer.EndObject(); // Message
 
   // Compression Properties
-  //##########################
+  // ##########################
   writer.Key("Compression");
   writer.StartObject();
   writer.Key("EncodeBufferSize");
