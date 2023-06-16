@@ -23,13 +23,14 @@
 namespace o2::rans::internal
 {
 
-template <class source_T, class value_T, class derived_T>
+template <class source_T, class value_T, class difference_T, class derived_T>
 class HistogramInterface
 {
 
  public:
   using source_type = source_T;
   using value_type = value_T;
+  using difference_type = difference_T;
 
   // operations
   template <typename source_IT>
@@ -50,7 +51,7 @@ class HistogramInterface
   };
 
   template <typename freq_IT>
-  inline derived_T& addFrequencies(freq_IT begin, freq_IT end, source_type offset)
+  inline derived_T& addFrequencies(freq_IT begin, freq_IT end, difference_type offset)
   {
     static_assert(utils::isCompatibleIter_v<value_type, freq_IT>);
 
@@ -61,21 +62,21 @@ class HistogramInterface
     }
   };
 
-  inline derived_T& addFrequencies(gsl::span<const value_type> frequencies, source_type offset)
+  inline derived_T& addFrequencies(gsl::span<const value_type> frequencies, difference_type offset)
   {
     return addFrequencies(frequencies.data(), frequencies.data() + frequencies.size(), offset);
   };
 
   derived_T& operator+(derived_T& other)
   {
-    return addFrequencies(other.cbegin(), other.cbegin(), 0);
+    return addFrequencies(other.cbegin(), other.cbegin(), other.getOffset());
   };
 
  protected:
   HistogramInterface() = default;
 
   template <typename freq_IT>
-  HistogramInterface(freq_IT begin, freq_IT end, source_type offset)
+  HistogramInterface(freq_IT begin, freq_IT end, difference_type offset)
   {
     static_assert(utils::isIntegralIter_v<freq_IT>);
     addFrequencies(begin, end, offset);
