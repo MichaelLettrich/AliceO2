@@ -482,6 +482,8 @@ class EncodedBlocks
   std::array<Metadata, N> mMetadata; //  compressed block's details
   std::array<Block<W>, N> mBlocks;   //! this is in fact stored, but to overcome TBuffer limits we have to define the branches per block!!!
 
+  inline static constexpr Metadata::OptStore FallbackStorageType{Metadata::OptStore::NONE};
+
   /// setup internal structure and registry for given buffer size (in bytes!!!)
   void init(size_t sz);
 
@@ -558,8 +560,14 @@ class EncodedBlocks
   inline o2::ctf::CTFIOSize pack(const input_IT srcBegin, const input_IT srcEnd, int slot, buffer_T* buffer = nullptr)
   {
     using source_type = typename std::iterator_traits<input_IT>::value_type;
-    auto histogram = rans::makeHistogram::fromSamples(srcBegin, srcEnd);
-    rans::Metrics<source_type> metrics{histogram};
+    rans::Metrics<source_type> metrics{};
+    try {
+      auto histogram = rans::makeHistogram::fromSamples(srcBegin, srcEnd);
+      metrics = rans::Metrics<source_type>{histogram};
+    } catch (const rans::HistogramError& error) {
+      LOGP(warning, "Failed to build Dictionary for rANS encoding, using fallback option");
+      return store(srcBegin, srcEnd, slot, this->FallbackStorageType, buffer);
+    }
     return pack(srcBegin, srcEnd, slot, metrics, buffer);
   }
 
@@ -1107,15 +1115,23 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::entropyCodeRANSCompat(const input_IT 
   const float SizeEstMarginRel = 1.5 * memfc;
 
   const size_t messageLength = std::distance(srcBegin, srcEnd);
-  const auto [inplaceEncoder, frequencyTable] = [&]() {
-    if (encoderExt) {
-      return std::make_tuple(ransEncoder_t{}, rans::Histogram<input_t>{});
-    } else {
-      auto histogram = rans::makeHistogram::fromSamples(srcBegin, srcEnd);
-      auto encoder = rans::compat::makeEncoder::fromHistogram(histogram, symbolTablePrecision);
-      return std::make_tuple(std::move(encoder), std::move(histogram));
-    }
-  }();
+  rans::Histogram<input_t> frequencyTable{};
+  rans::compat::encoder_type<input_t> inplaceEncoder{};
+
+  try {
+    std::tie(inplaceEncoder, frequencyTable) = [&]() {
+      if (encoderExt) {
+        return std::make_tuple(ransEncoder_t{}, rans::Histogram<input_t>{});
+      } else {
+        auto histogram = rans::makeHistogram::fromSamples(srcBegin, srcEnd);
+        auto encoder = rans::compat::makeEncoder::fromHistogram(histogram, symbolTablePrecision);
+        return std::make_tuple(std::move(encoder), std::move(histogram));
+      }
+    }();
+  } catch (const rans::HistogramError& error) {
+    LOGP(warning, "Failed to build Dictionary for rANS encoding, using fallback option");
+    return store(srcBegin, srcEnd, slot, this->FallbackStorageType, buffer);
+  }
   ransEncoder_t const* const encoder = encoderExt ? reinterpret_cast<ransEncoder_t const* const>(encoderExt) : &inplaceEncoder;
 
   // estimate size of encode buffer
@@ -1267,7 +1283,14 @@ CTFIOSize EncodedBlocks<H, N, W>::encodeRANSV1Inplace(const input_IT srcBegin, c
   auto* thisBlock = &mBlocks[slot];
   auto* thisMetadata = &mMetadata[slot];
 
-  InplaceEntropyCoder<input_t> encoder{srcBegin, srcEnd};
+  InplaceEntropyCoder<input_t> encoder{};
+  try {
+    encoder = InplaceEntropyCoder<input_t>{srcBegin, srcEnd};
+  } catch (const rans::HistogramError& error) {
+    LOGP(warning, "Failed to build Dictionary for rANS encoding, using fallback option");
+    return store(srcBegin, srcEnd, slot, this->FallbackStorageType, buffer);
+  }
+
   const rans::Metrics<input_t>& metrics = encoder.getMetrics();
 
   if (detail::mayPack(opt) && metrics.getSizeEstimate().preferPacking()) {
