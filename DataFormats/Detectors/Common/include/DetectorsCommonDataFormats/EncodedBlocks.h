@@ -21,6 +21,7 @@
 #include <type_traits>
 #include <cstddef>
 #include <Rtypes.h>
+#include <any>
 
 #include "TTree.h"
 #include "CommonUtils/StringUtils.h"
@@ -360,12 +361,12 @@ class EncodedBlocks
     assert(static_cast<int64_t>(std::numeric_limits<source_T>::max()) >= static_cast<int64_t>(metadata.min));
 
     if (ansVersion == ANSVersionCompat) {
-      rans::Histogram<source_T> histogram{block.getDict(), block.getDict() + block.getNDict(), static_cast<source_T>(metadata.min)};
+      rans::Histogram<source_T> histogram{block.getDict(), block.getDict() + block.getNDict(), metadata.min};
       return rans::compat::renorm(std::move(histogram), metadata.probabilityBits);
     } else if (ansVersion == ANSVersion1) {
       // dictionary is loaded from an explicit dict file and is stored densly
       if (getANSHeader() == ANSVersionUnspecified) {
-        rans::Histogram<source_T> histogram{block.getDict(), block.getDict() + block.getNDict(), static_cast<source_T>(metadata.min)};
+        rans::Histogram<source_T> histogram{block.getDict(), block.getDict() + block.getNDict(), metadata.min};
         return rans::renorm(std::move(histogram), rans::RenormingPolicy::ForceIncompressible);
       } else {
         // dictionary is elias-delta coded inside the block
@@ -447,22 +448,22 @@ class EncodedBlocks
 
   /// encode vector src to bloc at provided slot
   template <typename VE, typename buffer_T>
-  inline o2::ctf::CTFIOSize encode(const VE& src, int slot, uint8_t symbolTablePrecision, Metadata::OptStore opt, buffer_T* buffer = nullptr, const void* encoderExt = nullptr, float memfc = 1.f)
+  inline o2::ctf::CTFIOSize encode(const VE& src, int slot, uint8_t symbolTablePrecision, Metadata::OptStore opt, buffer_T* buffer = nullptr, const std::any& encoderExt = {}, float memfc = 1.f)
   {
     return encode(std::begin(src), std::end(src), slot, symbolTablePrecision, opt, buffer, encoderExt, memfc);
   }
 
   /// encode vector src to bloc at provided slot
   template <typename input_IT, typename buffer_T>
-  o2::ctf::CTFIOSize encode(const input_IT srcBegin, const input_IT srcEnd, int slot, uint8_t symbolTablePrecision, Metadata::OptStore opt, buffer_T* buffer = nullptr, const void* encoderExt = nullptr, float memfc = 1.f);
+  o2::ctf::CTFIOSize encode(const input_IT srcBegin, const input_IT srcEnd, int slot, uint8_t symbolTablePrecision, Metadata::OptStore opt, buffer_T* buffer = nullptr, const std::any& encoderExt = {}, float memfc = 1.f);
 
   /// decode block at provided slot to destination vector (will be resized as needed)
   template <class container_T, class container_IT = typename container_T::iterator>
-  o2::ctf::CTFIOSize decode(container_T& dest, int slot, const void* decoderExt = nullptr) const;
+  o2::ctf::CTFIOSize decode(container_T& dest, int slot, const std::any& decoderExt = {}) const;
 
   /// decode block at provided slot to destination pointer, the needed space assumed to be available
   template <typename D_IT, std::enable_if_t<detail::is_iterator_v<D_IT>, bool> = true>
-  o2::ctf::CTFIOSize decode(D_IT dest, int slot, const void* decoderExt = nullptr) const;
+  o2::ctf::CTFIOSize decode(D_IT dest, int slot, const std::any& decoderExt = {}) const;
 
   /// create a special EncodedBlocks containing only dictionaries made from provided vector of frequency tables
   static std::vector<char> createDictionaryBlocks(const std::vector<rans::Histogram<int32_t>>& vfreq, const std::vector<Metadata>& prbits);
@@ -538,13 +539,13 @@ class EncodedBlocks
   };
 
   template <typename input_IT, typename buffer_T>
-  o2::ctf::CTFIOSize entropyCodeRANSCompat(const input_IT srcBegin, const input_IT srcEnd, int slot, uint8_t symbolTablePrecision, buffer_T* buffer = nullptr, const void* encoderExt = nullptr, float memfc = 1.f);
+  o2::ctf::CTFIOSize entropyCodeRANSCompat(const input_IT srcBegin, const input_IT srcEnd, int slot, uint8_t symbolTablePrecision, buffer_T* buffer = nullptr, const std::any& encoderExt = {}, float memfc = 1.f);
 
   template <typename input_IT, typename buffer_T>
-  o2::ctf::CTFIOSize entropyCodeRANSV1(const input_IT srcBegin, const input_IT srcEnd, int slot, Metadata::OptStore opt, buffer_T* buffer = nullptr, const void* encoderExt = nullptr, float memfc = 1.f);
+  o2::ctf::CTFIOSize entropyCodeRANSV1(const input_IT srcBegin, const input_IT srcEnd, int slot, Metadata::OptStore opt, buffer_T* buffer = nullptr, const std::any& encoderExt = {}, float memfc = 1.f);
 
   template <typename input_IT, typename buffer_T>
-  o2::ctf::CTFIOSize encodeRANSV1External(const input_IT srcBegin, const input_IT srcEnd, int slot, const void* encoderExt, buffer_T* buffer = nullptr, double_t sizeEstimateSafetyFactor = 1);
+  o2::ctf::CTFIOSize encodeRANSV1External(const input_IT srcBegin, const input_IT srcEnd, int slot, const std::any& encoderExt, buffer_T* buffer = nullptr, double_t sizeEstimateSafetyFactor = 1);
 
   template <typename input_IT, typename buffer_T>
   o2::ctf::CTFIOSize encodeRANSV1Inplace(const input_IT srcBegin, const input_IT srcEnd, int slot, Metadata::OptStore opt, buffer_T* buffer = nullptr, double_t sizeEstimateSafetyFactor = 1);
@@ -566,10 +567,10 @@ class EncodedBlocks
 
   // decode
   template <typename dst_IT>
-  CTFIOSize decodeCompatImpl(dst_IT dest, int slot, const void* decoderExt = nullptr) const;
+  CTFIOSize decodeCompatImpl(dst_IT dest, int slot, const std::any& decoderExt) const;
 
   template <typename dst_IT>
-  CTFIOSize decodeRansV1Impl(dst_IT dest, int slot, const void* decoderExt = nullptr) const;
+  CTFIOSize decodeRansV1Impl(dst_IT dest, int slot, const std::any& decoderExt) const;
 
   template <typename dst_IT>
   CTFIOSize decodeUnpackImpl(dst_IT dest, int slot) const;
@@ -842,9 +843,9 @@ void EncodedBlocks<H, N, W>::print(const std::string& prefix, int verbosity) con
 ///_____________________________________________________________________________
 template <typename H, int N, typename W>
 template <class container_T, class container_IT>
-inline o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::decode(container_T& dest,            // destination container
-                                                         int slot,                     // slot of the block to decode
-                                                         const void* decoderExt) const // optional externally provided decoder
+inline o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::decode(container_T& dest,                // destination container
+                                                         int slot,                         // slot of the block to decode
+                                                         const std::any& decoderExt) const // optional externally provided decoder
 {
   dest.resize(mMetadata[slot].messageLength); // allocate output buffer
   return decode(std::begin(dest), slot, decoderExt);
@@ -853,9 +854,9 @@ inline o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::decode(container_T& dest,     
 ///_____________________________________________________________________________
 template <typename H, int N, typename W>
 template <typename D_IT, std::enable_if_t<detail::is_iterator_v<D_IT>, bool>>
-CTFIOSize EncodedBlocks<H, N, W>::decode(D_IT dest,                    // iterator to destination
-                                         int slot,                     // slot of the block to decode
-                                         const void* decoderExt) const // optional externally provided decoder
+CTFIOSize EncodedBlocks<H, N, W>::decode(D_IT dest,                        // iterator to destination
+                                         int slot,                         // slot of the block to decode
+                                         const std::any& decoderExt) const // optional externally provided decoder
 {
 
   // get references to the right data
@@ -888,7 +889,7 @@ CTFIOSize EncodedBlocks<H, N, W>::decode(D_IT dest,                    // iterat
 
 template <typename H, int N, typename W>
 template <typename dst_IT>
-CTFIOSize EncodedBlocks<H, N, W>::decodeCompatImpl(dst_IT dstBegin, int slot, const void* decoderExt) const
+CTFIOSize EncodedBlocks<H, N, W>::decodeCompatImpl(dst_IT dstBegin, int slot, const std::any& decoderExt) const
 {
 
   // get references to the right data
@@ -902,7 +903,7 @@ CTFIOSize EncodedBlocks<H, N, W>::decodeCompatImpl(dst_IT dstBegin, int slot, co
   std::optional<decoder_type> inplaceDecoder{};
   if (md.nDictWords > 0) {
     inplaceDecoder = decoder_type{this->getFrequencyTable<dst_type>(slot)};
-  } else if (!decoderExt) {
+  } else if (!decoderExt.has_value()) {
     throw std::runtime_error("neither dictionary nor external decoder provided");
   }
 
@@ -910,7 +911,7 @@ CTFIOSize EncodedBlocks<H, N, W>::decodeCompatImpl(dst_IT dstBegin, int slot, co
     if (inplaceDecoder.has_value()) {
       return inplaceDecoder.value();
     } else {
-      return *reinterpret_cast<const decoder_type*>(decoderExt);
+      return std::any_cast<const decoder_type&>(decoderExt);
     }
   };
 
@@ -927,7 +928,7 @@ CTFIOSize EncodedBlocks<H, N, W>::decodeCompatImpl(dst_IT dstBegin, int slot, co
 
 template <typename H, int N, typename W>
 template <typename dst_IT>
-CTFIOSize EncodedBlocks<H, N, W>::decodeRansV1Impl(dst_IT dstBegin, int slot, const void* decoderExt) const
+CTFIOSize EncodedBlocks<H, N, W>::decodeRansV1Impl(dst_IT dstBegin, int slot, const std::any& decoderExt) const
 {
 
   // get references to the right data
@@ -941,7 +942,7 @@ CTFIOSize EncodedBlocks<H, N, W>::decodeRansV1Impl(dst_IT dstBegin, int slot, co
   std::optional<decoder_type> inplaceDecoder{};
   if (md.nDictWords > 0) {
     inplaceDecoder = decoder_type{this->getFrequencyTable<dst_type>(slot)};
-  } else if (!decoderExt) {
+  } else if (!decoderExt.has_value()) {
     throw std::runtime_error("no dictionary nor external decoder provided");
   }
 
@@ -949,7 +950,7 @@ CTFIOSize EncodedBlocks<H, N, W>::decodeRansV1Impl(dst_IT dstBegin, int slot, co
     if (inplaceDecoder.has_value()) {
       return inplaceDecoder.value();
     } else {
-      return *reinterpret_cast<const decoder_type*>(decoderExt);
+      return std::any_cast<const decoder_type&>(decoderExt);
     }
   };
 
@@ -1023,7 +1024,7 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::encode(const input_IT srcBegin,      
                                                   uint8_t symbolTablePrecision, // encoding into
                                                   Metadata::OptStore opt,       // option for data compression
                                                   buffer_T* buffer,             // optional buffer (vector) providing memory for encoded blocks
-                                                  const void* encoderExt,       // optional external encoder
+                                                  const std::any& encoderExt,   // optional external encoder
                                                   float memfc)                  // memory allocation margin factor
 {
   // fill a new block
@@ -1087,7 +1088,7 @@ template <typename T>
 
 template <typename H, int N, typename W>
 template <typename input_IT, typename buffer_T>
-o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::entropyCodeRANSCompat(const input_IT srcBegin, const input_IT srcEnd, int slot, uint8_t symbolTablePrecision, buffer_T* buffer, const void* encoderExt, float memfc)
+o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::entropyCodeRANSCompat(const input_IT srcBegin, const input_IT srcEnd, int slot, uint8_t symbolTablePrecision, buffer_T* buffer, const std::any& encoderExt, float memfc)
 {
   using storageBuffer_t = W;
   using input_t = typename std::iterator_traits<input_IT>::value_type;
@@ -1108,7 +1109,7 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::entropyCodeRANSCompat(const input_IT 
 
   const size_t messageLength = std::distance(srcBegin, srcEnd);
   const auto [inplaceEncoder, frequencyTable] = [&]() {
-    if (encoderExt) {
+    if (encoderExt.has_value()) {
       return std::make_tuple(ransEncoder_t{}, rans::Histogram<input_t>{});
     } else {
       auto histogram = rans::makeHistogram::fromSamples(srcBegin, srcEnd);
@@ -1116,10 +1117,10 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::entropyCodeRANSCompat(const input_IT 
       return std::make_tuple(std::move(encoder), std::move(histogram));
     }
   }();
-  ransEncoder_t const* const encoder = encoderExt ? reinterpret_cast<ransEncoder_t const* const>(encoderExt) : &inplaceEncoder;
+  const ransEncoder_t& encoder = encoderExt.has_value() ? std::any_cast<const ransEncoder_t&>(encoderExt) : inplaceEncoder;
 
   // estimate size of encode buffer
-  int dataSize = rans::compat::calculateMaxBufferSizeB(messageLength, rans::compat::getAlphabetRangeBits(encoder->getSymbolTable())); // size in bytes
+  int dataSize = rans::compat::calculateMaxBufferSizeB(messageLength, rans::compat::getAlphabetRangeBits(encoder.getSymbolTable())); // size in bytes
   // preliminary expansion of storage based on dict size + estimated size of encode buffer
   dataSize = SizeEstMarginAbs + int(SizeEstMarginRel * (dataSize / sizeof(storageBuffer_t))) + (sizeof(input_t) < sizeof(storageBuffer_t)); // size in words of output stream
   const auto view = rans::trim(rans::HistogramView{frequencyTable.begin(), frequencyTable.end(), frequencyTable.getOffset()});
@@ -1136,7 +1137,7 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::entropyCodeRANSCompat(const input_IT 
   // directly encode source message into block buffer.
   storageBuffer_t* const blockBufferBegin = thisBlock->getCreateData();
   const size_t maxBufferSize = thisBlock->registry->getFreeSize(); // note: "this" might be not valid after expandStorage call!!!
-  const auto [encodedMessageEnd, literalsEnd] = encoder->process(srcBegin, srcEnd, blockBufferBegin, std::back_inserter(literals));
+  const auto [encodedMessageEnd, literalsEnd] = encoder.process(srcBegin, srcEnd, blockBufferBegin, std::back_inserter(literals));
   rans::utils::checkBounds(encodedMessageEnd, blockBufferBegin + maxBufferSize / sizeof(W));
   dataSize = encodedMessageEnd - thisBlock->getDataPointer();
   thisBlock->setNData(dataSize);
@@ -1164,10 +1165,10 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::entropyCodeRANSCompat(const input_IT 
 
   LOGP(info, "Min, {} Max, {}, size, {}, nusedAlphabetSymbols {}, nSamples {}", view.getMin(), view.getMax(), view.size(), frequencyTable.countNUsedAlphabetSymbols(), frequencyTable.getNumSamples());
 
-  *thisMetadata = detail::makeMetadataRansCompat<input_t, ransState_t, ransStream_t>(encoder->getNStreams(),
+  *thisMetadata = detail::makeMetadataRansCompat<input_t, ransState_t, ransStream_t>(encoder.getNStreams(),
                                                                                      messageLength,
                                                                                      nLiteralSymbols,
-                                                                                     encoder->getSymbolTable().getPrecision(),
+                                                                                     encoder.getSymbolTable().getPrecision(),
                                                                                      view.getMin(),
                                                                                      view.getMax(),
                                                                                      view.size(),
@@ -1179,10 +1180,10 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::entropyCodeRANSCompat(const input_IT 
 
 template <typename H, int N, typename W>
 template <typename input_IT, typename buffer_T>
-o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::entropyCodeRANSV1(const input_IT srcBegin, const input_IT srcEnd, int slot, Metadata::OptStore opt, buffer_T* buffer, const void* encoderExt, float memfc)
+o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::entropyCodeRANSV1(const input_IT srcBegin, const input_IT srcEnd, int slot, Metadata::OptStore opt, buffer_T* buffer, const std::any& encoderExt, float memfc)
 {
   CTFIOSize encoderStatistics{};
-  if (encoderExt) {
+  if (encoderExt.has_value()) {
     encoderStatistics = encodeRANSV1External(srcBegin, srcEnd, slot, encoderExt, buffer, memfc);
   } else {
     encoderStatistics = encodeRANSV1Inplace(srcBegin, srcEnd, slot, opt, buffer, memfc);
@@ -1192,7 +1193,7 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::entropyCodeRANSV1(const input_IT srcB
 
 template <typename H, int N, typename W>
 template <typename input_IT, typename buffer_T>
-CTFIOSize EncodedBlocks<H, N, W>::encodeRANSV1External(const input_IT srcBegin, const input_IT srcEnd, int slot, const void* encoderExt, buffer_T* buffer, double_t sizeEstimateSafetyFactor)
+CTFIOSize EncodedBlocks<H, N, W>::encodeRANSV1External(const input_IT srcBegin, const input_IT srcEnd, int slot, const std::any& encoderExt, buffer_T* buffer, double_t sizeEstimateSafetyFactor)
 {
   using storageBuffer_t = W;
   using input_t = typename std::iterator_traits<input_IT>::value_type;
@@ -1208,7 +1209,7 @@ CTFIOSize EncodedBlocks<H, N, W>::encodeRANSV1External(const input_IT srcBegin, 
   auto* thisMetadata = &mMetadata[slot];
 
   const size_t messageLength = std::distance(srcBegin, srcEnd);
-  ExternalEntropyCoder<input_t> encoder{reinterpret_cast<ransEncoder_t const* const>(encoderExt)};
+  ExternalEntropyCoder<input_t> encoder{std::any_cast<const ransEncoder_t&>(encoderExt)};
   // const size_t payloadSizeBytes = encoder.template computePayloadSizeEstimate<storageBuffer_t>(messageLength) * sizeof(storageBuffer_t);
   // std::tie(thisBlock, thisMetadata) = expandStorage(slot, payloadSizeBytes, buffer);
   const size_t payloadSizeWords = encoder.template computePayloadSizeEstimate<storageBuffer_t>(messageLength);
