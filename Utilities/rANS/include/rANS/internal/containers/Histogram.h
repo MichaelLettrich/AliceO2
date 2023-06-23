@@ -153,8 +153,28 @@ class Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>> : public inte
   };
 
  private:
-  inline static constexpr size_t MaxSize{utils::pow2(28)}; // 1GB per histogram size limit;
+  inline static constexpr size_t MaxSize{utils::pow2(30)}; // 4GB per histogram size limit;
+
+  bool isValidRange(difference_type min, difference_type max);
 };
+
+template <typename source_T>
+inline bool Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::isValidRange(difference_type min, difference_type max)
+{
+  bool ret = true;
+  if constexpr (std::is_unsigned_v<source_T>) {
+    if (min < 0) {
+      LOGP(warning, "trying to add frequencies for a signed symbol to a Histogram of an unsiged type.");
+      ret = false;
+    }
+  }
+  if (max - min > this->MaxSize) {
+    LOGP(warning, "Histogram exceeds {} elements threshold", this->MaxSize);
+    ret = false;
+  }
+  return ret;
+}
+
 template <typename source_T>
 inline auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addSamples(gsl::span<const source_type> samples) -> Histogram&
 {
@@ -231,12 +251,18 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addSamples(so
   if (begin == end) {
     LOG(warning) << "Passed empty message to " << __func__; // RS this is ok for empty columns
   } else {
+
+    if (!this->isValidRange(min, max)) {
+      throw HistogramError(fmt::format("Incompatible Frequency table dimensions: Cannot add samples in range [{},{}] to {} int32 histogram.",
+                                       min, max, []() {if constexpr (std::is_signed_v<source_T>) {return "signed";} else {return "unsigned";} }()));
+    }
     this->resize(min, max);
     // add new symbols
     std::for_each(begin, end, [this](source_type symbol) {
       ++this->mContainer[symbol];
       ++this->mNSamples; });
   }
+
   return *this;
 }
 
@@ -260,16 +286,13 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addFrequencie
     const difference_type newMin = std::min(thisHistogramView.getMin(), addedHistogramView.getMin());
     const difference_type newMax = std::max(thisHistogramView.getMax(), addedHistogramView.getMax());
 
-    if (newMax - newMin > this->MaxSize) {
-      throw HistogramError(fmt::format("Histogram exceeds {} elements threshold", this->MaxSize));
-    }
-
-    if (newMin < static_cast<difference_type>(std::numeric_limits<source_T>::min()) ||
+    if (!this->isValidRange(newMin, newMax) ||
+        newMin < static_cast<difference_type>(std::numeric_limits<source_T>::min()) ||
         newMax > static_cast<difference_type>(std::numeric_limits<source_T>::max())) {
       throw HistogramError(fmt::format("Incompatible Frequency table dimensions: Cannot add [{},{}] to {} int32 histogram.",
                                        addedHistogramView.getMin(),
                                        addedHistogramView.getMax(),
-                                       []() {if (std::is_signed_v<source_T>) {return "signed";} else {return "unsigned";} }()));
+                                       []() {if constexpr (std::is_signed_v<source_T>) {return "signed";} else {return "unsigned";} }()));
     };
 
     if (thisHistogramView.empty()) {
@@ -500,6 +523,11 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addFrequencie
   // bounds check
   HistogramView addedHistogramView{begin, end, offset};
   addedHistogramView = trim(addedHistogramView);
+
+  if constexpr (std::is_unsigned_v<source_T>) {
+    LOG_IF(warning, addedHistogramView.getMin() < 0) << fmt::format("trying to add frequencies for a signed symbol to a Histogram of an unsiged type.");
+  }
+
   const auto thisHistogramView = makeHistogramView(this->mContainer);
   const bool isInvalidFrequencyRange = utils::toBytes(utils::getRangeBits(addedHistogramView.getMin(), addedHistogramView.getMax())) > sizeof(source_T);
 
