@@ -2,13 +2,13 @@
 #
 # This is a simulation example showing how to run the simulation as a service,
 # and how to interact with the service via the client control script. Here, the
-# service is used to achieve event biasing via a feedback control loop, in which an 
+# service is used to achieve event biasing via a feedback control loop, in which an
 # outside "broker" is triggering on the simulated events and launching more simulations
-# until a goal is achieved. 
+# until a goal is achieved.
 #
 # Steps demonstrated:
 # a) startup multiple simulations in service mode
-# b) ask a batch of events from the crude service 
+# b) ask a batch of events from the crude service
 #    necessary to obtain the bias feature ... until until a certain number of triggered events
 #    is reached
 # c) continue simulation of the good events for the rest of primaries
@@ -17,7 +17,7 @@
 # - the example is primarily meant to demonstrate the use of the sim-service in a more complex setting
 # - one can do biasing in this way, but alternative implementations (directly inside o2-sim) may
 #   be ultimately better/faster (the present example can then be seen as first baseline solution)
-# - This script is glueing together executables / ROOT macros / etc. --> A better/future way might be to 
+# - This script is glueing together executables / ROOT macros / etc. --> A better/future way might be to
 #   use PyROOT so that one can directly access results better and reuse compiled macros.
 
 
