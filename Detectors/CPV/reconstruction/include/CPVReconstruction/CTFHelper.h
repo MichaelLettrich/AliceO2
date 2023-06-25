@@ -200,10 +200,10 @@ class CTFHelper
   };
 
   //_______________________________________________
-  class Iter_energy : public _Iter<Iter_energy, Cluster, uint16_t>
+  class Iter_energy : public _Iter<Iter_energy, Cluster, uint8_t>
   {
    public:
-    using _Iter<Iter_energy, Cluster, uint16_t>::_Iter;
+    using _Iter<Iter_energy, Cluster, uint8_t>::_Iter;
     value_type operator*() const { return mData[mIndex].getPackedEnergy(); }
     value_type operator[](difference_type i) const { return mData[mIndex + i].getPackedEnergy(); }
   };
