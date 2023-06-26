@@ -177,6 +177,9 @@ class CTFCoderBase
   [[nodiscard]] size_t estimateBufferSize(size_t slot, source_IT samplesBegin, source_IT samplesEnd);
 
   template <typename source_T>
+  size_t estimateBufferSize(size_t slot, size_t nSamples);
+
+  template <typename source_T>
   [[nodiscard]] size_t estimateBufferSize(size_t slot, const std::vector<source_T>& samples)
   {
     return estimateBufferSize(slot, samples.begin(), samples.end());
@@ -388,16 +391,22 @@ template <typename IT>
 {
   using source_type = typename std::iterator_traits<IT>::value_type;
   const size_t nSamples = std::distance(samplesBegin, samplesEnd);
+  return estimateBufferSize<source_type>(slot, nSamples);
+};
+
+template <typename source_T>
+[[nodiscard]] inline size_t CTFCoderBase::estimateBufferSize(size_t slot, size_t nSamples)
+{
 
   std::any& coder = mCoders[slot];
   if (coder.has_value()) {
     const size_t alphabetRangeBits = [this, &coder]() {
       if (mANSVersion == ANSVersionCompat) {
-        const auto& encoder = std::any_cast<const rans::compat::encoder_type<source_type>&>(coder);
+        const auto& encoder = std::any_cast<const rans::compat::encoder_type<source_T>&>(coder);
         auto view = rans::trim(rans::makeHistogramView(encoder.getSymbolTable()));
         return rans::utils::getRangeBits(view.getMin(), view.getMax());
       } else if (mANSVersion == ANSVersion1) {
-        const auto& encoder = std::any_cast<const rans::defaultEncoder_type<source_type>&>(coder);
+        const auto& encoder = std::any_cast<const rans::defaultEncoder_type<source_T>&>(coder);
         auto view = rans::trim(rans::makeHistogramView(encoder.getSymbolTable()));
         return rans::utils::getRangeBits(view.getMin(), view.getMax());
       } else {
@@ -406,7 +415,7 @@ template <typename IT>
     }();
     return rans::compat::calculateMaxBufferSizeB(nSamples, alphabetRangeBits);
   } else {
-    return nSamples * sizeof(source_type);
+    return nSamples * sizeof(source_T);
   }
 };
 
