@@ -398,25 +398,25 @@ template <typename source_T>
 [[nodiscard]] inline size_t CTFCoderBase::estimateBufferSize(size_t slot, size_t nSamples)
 {
 
-  std::any& coder = mCoders[slot];
-  if (coder.has_value()) {
-    const size_t alphabetRangeBits = [this, &coder]() {
-      if (mANSVersion == ANSVersionCompat) {
-        const auto& encoder = std::any_cast<const rans::compat::encoder_type<source_T>&>(coder);
-        auto view = rans::trim(rans::makeHistogramView(encoder.getSymbolTable()));
-        return rans::utils::getRangeBits(view.getMin(), view.getMax());
-      } else if (mANSVersion == ANSVersion1) {
-        const auto& encoder = std::any_cast<const rans::defaultEncoder_type<source_T>&>(coder);
-        auto view = rans::trim(rans::makeHistogramView(encoder.getSymbolTable()));
-        return rans::utils::getRangeBits(view.getMin(), view.getMax());
-      } else {
-        throw std::runtime_error("unsupported ANS version");
-      }
-    }();
-    return rans::compat::calculateMaxBufferSizeB(nSamples, alphabetRangeBits);
-  } else {
-    return nSamples * sizeof(source_T);
-  }
+  // std::any& coder = mCoders[slot];
+  // if (coder.has_value()) {
+  //   const size_t alphabetRangeBits = [this, &coder]() {
+  //     if (mANSVersion == ANSVersionCompat) {
+  //       const auto& encoder = std::any_cast<const rans::compat::encoder_type<source_T>&>(coder);
+  //       auto view = rans::trim(rans::makeHistogramView(encoder.getSymbolTable()));
+  //       return rans::utils::getRangeBits(view.getMin(), view.getMax());
+  //     } else if (mANSVersion == ANSVersion1) {
+  //       const auto& encoder = std::any_cast<const rans::defaultEncoder_type<source_T>&>(coder);
+  //       auto view = rans::trim(rans::makeHistogramView(encoder.getSymbolTable()));
+  //       return rans::utils::getRangeBits(view.getMin(), view.getMax());
+  //     } else {
+  //       throw std::runtime_error("unsupported ANS version");
+  //     }
+  //   }();
+  //   return rans::compat::calculateMaxBufferSizeB(nSamples, alphabetRangeBits);
+  // } else {
+  return nSamples * sizeof(source_T);
+  // }
 };
 
 } // namespace ctf

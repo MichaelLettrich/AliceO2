@@ -20,7 +20,7 @@
 #include <gsl/span>
 #include <stdexcept>
 
-#include "rANS/internal/containers/ReverseSymbolLookupTable.h"
+#include "rANS/internal/containers/DecoderSymbolTable.h"
 
 namespace o2::rans
 {
@@ -39,9 +39,9 @@ class Decoder
 
   Decoder() = default;
   template <typename renormedSymbolTable_T>
-  Decoder(const renormedSymbolTable_T& renormedFrequencyTable) : mSymbolTable{renormedFrequencyTable}, mReverseLUT{renormedFrequencyTable} {};
+  Decoder(const renormedSymbolTable_T& renormedFrequencyTable) : mSymbolTable{renormedFrequencyTable} {};
 
-  [[nodiscard]] inline const symbolTable_type& getSymbolTable() const noexcept { return mSymbolTable; };
+  [[nodiscard]] inline const symbolTable_type& getSymbolTable() const noexcept { return this->mSymbolTable; };
 
   template <typename stream_IT, typename source_IT, typename literals_IT = std::nullptr_t, std::enable_if_t<utils::isCompatibleIter_v<typename symbolTable_T::source_type, source_IT>, bool> = true>
   void process(stream_IT inputEnd, source_IT outputBegin, size_t messageLength, size_t nStreams, literals_IT literalsEnd = nullptr) const
@@ -64,26 +64,22 @@ class Decoder
 
       auto decode = [&, this](coder_type& decoder) {
         const auto cumul = decoder.get();
-        source_type sourceSymbol{};
-        typename symbolTable_type::const_pointer decoderSymbol{};
+        symbol_type symbol;
 
         if constexpr (!std::is_null_pointer_v<literals_IT>) {
-          if (this->mReverseLUT.isIncompressible(cumul)) {
-            sourceSymbol = *(--literalsIter);
-            decoderSymbol = &(this->mSymbolTable.getEscapeSymbol());
+          if (this->mSymbolTable.isEscapeSymbol(cumul)) {
+            symbol = symbol_type{*(--literalsIter), this->mSymbolTable.getEscapeSymbol().getDecoderSymbol()};
           } else {
-            sourceSymbol = (this->mReverseLUT)[cumul];
-            decoderSymbol = this->mSymbolTable.lookupUnsafe(sourceSymbol);
+            symbol = this->mSymbolTable[cumul];
           }
         } else {
-          sourceSymbol = (this->mReverseLUT)[cumul];
-          decoderSymbol = this->mSymbolTable.lookupUnsafe(sourceSymbol);
+          symbol = this->mSymbolTable[cumul];
         }
 
 #ifdef O2_RANS_PRINT_PROCESSED_DATA
         arrayLogger << sourceSymbol;
 #endif
-        return std::make_tuple(sourceSymbol, decoder.advanceSymbol(inputIter, *decoderSymbol));
+        return std::make_tuple(symbol.getSourceSymbol(), decoder.advanceSymbol(inputIter, symbol.getDecoderSymbol()));
       };
 
       std::vector<coder_type> decoders{nStreams, coder_type{this->mSymbolTable.getPrecision()}};
@@ -95,6 +91,7 @@ class Decoder
       const size_t nLoopRemainder = messageLength % nStreams;
 
       for (size_t i = 0; i < nLoops; ++i) {
+#pragma GCC unroll 2
         for (auto& decoder : decoders) {
           std::tie(*outputIter++, inputIter) = decode(decoder);
         }
@@ -118,7 +115,6 @@ class Decoder
 
  protected:
   symbolTable_type mSymbolTable{};
-  internal::ReverseSymbolLookupTable<source_type> mReverseLUT{};
 
   static_assert(coder_type::getNstreams() == 1, "implementation supports only single stream encoders");
 };

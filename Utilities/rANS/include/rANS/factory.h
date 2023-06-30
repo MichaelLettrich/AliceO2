@@ -35,6 +35,7 @@
 
 #include "rANS/internal/containers/SetHistogram.h"
 
+#include "rANS/internal/containers/DecoderSymbolTable.h"
 #include "rANS/internal/containers/Symbol.h"
 
 #include "rANS/internal/encode/Encoder.h"
@@ -70,8 +71,7 @@ struct DecoderTraits {
 
   using source_type = source_T;
   using coder_type = internal::DecoderImpl<lowerBound_V>;
-  using symbol_type = typename coder_type::symbol_type;
-  using symbolTable_type = SymbolTable<source_type, symbol_type>;
+  using symbolTable_type = DecoderSymbolTable<source_type>;
   using decoder_type = Decoder<coder_type, symbolTable_type>;
 };
 
@@ -367,8 +367,7 @@ class makeDecoder
 
     using source_type = source_T;
     using coder_type = DecoderImpl<renormingLowerBound_V>;
-    using symbol_type = typename coder_type::symbol_type;
-    using symbolTable_type = SymbolTable<source_type, symbol_type>;
+    using symbolTable_type = DecoderSymbolTable<source_type>;
     using decoder_type = Decoder<coder_type, symbolTable_type>;
 
     return decoder_type{renormed};

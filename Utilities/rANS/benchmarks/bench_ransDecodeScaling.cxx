@@ -42,7 +42,7 @@ template <typename source_T>
 class SourceMessageUniform
 {
  public:
-  SourceMessageUniform(size_t messageSize, size_t max)
+  SourceMessageUniform(size_t messageSize, size_t max) : mMax{max}
   {
     std::mt19937 mt(0); // same seed we want always the same distrubution of random numbers;
     std::uniform_int_distribution<source_T> dist(0, max);
@@ -56,17 +56,24 @@ class SourceMessageUniform
   }
 
   const auto& get() const { return mSourceMessage; };
+  size_t getMax() const { return mMax; };
 
  private:
+  size_t mMax{};
   std::vector<source_T> mSourceMessage{};
 };
+
+SourceMessageUniform<uint32_t> sourceMessage{0, 0};
 
 void ransDecodeBenchmark(benchmark::State& st)
 {
 
   using source_type = uint32_t;
   size_t max = utils::pow2(st.range(0));
-  const SourceMessageUniform<uint32_t> sourceMessage{MessageSize, max};
+
+  if (max != sourceMessage.getMax()) {
+    sourceMessage = SourceMessageUniform<uint32_t>{MessageSize, max};
+  }
   const auto& inputData = sourceMessage.get();
   EncodeBuffer<source_type>
     encodeBuffer{inputData.size()};

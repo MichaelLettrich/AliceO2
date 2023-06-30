@@ -16,8 +16,8 @@
 
 #ifndef ALICEO2_ENCODED_BLOCKS_H
 #define ALICEO2_ENCODED_BLOCKS_H
-#undef NDEBUG
-#include <cassert>
+// #undef NDEBUG
+// #include <cassert>
 #include <type_traits>
 #include <cstddef>
 #include <Rtypes.h>
