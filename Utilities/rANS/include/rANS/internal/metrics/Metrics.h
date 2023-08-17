@@ -45,10 +45,12 @@ class Metrics
   inline Metrics(const Histogram<source_type>& histogram, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {}, {}, cutoffPrecision); };
   inline Metrics(const SparseHistogram<source_type>& histogram, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {}, {}, cutoffPrecision); };
   inline Metrics(const HashHistogram<source_type>& histogram, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {}, {}, cutoffPrecision); };
+  inline Metrics(const SetHistogram<source_type>& histogram, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {}, {}, cutoffPrecision); };
 
   inline Metrics(const Histogram<source_type>& histogram, source_type min, source_type max, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {min}, {max}, cutoffPrecision); };
   inline Metrics(const SparseHistogram<source_type>& histogram, source_type min, source_type max, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {min}, {max}, cutoffPrecision); };
   inline Metrics(const HashHistogram<source_type>& histogram, source_type min, source_type max, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {min}, {max}, cutoffPrecision); };
+  inline Metrics(const SetHistogram<source_type>& histogram, source_type min, source_type max, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {min}, {max}, cutoffPrecision); };
 
   [[nodiscard]] inline const DatasetProperties<source_type>& getDatasetProperties() const noexcept { return mDatasetProperties; };
   [[nodiscard]] inline const CoderProperties<source_type>& getCoderProperties() const noexcept { return mCoderProperties; };

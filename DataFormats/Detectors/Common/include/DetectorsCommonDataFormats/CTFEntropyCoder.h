@@ -293,7 +293,7 @@ class InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) == 4, void
   inline dst_T* writeIncompressible(dst_T* dstBegin, dst_T* dstEnd);
 
  private:
-  std::variant<rans::Histogram<source_T>, rans::SparseHistogram<source_T>, rans::HashHistogram<source_T>> mHistogram{};
+  std::variant<rans::Histogram<source_T>, rans::SparseHistogram<source_T>, rans::HashHistogram<source_T>, rans::SetHistogram<source_T>> mHistogram{};
   metrics_type mMetrics{};
 
   std::variant<rans::defaultEncoder_type<source_T>, rans::defaultSparseEncoder_type<source_T>, rans::defaultHashEncoder_type<source_T>> mEncoder{};
@@ -310,8 +310,8 @@ InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) == 4, void>>::In
 
   const size_t nSamples = std::distance(srcBegin, srcEnd);
   if (nSamples < 100000) {
-    mHistogram.template emplace<2>(rans::makeHashHistogram::fromSamples(srcBegin, srcEnd));
-    mMetrics = metrics_type{std::get<2>(mHistogram)};
+    mHistogram.template emplace<3>(rans::makeSetHistogram::fromSamples(srcBegin, srcEnd));
+    mMetrics = metrics_type{std::get<3>(mHistogram)};
   } else {
     mHistogram.template emplace<1>(rans::makeSparseHistogram::fromSamples(srcBegin, srcEnd));
     mMetrics = metrics_type{std::get<1>(mHistogram)};
@@ -335,8 +335,8 @@ InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) == 4, void>>::In
     mHistogram.template emplace<0>(rans::makeHistogram::fromSamples(srcBegin, srcEnd, min, max));
     mMetrics = metrics_type{std::get<0>(mHistogram), min, max};
   } else if (nSamples / nBins <= 0.3) {
-    mHistogram.template emplace<2>(rans::makeHashHistogram::fromSamples(srcBegin, srcEnd));
-    mMetrics = metrics_type{std::get<2>(mHistogram), min, max};
+    mHistogram.template emplace<3>(rans::makeSetHistogram::fromSamples(srcBegin, srcEnd));
+    mMetrics = metrics_type{std::get<3>(mHistogram), min, max};
   } else {
     mHistogram.template emplace<1>(rans::makeSparseHistogram::fromSamples(srcBegin, srcEnd));
     mMetrics = metrics_type{std::get<1>(mHistogram), min, max};

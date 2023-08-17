@@ -129,6 +129,32 @@ inline auto trim(IT begin, IT end, const typename container_T::const_reference z
   return {begin, end};
 };
 
+template <typename container_T, typename IT, std::enable_if_t<isSetContainer_v<container_T>, bool> = true>
+inline auto trim(IT begin, IT end, typename container_T::const_reference zeroElem) -> std::pair<IT, IT>
+{
+  using value_type = typename std::iterator_traits<IT>::value_type;
+
+  auto isZero = [&zeroElem](const value_type& keyValuePair) { return keyValuePair.second == zeroElem; };
+  auto nonZeroBegin = std::find_if_not(begin, end, isZero);
+
+  // workaround, because we cannot use reverse iterators with this type
+  IT nonZeroEnd = [&]() {
+    if (nonZeroBegin == end) {
+      return end;
+    }
+    size_t size = std::distance(begin, end);
+
+    for (size_t i = size; i-- > 0;) {
+      if ((begin + i)->second != zeroElem) {
+        return ++(begin + i); // don't forget the +1 for one-past the end iterator
+      }
+    }
+    return begin;
+  }();
+
+  return {nonZeroBegin, nonZeroEnd};
+};
+
 template <typename container_T, typename IT, class F, std::enable_if_t<isDenseContainer_v<container_T>, bool> = true>
 inline void forEachIndexValue(container_T&& container, IT begin, IT end, F functor)
 {
@@ -214,6 +240,16 @@ inline void forEachIndexValue(container_T&& container, IT begin, IT end, F funct
     functor(iter->first, iter->second);
   }
 };
+
+template <typename container_T, typename IT, class F, std::enable_if_t<isSetContainer_v<container_T>, bool> = true>
+inline void forEachIndexValue(container_T&& container, IT begin, IT end, F functor)
+{
+  using container_type = removeCVRef_t<container_T>;
+
+  for (auto iter = begin; iter != end; ++iter) {
+    functor(iter->first, iter->second);
+  }
+}
 
 } // namespace o2::rans::internal::algorithmImpl
 

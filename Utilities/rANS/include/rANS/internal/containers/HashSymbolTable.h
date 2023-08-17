@@ -53,6 +53,7 @@ class HashSymbolTable : public internal::HashContainer<source_T, symbol_T>
   inline HashSymbolTable(const RenormedHistogram<source_type>& renormedHistogram) { init(renormedHistogram); };
   inline HashSymbolTable(const RenormedSparseHistogram<source_type>& renormedHistogram) { init(renormedHistogram); };
   inline HashSymbolTable(const RenormedHashHistogram<source_type>& renormedHistogram) { init(renormedHistogram); };
+  inline HashSymbolTable(const RenormedSetHistogram<source_type>& renormedHistogram) { init(renormedHistogram); };
 
   [[nodiscard]] inline const_pointer lookupSafe(source_type sourceSymbol) const
   {

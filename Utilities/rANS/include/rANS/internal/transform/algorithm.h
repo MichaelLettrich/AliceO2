@@ -67,7 +67,10 @@ inline constexpr auto getIndex(const container_T& container, typename container_
   return container.getOffset() + std::distance(container.begin(), iter);
 };
 
-template <typename container_T, std::enable_if_t<isSparseContainer_v<container_T> || isHashContainer_v<container_T>, bool> = true>
+template <typename container_T, std::enable_if_t<isSparseContainer_v<container_T> ||
+                                                   isHashContainer_v<container_T> ||
+                                                   isSetContainer_v<container_T>,
+                                                 bool> = true>
 inline constexpr auto getIndex(const container_T& container, typename container_T::const_iterator iter) -> typename container_T::source_type
 {
   return iter->first;
@@ -79,7 +82,7 @@ inline void forEachIndexValue(const container_T& container, typename container_T
   algorithmImpl::forEachIndexValue(container, begin, end, functor);
 };
 
-template <typename container_T, class F, std::enable_if_t<isDenseContainer_v<container_T>, bool> = true>
+template <typename container_T, class F, std::enable_if_t<isDenseContainer_v<container_T> || isSetContainer_v<container_T>, bool> = true>
 inline void forEachIndexValue(container_T& container, typename container_T::iterator begin, typename container_T::iterator end, F functor)
 {
   algorithmImpl::forEachIndexValue(container, begin, end, functor);
@@ -124,7 +127,10 @@ inline decltype(auto) trim(const container_T& container, const typename containe
 };
 
 template <class container_T,
-          std::enable_if_t<isDenseContainer_v<container_T> || isSparseContainer_v<container_T>, bool> = true>
+          std::enable_if_t<isDenseContainer_v<container_T> ||
+                             isSparseContainer_v<container_T> ||
+                             isSetContainer_v<container_T>,
+                           bool> = true>
 auto getMinMax(const container_T& container,
                typename container_T::const_iterator begin,
                typename container_T::const_iterator end,
