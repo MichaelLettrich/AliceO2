@@ -36,6 +36,9 @@ template <typename source_T, typename value_T>
 class HashTable;
 
 template <typename source_T, typename value_T>
+class OrderedSet;
+
+template <typename source_T, typename value_T>
 class VectorContainer;
 
 template <typename source_T, typename value_T>
@@ -43,6 +46,9 @@ class SparseVectorContainer;
 
 template <typename source_T, typename value_T>
 class HashContainer;
+
+template <typename source_T, typename value_T>
+class SetContainer;
 
 } // namespace internal
 
@@ -55,6 +61,9 @@ class SparseHistogram;
 
 template <typename source_T>
 class HashHistogram;
+
+template <typename source_T>
+class SetHistogram;
 
 template <typename container_T>
 class RenormedHistogramImpl;
@@ -76,6 +85,9 @@ using RenormedSparseHistogram = RenormedHistogramImpl<internal::SparseVectorCont
 
 template <typename source_T>
 using RenormedHashHistogram = RenormedHistogramImpl<internal::HashContainer<source_T, uint32_t>>;
+
+template <typename source_T>
+using RenormedSetHistogram = RenormedHistogramImpl<internal::SetContainer<source_T, uint32_t>>;
 
 namespace internal
 {
@@ -122,6 +134,10 @@ template <typename source_T>
 struct isHistogram<HashHistogram<source_T>> : std::true_type {
 };
 
+template <typename source_T>
+struct isHistogram<SetHistogram<source_T>> : std::true_type {
+};
+
 template <typename T>
 inline constexpr bool isHistogram_v = isHistogram<removeCVRef_t<T>>::value;
 
@@ -139,6 +155,10 @@ struct isRenormedHistogram<RenormedSparseHistogram<source_T>> : std::true_type {
 
 template <typename source_T>
 struct isRenormedHistogram<RenormedHashHistogram<source_T>> : std::true_type {
+};
+
+template <typename source_T>
+struct isRenormedHistogram<RenormedSetHistogram<source_T>> : std::true_type {
 };
 
 template <typename T>
@@ -213,12 +233,34 @@ struct isHashContainer<HashSymbolTable<source_T, value_T>> : std::true_type {
 template <typename T>
 inline constexpr bool isHashContainer_v = isHashContainer<removeCVRef_t<T>>::value;
 
+template <typename T>
+struct isSetContainer : std::false_type {
+};
+
+template <typename key_T, typename value_T>
+struct isSetContainer<OrderedSet<key_T, value_T>> : std::true_type {
+};
+
+template <typename source_T>
+struct isSetContainer<SetHistogram<source_T>> : std::true_type {
+};
+
+template <typename source_T>
+struct isSetContainer<RenormedSetHistogram<source_T>> : std::true_type {
+};
+
+template <typename T>
+inline constexpr bool isSetContainer_v = isSetContainer<removeCVRef_t<T>>::value;
+
 template <typename T, typename = void>
 struct isContainer : std::false_type {
 };
 
 template <typename T>
-struct isContainer<T, std::enable_if_t<isDenseContainer_v<T> || isSparseContainer_v<T> || isHashContainer_v<T>>> : std::true_type {
+struct isContainer<T, std::enable_if_t<isDenseContainer_v<T> ||
+                                       isSparseContainer_v<T> ||
+                                       isHashContainer_v<T> ||
+                                       isSetContainer_v<T>>> : std::true_type {
 };
 
 template <typename T>
@@ -241,6 +283,11 @@ class isStorageContainer<SparseVector<source_T, value_T>> : public std::true_typ
 
 template <typename source_T, typename value_T>
 class isStorageContainer<HashTable<source_T, value_T>> : public std::true_type
+{
+};
+
+template <typename source_T, typename value_T>
+class isStorageContainer<OrderedSet<source_T, value_T>> : public std::true_type
 {
 };
 

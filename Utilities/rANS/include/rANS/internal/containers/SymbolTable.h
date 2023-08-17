@@ -53,6 +53,7 @@ class SymbolTable : public internal::VectorContainer<source_T, symbol_T>
   inline SymbolTable(const RenormedHistogram<source_type>& renormedHistogram) { init(renormedHistogram); };
   inline SymbolTable(const RenormedSparseHistogram<source_type>& renormedHistogram) { init(renormedHistogram); };
   inline SymbolTable(const RenormedHashHistogram<source_type>& renormedHistogram) { init(renormedHistogram); };
+  inline SymbolTable(const RenormedSetHistogram<source_type>& renormedHistogram) { init(renormedHistogram); };
 
   [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const noexcept
   {

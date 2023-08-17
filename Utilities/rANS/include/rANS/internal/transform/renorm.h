@@ -22,6 +22,7 @@
 #include "rANS/internal/containers/Histogram.h"
 #include "rANS/internal/containers/SparseHistogram.h"
 #include "rANS/internal/containers/HashHistogram.h"
+#include "rANS/internal/containers/SetHistogram.h"
 #include "rANS/internal/metrics/Metrics.h"
 #include "rANS/internal/common/utils.h"
 #include "rANS/internal/transform/algorithm.h"
@@ -50,6 +51,12 @@ template <typename source_T>
 inline size_t getNUsedAlphabetSymbols(const SparseHistogram<source_T>& f)
 {
   return countNUsedAlphabetSymbols(f);
+}
+
+template <typename source_T>
+inline size_t getNUsedAlphabetSymbols(const SetHistogram<source_T>& f)
+{
+  return f.size();
 }
 
 template <typename source_T>
@@ -165,17 +172,21 @@ decltype(auto) renorm(histogram_T histogram, Metrics<typename histogram_T::sourc
   *coderProperties.nIncompressibleSymbols = nIncompressibleSymbols;
   *coderProperties.nIncompressibleSamples = nIncompressibleSamples;
 
-  if constexpr (std::is_same_v<histogram_type, Histogram<source_type>>) {
+  if constexpr (isDenseContainer_v<histogram_type>) {
     RenormedHistogram<source_type> ret{std::move(rescaledHistogram), renormingPrecisionBits, incompressibleSymbolFrequency};
     std::tie(*coderProperties.min, *coderProperties.max) = getMinMax(ret);
     return ret;
-  } else if constexpr (std::is_same_v<histogram_type, SparseHistogram<source_type>>) {
+  } else if constexpr (isSparseContainer_v<histogram_type>) {
     RenormedSparseHistogram<source_type> ret{std::move(rescaledHistogram), renormingPrecisionBits, incompressibleSymbolFrequency};
     std::tie(*coderProperties.min, *coderProperties.max) = getMinMax(ret);
     return ret;
-  } else {
-    static_assert(std::is_same_v<histogram_type, HashHistogram<source_type>>);
+  } else if constexpr (isHashContainer_v<histogram_type>) {
     RenormedHashHistogram<source_type> ret{std::move(rescaledHistogram), renormingPrecisionBits, incompressibleSymbolFrequency};
+    std::tie(*coderProperties.min, *coderProperties.max) = getMinMax(ret);
+    return ret;
+  } else {
+    static_assert(isSetContainer_v<histogram_type>);
+    RenormedSetHistogram<source_type> ret{std::move(rescaledHistogram), renormingPrecisionBits, incompressibleSymbolFrequency};
     std::tie(*coderProperties.min, *coderProperties.max) = getMinMax(ret);
     return ret;
   }

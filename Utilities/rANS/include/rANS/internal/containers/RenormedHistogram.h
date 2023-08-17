@@ -84,6 +84,9 @@ using RenormedSparseHistogram = RenormedHistogramImpl<internal::SparseVectorCont
 template <typename source_T>
 using RenormedHashHistogram = RenormedHistogramImpl<internal::HashContainer<source_T, uint32_t>>;
 
+template <typename source_T>
+using RenormedSetHistogram = RenormedHistogramImpl<internal::SetContainer<source_T, uint32_t>>;
+
 template <typename container_T>
 size_t countNUsedAlphabetSymbols(const RenormedHistogramImpl<container_T>& histogram)
 {

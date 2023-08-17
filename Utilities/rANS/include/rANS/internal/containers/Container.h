@@ -23,6 +23,7 @@
 #include "rANS/internal/containers/ShiftableVector.h"
 #include "rANS/internal/containers/SparseVector.h"
 #include "rANS/internal/containers/HashTable.h"
+#include "rANS/internal/containers/OrderedSet.h"
 
 namespace o2::rans::internal
 {
@@ -166,6 +167,50 @@ class HashContainer : public Container<HashTable<source_T, value_T>, HashContain
     this->mContainer = container_type(std::move(nullElement));
   };
 };
+
+template <typename source_T, typename value_T>
+class SetContainer : public Container<OrderedSet<source_T, value_T>, SetContainer<source_T, value_T>>
+{
+  using base_type = Container<OrderedSet<source_T, value_T>, SetContainer<source_T, value_T>>;
+  friend base_type;
+
+ public:
+  using source_type = typename base_type::source_type;
+  using value_type = typename base_type::value_type;
+  using container_type = typename base_type::container_type;
+  using size_type = typename base_type::size_type;
+  using difference_type = typename base_type::difference_type;
+  using reference = typename base_type::reference;
+  using const_reference = typename base_type::const_reference;
+  using pointer = typename base_type::pointer;
+  using const_pointer = typename base_type::const_pointer;
+  using const_iterator = typename base_type::const_iterator;
+
+  [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const { return this->mContainer[sourceSymbol]; };
+
+  [[nodiscard]] inline source_type getOffset() const noexcept
+  {
+    source_type offset{};
+    if (!this->mContainer.empty()) {
+      offset = this->mContainer.begin()->first;
+    }
+    return offset;
+  };
+
+  [[nodiscard]] inline const_reference getNullElement() const { return this->mContainer.getNullElement(); };
+
+ protected:
+  SetContainer() = default;
+  SetContainer(value_type nullElement)
+  {
+    this->mContainer = container_type(std::move(nullElement));
+  };
+  SetContainer(container_type container, value_type nullElement, OrderedSetState state = OrderedSetState::unordered)
+  {
+    this->mContainer = container_type(std::move(container), std::move(nullElement), state);
+  };
+};
+
 } // namespace o2::rans::internal
 
 #endif /* RANS_INTERNAL_CONTAINERS_CONTAINER_H_ */

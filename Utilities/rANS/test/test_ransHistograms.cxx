@@ -28,6 +28,7 @@
 #include "rANS/histogram.h"
 #include "rANS/internal/containers/SparseHistogram.h"
 #include "rANS/internal/containers/HashHistogram.h"
+#include "rANS/internal/containers/SetHistogram.h"
 #include "rANS/internal/transform/algorithm.h"
 #include "rANS/internal/common/typetraits.h"
 #include "rANS/compat.h"
@@ -51,6 +52,9 @@ using sparse_histogram_types = mp::mp_list<SparseHistogram<uint32_t>,
 using hash_histogram_types = mp::mp_list<HashHistogram<uint32_t>,
                                          HashHistogram<int32_t>>;
 
+using key_value_histograms = mp::mp_list<SetHistogram<uint32_t>,
+                                         SetHistogram<int32_t>>;
+
 namespace boost
 {
 namespace test_tools
@@ -68,21 +72,13 @@ struct print_log_value<::std::pair<F, S>> {
   }
 };
 
-template <class F, class S>
-struct print_log_value<::std::pair<F, std::reference_wrapper<S>>> {
-  void operator()(::std::ostream& os, ::std::pair<F, std::reference_wrapper<S>> const& p)
-  {
-    os << "([" << p.first << "], [" << p.second << "])";
-  }
-};
-
 } // namespace tt_detail
 } // namespace test_tools
 } // namespace boost
 
-using histogram_types = mp::mp_flatten<mp::mp_list<small_histogram_types, large_histogram_types, sparse_histogram_types, hash_histogram_types>>;
+using histogram_types = mp::mp_flatten<mp::mp_list<small_histogram_types, large_histogram_types, sparse_histogram_types, hash_histogram_types, key_value_histograms>>;
 
-using variable_histograms_types = mp::mp_flatten<mp::mp_list<large_histogram_types, sparse_histogram_types, hash_histogram_types>>;
+using variable_histograms_types = mp::mp_flatten<mp::mp_list<large_histogram_types, sparse_histogram_types, hash_histogram_types, key_value_histograms>>;
 
 template <typename histogram_T>
 void checkEquivalent(const histogram_T& a, const histogram_T& b)
@@ -115,6 +111,7 @@ size_t getTableSize(const map_T& resultsMap)
     auto end = std::unique(buckets.begin(), buckets.end());
     return histogram_T::container_type::getBucketSize() * std::distance(buckets.begin(), end);
   } else {
+    static_assert(isHashContainer_v<histogram_T> || isSetContainer_v<histogram_T>);
     return std::count_if(resultsMap.begin(), resultsMap.end(), [](const auto& val) { return val.second > 0; });
   }
 };
@@ -133,8 +130,18 @@ auto getOffset(const map_T& resultsMap) -> typename map_T::key_type
     }
   } else if constexpr (isSparseContainer_v<histogram_T>) {
     return std::numeric_limits<source_type>::min();
-  } else {
+  } else if constexpr (isHashContainer_v<histogram_T>) {
     return 0;
+  } else {
+    static_assert(isSetContainer_v<histogram_T>);
+
+    source_type min = resultsMap.begin()->first;
+    for (const auto& [index, value] : resultsMap) {
+      if (value > 0) {
+        min = std::min(min, index);
+      }
+    }
+    return min;
   }
 };
 
@@ -437,7 +444,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSignChange, histogram_T, histog
   BOOST_CHECK(histogram.cbegin() != histogram.cend());
 };
 
-using renorm_types = mp::mp_list<Histogram<uint8_t>, Histogram<uint32_t>, SparseHistogram<int32_t>, HashHistogram<int32_t>>;
+using renorm_types = mp::mp_list<Histogram<uint8_t>, Histogram<uint32_t>, SparseHistogram<int32_t>, HashHistogram<int32_t>, SetHistogram<int32_t>>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_renorm, histogram_T, renorm_types)
 {
