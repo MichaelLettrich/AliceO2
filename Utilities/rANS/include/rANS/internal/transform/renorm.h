@@ -94,29 +94,29 @@ decltype(auto) renorm(histogram_T histogram, Metrics<typename histogram_T::sourc
   count_type nIncompressibleSamples = 0;
   count_type nIncompressibleSymbols = 0;
   count_type nSamplesRescaledUncorrected = 0;
-  std::vector<std::pair<source_type, count_type>> correctableIndices;
+  std::vector<std::pair<source_type, std::reference_wrapper<count_type>>> correctableIndices;
   correctableIndices.reserve(nUsedAlphabetSymbols);
 
   auto scaleFrequency = [nSamplesRescaled](double_t symbolProbability) -> double_t { return symbolProbability * nSamplesRescaled; };
 
   container_type rescaledHistogram = std::move(histogram).release();
 
-  forEachIndexValue(rescaledHistogram, [&](const source_type& index, const count_t& frequency) {
+  forEachIndexValue(rescaledHistogram, [&](const source_type& index, count_t& frequency) {
     if (frequency > 0) {
       const double_t symbolProbability = static_cast<double_t>(frequency) / nSamples;
       if (symbolProbability < probabilityCutOffThreshold) {
         nIncompressibleSamples += frequency;
         ++nIncompressibleSymbols;
         incompressibleSymbolProbability += symbolProbability;
-        rescaledHistogram[index] = 0;
+        frequency = 0;
       } else {
         const double_t scaledFrequencyD = scaleFrequency(symbolProbability);
         count_type rescaledFrequency = internal::roundSymbolFrequency(scaledFrequencyD);
         assert(rescaledFrequency > 0);
-        rescaledHistogram[index] = rescaledFrequency;
+        frequency = rescaledFrequency;
         nSamplesRescaledUncorrected += rescaledFrequency;
         if (rescaledFrequency > 1) {
-          correctableIndices.push_back(std::make_pair(index, frequency));
+          correctableIndices.emplace_back(std::make_pair(index, std::ref(frequency)));
         }
       }
     }
@@ -141,7 +141,7 @@ decltype(auto) renorm(histogram_T histogram, Metrics<typename histogram_T::sourc
   difference_type nCorrections = static_cast<difference_type>(nSamplesRescaled) - static_cast<difference_type>(nSamplesRescaledUncorrected);
   const double_t rescalingFactor = static_cast<double_t>(nSamplesRescaled) / static_cast<double_t>(nSamplesRescaledUncorrected);
 
-  for (auto [index, value] : correctableIndices) {
+  for (auto& [index, value] : correctableIndices) {
     if (std::abs(nCorrections) > 0) {
       const difference_type uncorrectedFrequency = value;
       difference_type correction = uncorrectedFrequency - roundSymbolFrequency(uncorrectedFrequency * rescalingFactor);
@@ -157,7 +157,7 @@ decltype(auto) renorm(histogram_T histogram, Metrics<typename histogram_T::sourc
       // the corrected frequency must be at least 1 though
       const count_type correctedFrequency = std::max(1l, uncorrectedFrequency - correction);
       nCorrections += uncorrectedFrequency - correctedFrequency;
-      rescaledHistogram[index] = correctedFrequency;
+      static_cast<count_type&>(value) = correctedFrequency;
     } else {
       break;
     }

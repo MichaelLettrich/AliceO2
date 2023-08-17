@@ -127,6 +127,8 @@ class SparseVector
 
   [[nodiscard]] inline static constexpr source_type getOffset() noexcept { return mOffset; };
 
+  [[nodiscard]] inline bucket_type* data() noexcept { return mContainer.data(); };
+
   [[nodiscard]] inline const bucket_type* data() const noexcept { return mContainer.data(); };
 
   [[nodiscard]] inline const_iterator cbegin() const noexcept { return empty() ? const_iterator{*this} : const_iterator{*this, mBegin}; };
@@ -362,7 +364,7 @@ class SparseVectorIterator
     value_type mValue{};
   };
 
-  inline const container_T& getContainer() const { return *mContainer; };
+  inline container_T& getContainer() const { return *mContainer; };
 
   inline lut_iterator getLUTIterator() const { return mLutIter; };
   inline bucket_iterator getBucketIterator() const { return mBucketIter; };

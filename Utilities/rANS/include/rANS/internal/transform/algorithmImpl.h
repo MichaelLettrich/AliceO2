@@ -178,7 +178,7 @@ inline void forEachIndexValue(container_T&& container, IT begin, IT end, F funct
   using lut_iterator = typename iterator_type::lut_iterator;
   using bucket_iterator = typename iterator_type::bucket_iterator;
 
-  const auto& sparseContainer = begin.getContainer();
+  auto& sparseContainer = begin.getContainer();
 
   // empty
   if (begin == end) {
@@ -186,7 +186,7 @@ inline void forEachIndexValue(container_T&& container, IT begin, IT end, F funct
   }
 
   auto lutIter = begin.getLUTIterator();
-  size_t lut = std::distance(sparseContainer.data(), lutIter.base());
+  size_t lut = std::distance<>(sparseContainer.data(), lutIter.base());
   auto incLut = [&lutIter, &lut]() {
     ++lutIter;
     ++lut;

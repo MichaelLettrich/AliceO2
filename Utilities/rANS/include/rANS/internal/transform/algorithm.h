@@ -82,7 +82,7 @@ inline void forEachIndexValue(const container_T& container, typename container_T
   algorithmImpl::forEachIndexValue(container, begin, end, functor);
 };
 
-template <typename container_T, class F, std::enable_if_t<isDenseContainer_v<container_T> || isSetContainer_v<container_T>, bool> = true>
+template <typename container_T, class F, std::enable_if_t<isStorageContainer_v<container_T>, bool> = true>
 inline void forEachIndexValue(container_T& container, typename container_T::iterator begin, typename container_T::iterator end, F functor)
 {
   algorithmImpl::forEachIndexValue(container, begin, end, functor);
