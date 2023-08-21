@@ -30,6 +30,58 @@
 #include "DetectorsBase/CTFCoderBase.h"
 #include "rANS/iterator.h"
 
+#include <ittnotify.h>
+
+inline __itt_domain* tpcDomain = __itt_domain_create("o2.tpc.ctfcoder");
+
+inline __itt_string_handle* encodeTaskQTotA = __itt_string_handle_create("encodeQTotA");
+inline __itt_string_handle* encodeTaskQMaxA = __itt_string_handle_create("encodeQMaxA");
+inline __itt_string_handle* encodeTaskFlagsA = __itt_string_handle_create("encodeFlagsA");
+inline __itt_string_handle* encodeTaskRowDiffA = __itt_string_handle_create("encodeRowDiffA");
+inline __itt_string_handle* encodeTaskSliceLegDiffA = __itt_string_handle_create("encodeSliceLegDiffA");
+inline __itt_string_handle* encodeTaskPadResA = __itt_string_handle_create("encodePadResA");
+inline __itt_string_handle* encodeTaskTimeResA = __itt_string_handle_create("encodeTimeResA");
+inline __itt_string_handle* encodeTaskSigmaPadA = __itt_string_handle_create("encodeSigmaPadA");
+inline __itt_string_handle* encodeTaskSigmaTimeA = __itt_string_handle_create("encodeSigmaTimeA");
+inline __itt_string_handle* encodeTaskQPtA = __itt_string_handle_create("encodeQPtA");
+inline __itt_string_handle* encodeTaskRowA = __itt_string_handle_create("encodeRowA");
+inline __itt_string_handle* encodeTaskSliceA = __itt_string_handle_create("encodeSliceA");
+inline __itt_string_handle* encodeTaskTimeA = __itt_string_handle_create("encodeTimeA");
+inline __itt_string_handle* encodeTaskPadA = __itt_string_handle_create("encodePadA");
+inline __itt_string_handle* encodeTaskQTotU = __itt_string_handle_create("encodeQTotU");
+inline __itt_string_handle* encodeTaskQMaxU = __itt_string_handle_create("encodeQMaxU");
+inline __itt_string_handle* encodeTaskFlagsU = __itt_string_handle_create("encodeFlagsU");
+inline __itt_string_handle* encodeTaskPadDiffU = __itt_string_handle_create("encodePadDiffU");
+inline __itt_string_handle* encodeTaskTimeDiffU = __itt_string_handle_create("encodeTimeDiffU");
+inline __itt_string_handle* encodeTaskSigmaPadU = __itt_string_handle_create("encodeSigmaPadU");
+inline __itt_string_handle* encodeTaskSigmaTimeU = __itt_string_handle_create("encodeSigmaTimeU");
+inline __itt_string_handle* encodeTaskNTrackClusters = __itt_string_handle_create("encodeNTrackClusters");
+inline __itt_string_handle* encodeTaskNSliceRowClusters = __itt_string_handle_create("encodeNSliceRowClusters");
+
+inline __itt_string_handle* decodeTaskQTotA = __itt_string_handle_create("decodeQTotA");
+inline __itt_string_handle* decodeTaskQMaxA = __itt_string_handle_create("decodeQMaxA");
+inline __itt_string_handle* decodeTaskFlagsA = __itt_string_handle_create("decodeFlagsA");
+inline __itt_string_handle* decodeTaskRowDiffA = __itt_string_handle_create("decodeRowDiffA");
+inline __itt_string_handle* decodeTaskSliceLegDiffA = __itt_string_handle_create("decodeSliceLegDiffA");
+inline __itt_string_handle* decodeTaskPadResA = __itt_string_handle_create("decodePadResA");
+inline __itt_string_handle* decodeTaskTimeResA = __itt_string_handle_create("decodeTimeResA");
+inline __itt_string_handle* decodeTaskSigmaPadA = __itt_string_handle_create("decodeSigmaPadA");
+inline __itt_string_handle* decodeTaskSigmaTimeA = __itt_string_handle_create("decodeSigmaTimeA");
+inline __itt_string_handle* decodeTaskQPtA = __itt_string_handle_create("decodeQPtA");
+inline __itt_string_handle* decodeTaskRowA = __itt_string_handle_create("decodeRowA");
+inline __itt_string_handle* decodeTaskSliceA = __itt_string_handle_create("decodeSliceA");
+inline __itt_string_handle* decodeTaskTimeA = __itt_string_handle_create("decodeTimeA");
+inline __itt_string_handle* decodeTaskPadA = __itt_string_handle_create("decodePadA");
+inline __itt_string_handle* decodeTaskQTotU = __itt_string_handle_create("decodeQTotU");
+inline __itt_string_handle* decodeTaskQMaxU = __itt_string_handle_create("decodeQMaxU");
+inline __itt_string_handle* decodeTaskFlagsU = __itt_string_handle_create("decodeFlagsU");
+inline __itt_string_handle* decodeTaskPadDiffU = __itt_string_handle_create("decodePadDiffU");
+inline __itt_string_handle* decodeTaskTimeDiffU = __itt_string_handle_create("decodeTimeDiffU");
+inline __itt_string_handle* decodeTaskSigmaPadU = __itt_string_handle_create("decodeSigmaPadU");
+inline __itt_string_handle* decodeTaskSigmaTimeU = __itt_string_handle_create("decodeSigmaTimeU");
+inline __itt_string_handle* decodeTaskNTrackClusters = __itt_string_handle_create("decodeNTrackClusters");
+inline __itt_string_handle* decodeTaskNSliceRowClusters = __itt_string_handle_create("decodeNSliceRowClusters");
+
 class TTree;
 
 namespace o2
@@ -163,6 +215,8 @@ void CTFCoder::buildCoder(ctf::CTFCoderBase::OpType coderType, const CTF::contai
 template <typename VEC>
 o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const CompressedClusters& ccl, const CompressedClusters& cclFiltered, std::vector<bool>* rejectHits, std::vector<bool>* rejectTracks, std::vector<bool>* rejectTrackHits, std::vector<bool>* rejectTrackHitsReduced)
 {
+  __itt_resume();
+
   using MD = o2::ctf::Metadata::OptStore;
   using namespace detail;
   // what to do which each field: see o2::ctf::Metadata explanation
@@ -224,6 +278,7 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const CompressedClusters& ccl, co
     }
   };
 
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskQTotA);
   if (mCombineColumns) {
     const auto [begin, end] = makeInputIterators(ccl.qTotA, ccl.qMaxA, ccl.nAttachedClusters,
                                                  ShiftFunctor<combinedType_t<CTF::NBitsQTot, CTF::NBitsQMax>, CTF::NBitsQMax>{});
@@ -231,10 +286,14 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const CompressedClusters& ccl, co
   } else {
     encodeTPC(ccl.qTotA, ccl.qTotA + ccl.nAttachedClusters, CTF::BLCqTotA, 0, rejectTrackHits);
   }
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskQMaxA);
   encodeTPC(ccl.qMaxA, ccl.qMaxA + (mCombineColumns ? 0 : ccl.nAttachedClusters), CTF::BLCqMaxA, 0, rejectTrackHits);
-
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskFlagsA);
   encodeTPC(ccl.flagsA, ccl.flagsA + ccl.nAttachedClusters, CTF::BLCflagsA, 0, rejectTrackHits);
-
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskRowDiffA);
   if (mCombineColumns) {
     const auto [begin, end] = makeInputIterators(ccl.rowDiffA, ccl.sliceLegDiffA, ccl.nAttachedClustersReduced,
                                                  ShiftFunctor<combinedType_t<CTF::NBitsRowDiff, CTF::NBitsSliceLegDiff>, CTF::NBitsSliceLegDiff>{});
@@ -242,11 +301,17 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const CompressedClusters& ccl, co
   } else {
     encodeTPC(ccl.rowDiffA, ccl.rowDiffA + ccl.nAttachedClustersReduced, CTF::BLCrowDiffA, 0, rejectTrackHitsReduced);
   }
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskSliceLegDiffA);
   encodeTPC(ccl.sliceLegDiffA, ccl.sliceLegDiffA + (mCombineColumns ? 0 : ccl.nAttachedClustersReduced), CTF::BLCsliceLegDiffA, 0, rejectTrackHitsReduced);
-
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskPadResA);
   encodeTPC(ccl.padResA, ccl.padResA + ccl.nAttachedClustersReduced, CTF::BLCpadResA, 0, rejectTrackHitsReduced);
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskTimeResA);
   encodeTPC(ccl.timeResA, ccl.timeResA + ccl.nAttachedClustersReduced, CTF::BLCtimeResA, 0, rejectTrackHitsReduced);
-
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskSigmaPadA);
   if (mCombineColumns) {
     const auto [begin, end] = makeInputIterators(ccl.sigmaPadA, ccl.sigmaTimeA, ccl.nAttachedClusters,
                                                  ShiftFunctor<combinedType_t<CTF::NBitsSigmaPad, CTF::NBitsSigmaTime>, CTF::NBitsSigmaTime>{});
@@ -254,14 +319,26 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const CompressedClusters& ccl, co
   } else {
     encodeTPC(ccl.sigmaPadA, ccl.sigmaPadA + ccl.nAttachedClusters, CTF::BLCsigmaPadA, 0, rejectTrackHits);
   }
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskSigmaTimeA);
   encodeTPC(ccl.sigmaTimeA, ccl.sigmaTimeA + (mCombineColumns ? 0 : ccl.nAttachedClusters), CTF::BLCsigmaTimeA, 0, rejectTrackHits);
-
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskQPtA);
   encodeTPC(ccl.qPtA, ccl.qPtA + ccl.nTracks, CTF::BLCqPtA, 0, rejectTracks);
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskRowA);
   encodeTPC(ccl.rowA, ccl.rowA + ccl.nTracks, CTF::BLCrowA, 0, rejectTracks);
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskSliceA);
   encodeTPC(ccl.sliceA, ccl.sliceA + ccl.nTracks, CTF::BLCsliceA, 0, rejectTracks);
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskTimeA);
   encodeTPC(ccl.timeA, ccl.timeA + ccl.nTracks, CTF::BLCtimeA, 0, rejectTracks);
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskPadA);
   encodeTPC(ccl.padA, ccl.padA + ccl.nTracks, CTF::BLCpadA, 0, rejectTracks);
-
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskQTotU);
   if (mCombineColumns) {
     const auto [begin, end] = makeInputIterators(ccl.qTotU, ccl.qMaxU, ccl.nUnattachedClusters,
                                                  ShiftFunctor<combinedType_t<CTF::NBitsQTot, CTF::NBitsQMax>, CTF::NBitsQMax>{});
@@ -269,12 +346,20 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const CompressedClusters& ccl, co
   } else {
     encodeTPC(ccl.qTotU, ccl.qTotU + ccl.nUnattachedClusters, CTF::BLCqTotU, 0, rejectHits);
   }
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskQMaxU);
   encodeTPC(ccl.qMaxU, ccl.qMaxU + (mCombineColumns ? 0 : ccl.nUnattachedClusters), CTF::BLCqMaxU, 0, rejectHits);
-
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskFlagsU);
   encodeTPC(ccl.flagsU, ccl.flagsU + ccl.nUnattachedClusters, CTF::BLCflagsU, 0, rejectHits);
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskPadDiffU);
   encodeTPC(cclFiltered.padDiffU, cclFiltered.padDiffU + cclFiltered.nUnattachedClusters, CTF::BLCpadDiffU, 0);
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskTimeDiffU);
   encodeTPC(cclFiltered.timeDiffU, cclFiltered.timeDiffU + cclFiltered.nUnattachedClusters, CTF::BLCtimeDiffU, 0);
-
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskSigmaPadU);
   if (mCombineColumns) {
     const auto [begin, end] = makeInputIterators(ccl.sigmaPadU, ccl.sigmaTimeU, ccl.nUnattachedClusters,
                                                  ShiftFunctor<combinedType_t<CTF::NBitsSigmaPad, CTF::NBitsSigmaTime>, CTF::NBitsSigmaTime>{});
@@ -282,13 +367,22 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const CompressedClusters& ccl, co
   } else {
     encodeTPC(ccl.sigmaPadU, ccl.sigmaPadU + ccl.nUnattachedClusters, CTF::BLCsigmaPadU, 0, rejectHits);
   }
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskSigmaTimeU);
   encodeTPC(ccl.sigmaTimeU, ccl.sigmaTimeU + (mCombineColumns ? 0 : ccl.nUnattachedClusters), CTF::BLCsigmaTimeU, 0, rejectHits);
-
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskNTrackClusters);
   encodeTPC(ccl.nTrackClusters, ccl.nTrackClusters + ccl.nTracks, CTF::BLCnTrackClusters, 0, rejectTracks);
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, encodeTaskNSliceRowClusters);
   encodeTPC(ccl.nSliceRowClusters, ccl.nSliceRowClusters + ccl.nSliceRows, CTF::BLCnSliceRowClusters, 0);
+  __itt_task_end(tpcDomain);
   CTF::get(buff.data())->print(getPrefix(), mVerbosity);
   finaliseCTFOutput<CTF>(buff);
   iosize.rawIn = iosize.ctfIn;
+
+  __itt_pause();
+
   return iosize;
 }
 
@@ -296,6 +390,8 @@ o2::ctf::CTFIOSize CTFCoder::encode(VEC& buff, const CompressedClusters& ccl, co
 template <typename VEC>
 o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VEC& buffVec)
 {
+  __itt_resume();
+
   using namespace detail;
   CompressedClusters cc;
   CompressedClustersCounters& ccCount = cc;
@@ -322,58 +418,105 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VEC& buffVec)
     iosize += ec.decode(begin, slotVal, coders[slotVal]);
   };
 
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskQTotA);
   if (mCombineColumns) {
     detail::MergedColumnsDecoder<CTF::NBitsQTot, CTF::NBitsQMax>::decode(cc.qTotA, cc.qMaxA, CTF::BLCqTotA, decodeTPC);
   } else {
     decodeTPC(cc.qTotA, CTF::BLCqTotA);
+    __itt_task_end(tpcDomain);
+    __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskQMaxA);
     decodeTPC(cc.qMaxA, CTF::BLCqMaxA);
+    __itt_task_end(tpcDomain);
   }
 
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskFlagsA);
   decodeTPC(cc.flagsA, CTF::BLCflagsA);
-
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskRowDiffA);
   if (mCombineColumns) {
     detail::MergedColumnsDecoder<CTF::NBitsRowDiff, CTF::NBitsSliceLegDiff>::decode(cc.rowDiffA, cc.sliceLegDiffA, CTF::BLCrowDiffA, decodeTPC);
   } else {
     decodeTPC(cc.rowDiffA, CTF::BLCrowDiffA);
+    __itt_task_end(tpcDomain);
+    __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskSliceLegDiffA);
     decodeTPC(cc.sliceLegDiffA, CTF::BLCsliceLegDiffA);
+    __itt_task_end(tpcDomain);
   }
 
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskPadResA);
   decodeTPC(cc.padResA, CTF::BLCpadResA);
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskTimeResA);
   decodeTPC(cc.timeResA, CTF::BLCtimeResA);
+  __itt_task_end(tpcDomain);
 
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskSigmaPadA);
   if (mCombineColumns) {
     detail::MergedColumnsDecoder<CTF::NBitsSigmaPad, CTF::NBitsSigmaTime>::decode(cc.sigmaPadA, cc.sigmaTimeA, CTF::BLCsigmaPadA, decodeTPC);
   } else {
     decodeTPC(cc.sigmaPadA, CTF::BLCsigmaPadA);
+    __itt_task_end(tpcDomain);
+    __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskSigmaTimeA);
     decodeTPC(cc.sigmaTimeA, CTF::BLCsigmaTimeA);
+    __itt_task_end(tpcDomain);
   }
 
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskQPtA);
   decodeTPC(cc.qPtA, CTF::BLCqPtA);
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskRowA);
   decodeTPC(cc.rowA, CTF::BLCrowA);
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskSliceA);
   decodeTPC(cc.sliceA, CTF::BLCsliceA);
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskTimeA);
   decodeTPC(cc.timeA, CTF::BLCtimeA);
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskPadA);
   decodeTPC(cc.padA, CTF::BLCpadA);
+  __itt_task_end(tpcDomain);
 
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskQTotU);
   if (mCombineColumns) {
     detail::MergedColumnsDecoder<CTF::NBitsQTot, CTF::NBitsQMax>::decode(cc.qTotU, cc.qMaxU, CTF::BLCqTotU, decodeTPC);
   } else {
     decodeTPC(cc.qTotU, CTF::BLCqTotU);
+    __itt_task_end(tpcDomain);
+    __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskQMaxU);
     decodeTPC(cc.qMaxU, CTF::BLCqMaxU);
+    __itt_task_end(tpcDomain);
   }
 
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskFlagsU);
   decodeTPC(cc.flagsU, CTF::BLCflagsU);
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskPadDiffU);
   decodeTPC(cc.padDiffU, CTF::BLCpadDiffU);
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskTimeDiffU);
   decodeTPC(cc.timeDiffU, CTF::BLCtimeDiffU);
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskSigmaPadU);
 
   if (mCombineColumns) {
     detail::MergedColumnsDecoder<CTF::NBitsSigmaPad, CTF::NBitsSigmaTime>::decode(cc.sigmaPadU, cc.sigmaTimeU, CTF::BLCsigmaPadU, decodeTPC);
   } else {
     decodeTPC(cc.sigmaPadU, CTF::BLCsigmaPadU);
+    __itt_task_end(tpcDomain);
+    __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskSigmaTimeU);
     decodeTPC(cc.sigmaTimeU, CTF::BLCsigmaTimeU);
+    __itt_task_end(tpcDomain);
   }
 
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskNTrackClusters);
   decodeTPC(cc.nTrackClusters, CTF::BLCnTrackClusters);
+  __itt_task_end(tpcDomain);
+  __itt_task_begin(tpcDomain, __itt_null, __itt_null, decodeTaskNSliceRowClusters);
   decodeTPC(cc.nSliceRowClusters, CTF::BLCnSliceRowClusters);
+  __itt_task_end(tpcDomain);
+
+  __itt_pause();
   iosize.rawIn = iosize.ctfIn;
   return iosize;
 }
