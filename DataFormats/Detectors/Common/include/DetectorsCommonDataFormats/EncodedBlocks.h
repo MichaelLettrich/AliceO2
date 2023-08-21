@@ -1299,7 +1299,10 @@ CTFIOSize EncodedBlocks<H, N, W>::encodeRANSV1Inplace(const input_IT srcBegin, c
   auto* thisMetadata = &mMetadata[slot];
 
   InplaceEntropyCoder<input_t> encoder{};
-  rans::SourceProxy<input_IT> proxy{srcBegin, srcEnd, [](input_IT begin, input_IT end) { return !std::is_pointer_v<input_IT>; }};
+  rans::SourceProxy<input_IT> proxy{srcBegin, srcEnd, [](input_IT begin, input_IT end) {
+                                      const size_t nSamples = std::distance(begin, end);
+                                      return (!std::is_pointer_v<input_IT> && (nSamples < rans::utils::pow2(23)));
+                                    }};
 
   try {
     if (proxy.isCached()) {

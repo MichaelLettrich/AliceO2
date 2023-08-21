@@ -293,6 +293,12 @@ class InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) == 4, void
   inline dst_T* writeIncompressible(dst_T* dstBegin, dst_T* dstEnd);
 
  private:
+  template <typename source_IT>
+  void initPtr(source_IT srcBegin, source_IT srcEnd, source_type min, source_type max);
+
+  template <typename source_IT>
+  void init(source_IT srcBegin, source_IT srcEnd);
+
   std::variant<rans::Histogram<source_T>, rans::SparseHistogram<source_T>, rans::HashHistogram<source_T>, rans::SetHistogram<source_T>> mHistogram{};
   metrics_type mMetrics{};
 
@@ -309,32 +315,50 @@ InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) == 4, void>>::In
   static_assert(std::is_same_v<source_T, typename std::iterator_traits<src_IT>::value_type>);
 
   const size_t nSamples = std::distance(srcBegin, srcEnd);
-  if (nSamples < 100000) {
-    mHistogram.template emplace<3>(rans::makeSetHistogram::fromSamples(srcBegin, srcEnd));
-    mMetrics = metrics_type{std::get<3>(mHistogram)};
+  if constexpr (std::is_pointer_v<src_IT>) {
+    if (nSamples > 0) {
+      const auto [min, max] = rans::internal::minmax(gsl::span<const source_type>(srcBegin, srcEnd));
+      initPtr(srcBegin, srcEnd, min, max);
+    } else {
+      init(srcBegin, srcEnd);
+    }
   } else {
-    mHistogram.template emplace<1>(rans::makeSparseHistogram::fromSamples(srcBegin, srcEnd));
-    mMetrics = metrics_type{std::get<1>(mHistogram)};
+    init(srcBegin, srcEnd);
   }
-
-  mIncompressiblePacker = Packer(mMetrics);
 };
 
 template <typename source_T>
 template <typename source_IT>
 InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) == 4, void>>::InplaceEntropyCoder(source_IT srcBegin, source_IT srcEnd, source_type min, source_type max)
 {
+  init(srcBegin, srcEnd, min, max);
+};
 
+template <typename source_T>
+template <typename source_IT>
+void InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) == 4, void>>::init(source_IT srcBegin, source_IT srcEnd)
+{
+  static_assert(std::is_same_v<source_T, typename std::iterator_traits<source_IT>::value_type>);
+  const size_t nSamples = std::distance(srcBegin, srcEnd);
+  mHistogram.template emplace<3>(rans::makeSetHistogram::fromSamples(srcBegin, srcEnd));
+  mMetrics = metrics_type{std::get<3>(mHistogram)};
+
+  mIncompressiblePacker = Packer(mMetrics);
+};
+
+template <typename source_T>
+template <typename source_IT>
+void InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) == 4, void>>::initPtr(source_IT srcBegin, source_IT srcEnd, source_type min, source_type max)
+{
   static_assert(std::is_same_v<source_T, typename std::iterator_traits<source_IT>::value_type>);
 
   const size_t nSamples = std::distance(srcBegin, srcEnd);
   const size_t rangeBits = rans::utils::getRangeBits(min, max);
-  const size_t nBins = max - min + 1;
 
-  if (rangeBits <= 16) {
+  if ((rangeBits <= 18) || ((nSamples / rans::utils::pow2(rangeBits)) >= 0.80)) {
     mHistogram.template emplace<0>(rans::makeHistogram::fromSamples(srcBegin, srcEnd, min, max));
     mMetrics = metrics_type{std::get<0>(mHistogram), min, max};
-  } else if (nSamples / nBins <= 0.3) {
+  } else if (nSamples / rans::utils::pow2(rangeBits) <= 0.3) {
     mHistogram.template emplace<3>(rans::makeSetHistogram::fromSamples(srcBegin, srcEnd));
     mMetrics = metrics_type{std::get<3>(mHistogram), min, max};
   } else {
@@ -353,23 +377,20 @@ void InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) == 4, void>
     auto renormed = rans::renorm(std::move(histogram), mMetrics);
 
     const size_t rangeBits = rans::utils::getRangeBits(*mMetrics.getCoderProperties().min, *mMetrics.getCoderProperties().max);
-    const size_t nBins = *mMetrics.getCoderProperties().max - *mMetrics.getCoderProperties().min + 1;
+    const size_t nSamples = mMetrics.getDatasetProperties().numSamples;
+    const size_t nUsedAlphabetSymbols = mMetrics.getDatasetProperties().nUsedAlphabetSymbols;
 
-    if (rangeBits <= 18) {
+    if ((rangeBits <= 18) || ((nUsedAlphabetSymbols / rans::utils::pow2(rangeBits)) >= 0.80)) {
       mEncoder.template emplace<0>(renormed);
+    } else if (nUsedAlphabetSymbols < rans::utils::pow2(14)) {
+      mEncoder.template emplace<2>(renormed);
     } else {
-      if constexpr (std::is_same_v<decltype(renormed), rans::Histogram<source_T>>) {
-        mEncoder.template emplace<0>(renormed);
-      } else if constexpr (std::is_same_v<decltype(renormed), rans::SparseHistogram<source_T>>) {
-        mEncoder.template emplace<1>(renormed);
-      } else {
-        mEncoder.template emplace<2>(renormed);
-      }
+      mEncoder.template emplace<1>(renormed);
     }
   },
              mHistogram);
   mIncompressiblePacker = Packer(mMetrics);
-};
+}; // namespace o2::ctf
 
 template <typename source_T>
 template <typename src_IT, typename dst_IT>
