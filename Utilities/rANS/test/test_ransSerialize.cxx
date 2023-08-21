@@ -312,3 +312,74 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeSparseSymbolTable, T, spar
   BOOST_CHECK_EQUAL(srcCrossCheckSymbolTable.getOffset(), restoredSymbolTable.getOffset());
   BOOST_CHECK_EQUAL_COLLECTIONS(srcCrossCheckSymbolTable.begin(), srcCrossCheckSymbolTable.end(), restoredSymbolTable.begin(), restoredSymbolTable.end());
 };
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeHashHistogram, T, sparseTest_types)
+{
+  using source_type = boost::mp11::mp_first<T>;
+  using buffer_type = boost::mp11::mp_second<T>;
+
+  auto message = MessageProxy.getMessage<source_type>();
+  auto h = makeHashHistogram::fromSamples(message.begin(), message.end());
+  Metrics<source_type> metrics{h};
+  auto srcRenormedHistogram = renorm(h, metrics);
+  auto h1 = makeHistogram::fromSamples(message.begin(), message.end());
+  auto crossCheckRenormedHistogram = renorm(h1, metrics);
+  SizeEstimate sizeEstimate{metrics};
+  size_t bufferSize = sizeEstimate.getCompressedDictionarySize<buffer_type>();
+
+  std::vector<buffer_type> serializationBuffer(bufferSize, 0);
+  auto begin = serializationBuffer.data();
+  auto end = compressRenormedDictionary(srcRenormedHistogram, begin);
+
+  // fill the rest of the serialization buffer with 1s to test that we are not reading bits from the buffer that comes after.
+  for (auto iter = end; iter != begin + serializationBuffer.size(); ++iter) {
+    *iter = static_cast<buffer_type>(~0);
+  }
+
+  auto restoredRenormedHistogram = readRenormedDictionary(begin, end, *metrics.getCoderProperties().min, *metrics.getCoderProperties().max, srcRenormedHistogram.getRenormingBits());
+
+  BOOST_CHECK_EQUAL(srcRenormedHistogram.getIncompressibleSymbolFrequency(), restoredRenormedHistogram.getIncompressibleSymbolFrequency());
+  BOOST_CHECK_EQUAL(srcRenormedHistogram.getNumSamples(), restoredRenormedHistogram.getNumSamples());
+
+  SymbolTable<source_type, internal::Symbol> srcSymbolTable(crossCheckRenormedHistogram);
+  SymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
+
+  BOOST_CHECK_EQUAL(srcSymbolTable.getOffset(), restoredSymbolTable.getOffset());
+  BOOST_CHECK_EQUAL_COLLECTIONS(srcSymbolTable.begin(), srcSymbolTable.end(), restoredSymbolTable.begin(), restoredSymbolTable.end());
+};
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeHashSymbolTable, T, sparseTest_types)
+{
+  using source_type = boost::mp11::mp_first<T>;
+  using buffer_type = boost::mp11::mp_second<T>;
+
+  auto message = MessageProxy.getMessage<source_type>();
+  auto h = makeHashHistogram::fromSamples(message.begin(), message.end());
+  auto h1 = makeHistogram::fromSamples(message.begin(), message.end());
+  Metrics<source_type> metrics{h};
+  auto srcRenormedHistogram = renorm(h, metrics);
+  HashSymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
+  SymbolTable<source_type, internal::Symbol> srcCrossCheckSymbolTable{renorm(h1, metrics)};
+
+  SizeEstimate sizeEstimate{metrics};
+  size_t bufferSize = sizeEstimate.getCompressedDictionarySize<buffer_type>();
+
+  std::vector<buffer_type> serializationBuffer(bufferSize, 0);
+  auto begin = serializationBuffer.data();
+  auto end = compressRenormedDictionary(srcSymbolTable, begin);
+
+  // fill the rest of the serialization buffer with 1s to test that we are not reading bits from the buffer that comes after.
+  for (auto iter = end; iter != begin + serializationBuffer.size(); ++iter) {
+    *iter = static_cast<buffer_type>(~0);
+  }
+
+  auto restoredRenormedHistogram = readRenormedDictionary(begin, end, *metrics.getCoderProperties().min, *metrics.getCoderProperties().max, srcRenormedHistogram.getRenormingBits());
+
+  BOOST_CHECK_EQUAL(srcRenormedHistogram.getIncompressibleSymbolFrequency(), restoredRenormedHistogram.getIncompressibleSymbolFrequency());
+  BOOST_CHECK_EQUAL(srcRenormedHistogram.getNumSamples(), restoredRenormedHistogram.getNumSamples());
+
+  SymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
+
+  BOOST_CHECK_EQUAL(srcCrossCheckSymbolTable.getOffset(), restoredSymbolTable.getOffset());
+  BOOST_CHECK_EQUAL_COLLECTIONS(srcCrossCheckSymbolTable.begin(), srcCrossCheckSymbolTable.end(), restoredSymbolTable.begin(), restoredSymbolTable.end());
+};

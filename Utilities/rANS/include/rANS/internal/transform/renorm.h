@@ -21,10 +21,12 @@
 #include "rANS/internal/containers/RenormedHistogram.h"
 #include "rANS/internal/containers/Histogram.h"
 #include "rANS/internal/containers/SparseHistogram.h"
+#include "rANS/internal/containers/HashHistogram.h"
 #include "rANS/internal/metrics/Metrics.h"
 #include "rANS/internal/common/utils.h"
 #include "rANS/internal/transform/algorithm.h"
 #include "rANS/internal/transform/sparseAlgorithm.h"
+#include "rANS/internal/transform/hashAlgorithm.h"
 
 namespace o2::rans
 {
@@ -48,6 +50,12 @@ inline size_t getNUsedAlphabetSymbols(const Histogram<source_T>& f)
 
 template <typename source_T>
 inline size_t getNUsedAlphabetSymbols(const SparseHistogram<source_T>& f)
+{
+  return countNUsedAlphabetSymbols(f);
+}
+
+template <typename source_T>
+inline size_t getNUsedAlphabetSymbols(const HashHistogram<source_T>& f)
 {
   return countNUsedAlphabetSymbols(f);
 }
@@ -163,9 +171,13 @@ decltype(auto) renorm(histogram_T histogram, Metrics<typename histogram_T::sourc
     RenormedHistogram<source_type> ret{std::move(rescaledHistogram), renormingPrecisionBits, incompressibleSymbolFrequency};
     std::tie(*coderProperties.min, *coderProperties.max) = getMinMax(ret);
     return ret;
-  } else {
-    static_assert(std::is_same_v<histogram_type, SparseHistogram<source_type>>);
+  } else if constexpr (std::is_same_v<histogram_type, SparseHistogram<source_type>>) {
     RenormedSparseHistogram<source_type> ret{std::move(rescaledHistogram), renormingPrecisionBits, incompressibleSymbolFrequency};
+    std::tie(*coderProperties.min, *coderProperties.max) = getMinMax(ret);
+    return ret;
+  } else {
+    static_assert(std::is_same_v<histogram_type, HashHistogram<source_type>>);
+    RenormedHashHistogram<source_type> ret{std::move(rescaledHistogram), renormingPrecisionBits, incompressibleSymbolFrequency};
     std::tie(*coderProperties.min, *coderProperties.max) = getMinMax(ret);
     return ret;
   }

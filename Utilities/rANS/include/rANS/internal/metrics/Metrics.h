@@ -24,11 +24,13 @@
 #include "rANS/internal/common/utils.h"
 #include "rANS/internal/containers/Histogram.h"
 #include "rANS/internal/containers/SparseHistogram.h"
+#include "rANS/internal/containers/HashHistogram.h"
 #include "rANS/internal/metrics/properties.h"
 #include "rANS/internal/metrics/utils.h"
 #include "rANS/internal/metrics/SizeEstimate.h"
 #include "rANS/internal/transform/algorithm.h"
 #include "rANS/internal/transform/sparseAlgorithm.h"
+#include "rANS/internal/transform/hashAlgorithm.h"
 
 namespace o2::rans
 {
@@ -36,12 +38,15 @@ namespace o2::rans
 template <typename source_T>
 class Metrics
 {
+  inline static constexpr float_t defaultCutoffPrecision = 0.999;
+
  public:
   using source_type = source_T;
 
   Metrics() = default;
-  Metrics(const Histogram<source_type>& histogram, float_t cutoffPrecision = 0.999);
-  Metrics(const SparseHistogram<source_type>& histogram, float_t cutoffPrecision = 0.999);
+  Metrics(const Histogram<source_type>& histogram, float_t cutoffPrecision = defaultCutoffPrecision);
+  Metrics(const SparseHistogram<source_type>& histogram, float_t cutoffPrecision = defaultCutoffPrecision);
+  Metrics(const HashHistogram<source_type>& histogram, float_t cutoffPrecision = defaultCutoffPrecision);
 
   [[nodiscard]] inline const DatasetProperties<source_type>& getDatasetProperties() const noexcept { return mDatasetProperties; };
   [[nodiscard]] inline const CoderProperties<source_type>& getCoderProperties() const noexcept { return mCoderProperties; };
@@ -79,6 +84,15 @@ inline Metrics<source_T>::Metrics(const SparseHistogram<source_type>& histogram,
 }
 
 template <typename source_T>
+inline Metrics<source_T>::Metrics(const HashHistogram<source_type>& histogram, float_t cutoffPrecision)
+{
+  computeMetrics(histogram);
+  mCoderProperties.renormingPrecisionBits = computeRenormingPrecision(cutoffPrecision);
+  mCoderProperties.nIncompressibleSymbols = computeIncompressibleCount(mDatasetProperties.symbolLengthDistribution, *mCoderProperties.renormingPrecisionBits);
+  mCoderProperties.nIncompressibleSamples = computeIncompressibleCount(mDatasetProperties.weightedSymbolLengthDistribution, *mCoderProperties.renormingPrecisionBits);
+}
+
+template <typename source_T>
 template <typename histogram_T>
 void Metrics<source_T>::computeMetrics(const histogram_T& histogram)
 {
@@ -89,34 +103,38 @@ void Metrics<source_T>::computeMetrics(const histogram_T& histogram)
   static_assert(std::is_same_v<source_type, source_T>);
 
   mCoderProperties.dictSizeEstimate = DictSizeEstimate{histogram.getNumSamples()};
-  DictSizeEstimateCounter dictSizeCounter{&(mCoderProperties.dictSizeEstimate)};
+  if (histogram.getNumSamples() > 0) {
+    const auto [trimmedBegin, trimmedEnd] = trim(histogram.begin(), histogram.end());
+    std::tie(mDatasetProperties.min, mDatasetProperties.max) = getMinMax(histogram, trimmedBegin, trimmedEnd);
+    assert(mDatasetProperties.max >= mDatasetProperties.min);
+    mDatasetProperties.numSamples = histogram.getNumSamples();
+    mDatasetProperties.alphabetRangeBits = getRangeBits(mDatasetProperties.min, mDatasetProperties.max);
 
-  const auto [trimmedBegin, trimmedEnd] = trim(histogram.begin(), histogram.end());
-  std::tie(mDatasetProperties.min, mDatasetProperties.max) = getMinMax(histogram, trimmedBegin, trimmedEnd);
-  assert(mDatasetProperties.max >= mDatasetProperties.min);
-  mDatasetProperties.numSamples = histogram.getNumSamples();
-  mDatasetProperties.alphabetRangeBits = getRangeBits(mDatasetProperties.min, mDatasetProperties.max);
+    const double_t reciprocalNumSamples = 1.0 / static_cast<double_t>(histogram.getNumSamples());
 
-  const double_t reciprocalNumSamples = 1.0 / static_cast<double_t>(histogram.getNumSamples());
+    source_type lastIndex = mDatasetProperties.min;
 
-  forEachValue(trimmedBegin, trimmedEnd, [&, this](const uint32_t& frequency) {
-    dictSizeCounter.update();
+    forEachIndexValue(histogram, trimmedBegin, trimmedEnd, [&, this](const source_type& index, const uint32_t& frequency) {
+      if (frequency) {
+        assert(lastIndex <= index);
+        source_type delta = index - lastIndex;
+        mCoderProperties.dictSizeEstimate.updateIndexSize(delta + (delta == 0));
+        lastIndex = index;
+        mCoderProperties.dictSizeEstimate.updateFreqSize(frequency);
+        ++mDatasetProperties.nUsedAlphabetSymbols;
 
-    if (frequency) {
-      dictSizeCounter.update(frequency);
-      ++mDatasetProperties.nUsedAlphabetSymbols;
+        const double_t probability = static_cast<double_t>(frequency) * reciprocalNumSamples;
+        const float_t fractionalBitLength = -fastlog2(probability);
+        const uint32_t bitLength = std::ceil(fractionalBitLength);
 
-      const double_t probability = static_cast<double_t>(frequency) * reciprocalNumSamples;
-      const float_t fractionalBitLength = -fastlog2(probability);
-      const uint32_t bitLength = std::ceil(fractionalBitLength);
-
-      assert(bitLength > 0);
-      const uint32_t symbolDistributionBucket = bitLength - 1;
-      mDatasetProperties.entropy += probability * fractionalBitLength;
-      ++mDatasetProperties.symbolLengthDistribution[symbolDistributionBucket];
-      mDatasetProperties.weightedSymbolLengthDistribution[symbolDistributionBucket] += frequency;
-    }
-  });
+        assert(bitLength > 0);
+        const uint32_t symbolDistributionBucket = bitLength - 1;
+        mDatasetProperties.entropy += probability * fractionalBitLength;
+        ++mDatasetProperties.symbolLengthDistribution[symbolDistributionBucket];
+        mDatasetProperties.weightedSymbolLengthDistribution[symbolDistributionBucket] += frequency;
+      }
+    });
+  }
 };
 
 template <typename source_T>

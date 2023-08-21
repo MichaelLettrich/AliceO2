@@ -55,7 +55,7 @@ class RenormedHistogramImpl : public container_T
       if constexpr (std::is_integral_v<std::remove_reference_t<decltype(b)>>) {
         return a + b;
       } else {
-        return a + internal::getValue<container_type>(b);
+        return a + b.second;
       }
     });
     nSamples += this->mNIncompressible;
@@ -81,6 +81,9 @@ using RenormedHistogram = RenormedHistogramImpl<internal::VectorContainer<source
 
 template <typename source_T>
 using RenormedSparseHistogram = RenormedHistogramImpl<internal::SparseVectorContainer<source_T, uint32_t>>;
+
+template <typename source_T>
+using RenormedHashHistogram = RenormedHistogramImpl<internal::HashContainer<source_T, uint32_t>>;
 
 template <typename container_T>
 size_t countNUsedAlphabetSymbols(const RenormedHistogramImpl<container_T>& histogram)
