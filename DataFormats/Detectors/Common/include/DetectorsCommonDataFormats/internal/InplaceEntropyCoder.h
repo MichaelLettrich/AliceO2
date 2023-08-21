@@ -28,6 +28,18 @@
 #include "rANS/metrics.h"
 #include "rANS/serialize.h"
 
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+#include <ittnotify.h>
+
+inline static __itt_domain* ctfEntropyCoderDomain = __itt_domain_create("o2.ctf.ctfEntropyCoder");
+inline static __itt_string_handle* makeHistogramTask = __itt_string_handle_create("makeHistogram");
+inline static __itt_string_handle* makeMetricsTask = __itt_string_handle_create("makeMetrics");
+inline static __itt_string_handle* renormTask = __itt_string_handle_create("renorm");
+inline static __itt_string_handle* makeCoderTask = __itt_string_handle_create("makeCoder");
+inline static __itt_string_handle* encodeTask = __itt_string_handle_create("encode");
+inline static __itt_string_handle* serializeTask = __itt_string_handle_create("serialize");
+#endif
+
 namespace o2::ctf::internal
 {
 
@@ -159,12 +171,21 @@ template <typename source_T>
 void InplaceEntropyCoder<source_T>::makeEncoder()
 {
   std::visit([this](auto&& histogram) {
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+    __itt_task_begin(ctfEntropyCoderDomain, __itt_null, __itt_null, renormTask);
+#endif
     auto renormed = rans::renorm(std::move(histogram), mMetrics);
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+    __itt_task_end(ctfEntropyCoderDomain);
+#endif
 
     if (std::holds_alternative<sparse_histogram_type>(*mHistogram)) {
       serializeDictionary(renormed);
     }
 
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+    __itt_task_begin(ctfEntropyCoderDomain, __itt_null, __itt_null, makeCoderTask);
+#endif
     const size_t rangeBits = rans::utils::getRangeBits(*mMetrics.getCoderProperties().min, *mMetrics.getCoderProperties().max);
     const size_t nSamples = mMetrics.getDatasetProperties().numSamples;
     const size_t nUsedAlphabetSymbols = mMetrics.getDatasetProperties().nUsedAlphabetSymbols;
@@ -181,6 +202,9 @@ void InplaceEntropyCoder<source_T>::makeEncoder()
     }
   },
              *mHistogram);
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+  __itt_task_end(ctfEntropyCoderDomain);
+#endif
 };
 
 template <typename source_T>
@@ -189,6 +213,9 @@ template <typename src_IT, typename dst_IT>
 {
   static_assert(std::is_same_v<source_T, typename std::iterator_traits<src_IT>::value_type>);
 
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+  __itt_task_begin(ctfEntropyCoderDomain, __itt_null, __itt_null, encodeTask);
+#endif
   dst_IT messageEnd = dstBegin;
 
   std::visit([&, this](auto&& encoder) {
@@ -202,7 +229,9 @@ template <typename src_IT, typename dst_IT>
     rans::utils::checkBounds(messageEnd, dstEnd);
   },
              *mEncoder);
-
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+  __itt_task_end(ctfEntropyCoderDomain);
+#endif
   return messageEnd;
 };
 
@@ -214,6 +243,9 @@ template <typename dst_IT>
 
   using dst_type = std::remove_pointer_t<dst_IT>;
 
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+  __itt_task_begin(ctfEntropyCoderDomain, __itt_null, __itt_null, serializeTask);
+#endif
   dst_IT ret{};
   if (mDictBuffer.empty()) {
     std::visit([&, this](auto&& encoder) { ret = rans::compressRenormedDictionary(encoder.getSymbolTable(), dstBegin); }, *mEncoder);
@@ -231,6 +263,9 @@ template <typename dst_IT>
   }
 
   rans::utils::checkBounds(ret, dstEnd);
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+  __itt_task_end(ctfEntropyCoderDomain);
+#endif
   return ret;
 };
 
@@ -252,8 +287,18 @@ template <typename source_T>
 template <typename source_IT, std::enable_if_t<(sizeof(typename std::iterator_traits<source_IT>::value_type) < 4), bool>>
 void InplaceEntropyCoder<source_T>::init(source_IT srcBegin, source_IT srcEnd, source_type min, source_type max)
 {
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+  __itt_task_begin(ctfEntropyCoderDomain, __itt_null, __itt_null, makeHistogramTask);
+#endif
   mHistogram.emplace(histogram_type{rans::makeDenseHistogram::fromSamples(srcBegin, srcEnd)});
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+  __itt_task_end(ctfEntropyCoderDomain);
+  __itt_task_begin(ctfEntropyCoderDomain, __itt_null, __itt_null, makeMetricsTask);
+#endif
   mMetrics = metrics_type{std::get<dense_histogram_type>(*mHistogram), min, max};
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+  __itt_task_end(ctfEntropyCoderDomain);
+#endif
 };
 
 template <typename source_T>
@@ -266,16 +311,46 @@ void InplaceEntropyCoder<source_T>::init(source_IT srcBegin, source_IT srcEnd, s
   if ((rangeBits <= 18) || ((nSamples / rans::utils::pow2(rangeBits)) >= 0.80)) {
     // either the range of source symbols is distrubuted such that it fits into L3 Cache
     // Or it is possible for the data to cover a very significant fraction of the total [min,max] range
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+    __itt_task_begin(ctfEntropyCoderDomain, __itt_null, __itt_null, makeHistogramTask);
+#endif
     mHistogram = histogram_type{std::in_place_type<dense_histogram_type>, rans::makeDenseHistogram::fromSamples(srcBegin, srcEnd, min, max)};
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+    __itt_task_end(ctfEntropyCoderDomain);
+    __itt_task_begin(ctfEntropyCoderDomain, __itt_null, __itt_null, makeMetricsTask);
+#endif
     mMetrics = metrics_type{std::get<dense_histogram_type>(*mHistogram), min, max};
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+    __itt_task_end(ctfEntropyCoderDomain);
+#endif
   } else if (nSamples / rans::utils::pow2(rangeBits) <= 0.3) {
-    // or the range of source symbols is spread very thinly accross a large range
+// or the range of source symbols is spread very thinly accross a large range
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+    __itt_task_begin(ctfEntropyCoderDomain, __itt_null, __itt_null, makeHistogramTask);
+#endif
     mHistogram = histogram_type{std::in_place_type<sparse_histogram_type>, rans::makeSparseHistogram::fromSamples(srcBegin, srcEnd)};
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+    __itt_task_end(ctfEntropyCoderDomain);
+    __itt_task_begin(ctfEntropyCoderDomain, __itt_null, __itt_null, makeMetricsTask);
+#endif
     mMetrics = metrics_type{std::get<sparse_histogram_type>(*mHistogram), min, max};
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+    __itt_task_end(ctfEntropyCoderDomain);
+#endif
   } else {
-    // no strong evidence of either extreme case
+// no strong evidence of either extreme case
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+    __itt_task_begin(ctfEntropyCoderDomain, __itt_null, __itt_null, makeHistogramTask);
+#endif
     mHistogram = histogram_type{std::in_place_type<adaptive_histogram_type>, rans::makeAdaptiveHistogram::fromSamples(srcBegin, srcEnd)};
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+    __itt_task_end(ctfEntropyCoderDomain);
+    __itt_task_begin(ctfEntropyCoderDomain, __itt_null, __itt_null, makeMetricsTask);
+#endif
     mMetrics = metrics_type{std::get<adaptive_histogram_type>(*mHistogram), min, max};
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+    __itt_task_end(ctfEntropyCoderDomain);
+#endif
   }
 };
 
@@ -283,29 +358,54 @@ template <typename source_T>
 template <typename source_IT, std::enable_if_t<(sizeof(typename std::iterator_traits<source_IT>::value_type) < 4), bool>>
 void InplaceEntropyCoder<source_T>::init(source_IT srcBegin, source_IT srcEnd)
 {
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+  __itt_task_begin(ctfEntropyCoderDomain, __itt_null, __itt_null, makeHistogramTask);
+#endif
   mHistogram = histogram_type{std::in_place_type<dense_histogram_type>, rans::makeDenseHistogram::fromSamples(srcBegin, srcEnd)};
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+  __itt_task_end(ctfEntropyCoderDomain);
+  __itt_task_begin(ctfEntropyCoderDomain, __itt_null, __itt_null, makeMetricsTask);
+#endif
   mMetrics = metrics_type{std::get<dense_histogram_type>(*mHistogram)};
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+  __itt_task_end(ctfEntropyCoderDomain);
+#endif
 };
 
 template <typename source_T>
 template <typename source_IT, std::enable_if_t<(sizeof(typename std::iterator_traits<source_IT>::value_type) == 4), bool>>
 void InplaceEntropyCoder<source_T>::init(source_IT srcBegin, source_IT srcEnd)
 {
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+  __itt_task_begin(ctfEntropyCoderDomain, __itt_null, __itt_null, makeHistogramTask);
+#endif
   mHistogram = histogram_type{std::in_place_type<sparse_histogram_type>, rans::makeSparseHistogram::fromSamples(srcBegin, srcEnd)};
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+  __itt_task_end(ctfEntropyCoderDomain);
+  __itt_task_begin(ctfEntropyCoderDomain, __itt_null, __itt_null, makeMetricsTask);
+#endif
   mMetrics = metrics_type{std::get<sparse_histogram_type>(*mHistogram)};
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+  __itt_task_end(ctfEntropyCoderDomain);
+#endif
 };
 
 template <typename source_T>
 template <typename container_T>
 void InplaceEntropyCoder<source_T>::serializeDictionary(const container_T& renormedHistogram)
 {
-
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+  __itt_task_begin(ctfEntropyCoderDomain, __itt_null, __itt_null, serializeTask);
+#endif
   mDictBuffer.resize(mMetrics.getSizeEstimate().getCompressedDictionarySize(), 0);
   auto end = rans::compressRenormedDictionary(renormedHistogram, mDictBuffer.data());
   rans::utils::checkBounds(end, mDictBuffer.data() + mDictBuffer.size());
   mDictBuffer.resize(std::distance(mDictBuffer.data(), end));
 
   assert(mDictBuffer.size() > 0);
+#if defined(ENABLE_VTUNE_PROFILER) && defined(RANS_BENCHMARK_INPLACE_ENTROPY_CODER)
+  __itt_task_end(ctfEntropyCoderDomain);
+#endif
 };
 
 } // namespace o2::ctf::internal
