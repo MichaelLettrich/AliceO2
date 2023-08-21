@@ -24,9 +24,7 @@
 
 #include "rANS/internal/containers/Container.h"
 #include "rANS/internal/containers/RenormedHistogram.h"
-#include "rANS/internal/containers/HistogramView.h"
 #include "rANS/internal/transform/algorithm.h"
-#include "rANS/internal/transform/hashAlgorithm.h"
 #include "rANS/internal/common/typetraits.h"
 
 namespace o2::rans
@@ -49,7 +47,6 @@ class HashSymbolTable : public internal::HashContainer<source_T, symbol_T>
   using pointer = typename base_type::pointer;
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
-  using iterator = typename base_type::iterator;
 
   HashSymbolTable() = default;
 
@@ -113,7 +110,7 @@ void HashSymbolTable<source_T, value_T>::init(const RenormedHistogramImpl<histog
 
   this->mContainer = container_type(nullElement);
 
-  const auto [trimmedBegin, trimmedEnd] = trim(renormedHistogram.begin(), renormedHistogram.end());
+  const auto [trimmedBegin, trimmedEnd] = trim(renormedHistogram);
 
   count_type cumulatedFrequency = 0;
   forEachIndexValue(
@@ -123,6 +120,12 @@ void HashSymbolTable<source_T, value_T>::init(const RenormedHistogramImpl<histog
         cumulatedFrequency += symbolFrequency;
       }
     });
+};
+
+template <typename source_T, typename symbol_T>
+std::pair<source_T, source_T> getMinMax(const HashSymbolTable<source_T, symbol_T>& symbolTable)
+{
+  return internal::getMinMax(symbolTable, symbolTable.getEscapeSymbol());
 };
 
 template <typename source_T, typename symbol_T>

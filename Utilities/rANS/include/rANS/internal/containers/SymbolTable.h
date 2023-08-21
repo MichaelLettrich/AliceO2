@@ -26,7 +26,6 @@
 #include "rANS/internal/containers/RenormedHistogram.h"
 #include "rANS/internal/containers/HistogramView.h"
 #include "rANS/internal/transform/algorithm.h"
-#include "rANS/internal/transform/hashAlgorithm.h"
 
 namespace o2::rans
 {
@@ -48,7 +47,6 @@ class SymbolTable : public internal::VectorContainer<source_T, symbol_T>
   using pointer = typename base_type::pointer;
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
-  using iterator = typename base_type::iterator;
 
   SymbolTable() = default;
 
@@ -124,7 +122,7 @@ void SymbolTable<source_T, value_T>::init(const RenormedHistogramImpl<histogram_
     return {symbolFrequency, cumulatedFrequency, this->getPrecision()};
   }();
 
-  const auto [trimmedBegin, trimmedEnd] = trim(renormedHistogram.begin(), renormedHistogram.end());
+  const auto [trimmedBegin, trimmedEnd] = trim(renormedHistogram);
   const auto [min, max] = getMinMax(renormedHistogram, trimmedBegin, trimmedEnd);
   // one cacheline worth of padding in the back of the container to ensure SIMD reads do not cause out of bounds reads
   // then first reserve to increase the capacity
@@ -150,10 +148,7 @@ void SymbolTable<source_T, value_T>::init(const RenormedHistogramImpl<histogram_
 template <typename source_T, typename symbol_T>
 std::pair<source_T, source_T> getMinMax(const SymbolTable<source_T, symbol_T>& symbolTable)
 {
-  const source_T min = symbolTable.getOffset();
-  const source_T max = min + static_cast<source_T>(symbolTable.size() - !symbolTable.empty()); // subtracts 1 from size if not empty
-
-  return {min, max};
+  return internal::getMinMax(symbolTable, symbolTable.getEscapeSymbol());
 };
 
 template <typename source_T, typename symbol_T>

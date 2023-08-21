@@ -79,9 +79,9 @@ class HashTable
 
   [[nodiscard]] inline const_iterator end() const noexcept { return cend(); };
 
-  [[nodiscard]] inline iterator begin() noexcept { return const_cast<iterator>(static_cast<const HashTable&>(*this).begin()); };
+  [[nodiscard]] inline iterator begin() noexcept { return mContainer.begin(); };
 
-  [[nodiscard]] inline iterator end() noexcept { return const_cast<iterator>(static_cast<const HashTable&>(*this).end()); };
+  [[nodiscard]] inline iterator end() noexcept { return mContainer.end(); };
 
   [[nodiscard]] inline container_type release() && noexcept { return std::move(this->mContainer); };
 

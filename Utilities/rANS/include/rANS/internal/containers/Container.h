@@ -41,7 +41,6 @@ class Container
   using pointer = typename std::add_pointer_t<value_type>;
   using const_pointer = typename std::add_pointer_t<std::add_const_t<value_type>>;
   using const_iterator = typename container_type::const_iterator;
-  using iterator = const_iterator;
 
   // accessors
   [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const { return static_cast<const derived_T&>(*this)[sourceSymbol]; };
@@ -96,7 +95,6 @@ class VectorContainer : public Container<ShiftableVector<source_T, value_T>, Vec
   using pointer = typename base_type::pointer;
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
-  using iterator = typename base_type::iterator;
 
   [[nodiscard]] inline const_pointer data() const noexcept { return this->mContainer.data(); };
 
@@ -126,7 +124,6 @@ class SparseVectorContainer : public Container<SparseVector<source_T, value_T>, 
   using pointer = typename base_type::pointer;
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
-  using iterator = typename base_type::iterator;
 
   [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const { return this->mContainer[sourceSymbol]; };
 
@@ -155,7 +152,6 @@ class HashContainer : public Container<HashTable<source_T, value_T>, HashContain
   using pointer = typename base_type::pointer;
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
-  using iterator = typename base_type::iterator;
 
   [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const { return this->mContainer[sourceSymbol]; };
 

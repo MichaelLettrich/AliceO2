@@ -197,18 +197,6 @@ class ShiftableVector
   intptr_t mShiftedBegin{};
 };
 
-template <class IT, std::enable_if_t<std::is_pointer_v<std::remove_reference_t<IT>>, bool> = true>
-inline auto getValue(IT iter) -> typename std::iterator_traits<IT>::value_type
-{
-  return *iter;
-}
-
-template <class IT, std::enable_if_t<std::is_pointer_v<std::remove_reference_t<IT>>, bool> = true>
-inline void setValue(IT iter, std::add_lvalue_reference_t<std::add_const_t<typename std::iterator_traits<IT>::value_type>> value)
-{
-  *iter = value;
-}
-
 } // namespace o2::rans::internal
 
 #endif /* RANS_INTERNAL_CONTAINER_SHIFTABLEVECTOR_H_ */

@@ -25,8 +25,6 @@
 #include "rANS/internal/metrics/Metrics.h"
 #include "rANS/internal/common/utils.h"
 #include "rANS/internal/transform/algorithm.h"
-#include "rANS/internal/transform/sparseAlgorithm.h"
-#include "rANS/internal/transform/hashAlgorithm.h"
 
 namespace o2::rans
 {
@@ -89,7 +87,7 @@ decltype(auto) renorm(histogram_T histogram, Metrics<typename histogram_T::sourc
   count_type nIncompressibleSamples = 0;
   count_type nIncompressibleSymbols = 0;
   count_type nSamplesRescaledUncorrected = 0;
-  std::vector<source_type> correctableIndices;
+  std::vector<std::pair<source_type, count_type>> correctableIndices;
   correctableIndices.reserve(nUsedAlphabetSymbols);
 
   auto scaleFrequency = [nSamplesRescaled](double_t symbolProbability) -> double_t { return symbolProbability * nSamplesRescaled; };
@@ -111,7 +109,7 @@ decltype(auto) renorm(histogram_T histogram, Metrics<typename histogram_T::sourc
         rescaledHistogram[index] = rescaledFrequency;
         nSamplesRescaledUncorrected += rescaledFrequency;
         if (rescaledFrequency > 1) {
-          correctableIndices.push_back(index);
+          correctableIndices.push_back(std::make_pair(index, frequency));
         }
       }
     }
@@ -131,14 +129,14 @@ decltype(auto) renorm(histogram_T histogram, Metrics<typename histogram_T::sourc
   nSamplesRescaledUncorrected += incompressibleSymbolFrequency;
 
   // correction
-  std::stable_sort(correctableIndices.begin(), correctableIndices.end(), [&rescaledHistogram](const source_type& a, const source_type& b) { return rescaledHistogram[a] < rescaledHistogram[b]; });
+  std::stable_sort(correctableIndices.begin(), correctableIndices.end(), [](const auto& a, const auto& b) { return a.second < b.second; });
 
   difference_type nCorrections = static_cast<difference_type>(nSamplesRescaled) - static_cast<difference_type>(nSamplesRescaledUncorrected);
   const double_t rescalingFactor = static_cast<double_t>(nSamplesRescaled) / static_cast<double_t>(nSamplesRescaledUncorrected);
 
-  for (auto index : correctableIndices) {
+  for (auto [index, value] : correctableIndices) {
     if (std::abs(nCorrections) > 0) {
-      const difference_type uncorrectedFrequency = rescaledHistogram[index];
+      const difference_type uncorrectedFrequency = value;
       difference_type correction = uncorrectedFrequency - roundSymbolFrequency(uncorrectedFrequency * rescalingFactor);
 
       if (nCorrections < 0) {

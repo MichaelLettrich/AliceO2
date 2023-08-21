@@ -22,84 +22,156 @@
 #include <type_traits>
 
 #include "rANS/internal/common/utils.h"
+#include "rANS/internal/common/containertraits.h"
+#include "rANS/internal/transform/algorithmImpl.h"
 
 namespace o2::rans::internal
 {
 
-template <typename container_T, std::enable_if_t<std::is_same_v<std::random_access_iterator_tag, typename std::iterator_traits<typename container_T::const_iterator>::iterator_category>, bool> = true>
-inline constexpr auto getIndex(const container_T& histogram, typename container_T::const_iterator iter) -> typename container_T::source_type
+template <class container_T>
+class SparseVectorIterator;
+
+template <class IT, std::enable_if_t<isPair_v<typename std::iterator_traits<IT>::value_type>, bool> = true>
+inline auto getValue(IT iter) -> typename std::iterator_traits<IT>::value_type::second_type
 {
-  return histogram.getOffset() + std::distance(histogram.begin(), iter);
+  return iter->second;
+}
+
+template <typename source_T, typename value_T>
+inline auto getValue(const std::pair<source_T, value_T>& pair) -> value_T
+{
+  return pair.second;
+}
+
+template <class IT, std::enable_if_t<std::is_pointer_v<std::remove_reference_t<IT>>, bool> = true>
+inline auto getValue(IT iter) -> typename std::iterator_traits<IT>::value_type
+{
+  return *iter;
+}
+
+template <class IT, std::enable_if_t<isPair_v<typename std::iterator_traits<IT>::value_type>, bool> = true>
+inline void setValue(IT iter, const typename std::iterator_traits<IT>::value_type::second_type& value)
+{
+  return iter->second = value;
+}
+
+template <class IT, std::enable_if_t<std::is_pointer_v<std::remove_reference_t<IT>>, bool> = true>
+inline void setValue(IT iter, std::add_lvalue_reference_t<std::add_const_t<typename std::iterator_traits<IT>::value_type>> value)
+{
+  *iter = value;
+}
+
+template <typename container_T, std::enable_if_t<isDenseContainer_v<container_T>, bool> = true>
+inline constexpr auto getIndex(const container_T& container, typename container_T::const_iterator iter) -> typename container_T::source_type
+{
+  return container.getOffset() + std::distance(container.begin(), iter);
 };
 
-template <typename IT, std::enable_if_t<std::is_same_v<std::random_access_iterator_tag, typename std::iterator_traits<IT>::iterator_category>, bool> = true>
-inline auto trim(IT begin, IT end, const typename std::iterator_traits<IT>::value_type& zeroElem = {}) -> std::pair<IT, IT>
+template <typename container_T, std::enable_if_t<isSparseContainer_v<container_T> || isHashContainer_v<container_T>, bool> = true>
+inline constexpr auto getIndex(const container_T& container, typename container_T::const_iterator iter) -> typename container_T::source_type
 {
-  using value_type = typename std::iterator_traits<IT>::value_type;
-
-  auto isZero = [&zeroElem](value_type i) { return i == zeroElem; };
-  auto nonZeroBegin = std::find_if_not(begin, end, isZero);
-  auto nonZeroEnd = nonZeroBegin == end ? end : std::find_if_not(std::make_reverse_iterator(end), std::make_reverse_iterator(begin), isZero).base();
-
-  return {nonZeroBegin, nonZeroEnd};
+  return iter->first;
 };
 
-template <typename IT, class F, std::enable_if_t<std::is_same_v<std::random_access_iterator_tag, typename std::iterator_traits<IT>::iterator_category>, bool> = true>
-inline void forEachValue(IT begin, IT end, F functor)
-{
-  std::for_each(begin, end, functor);
-};
-
-template <class container_T, class F>
-inline void forEachValue(const container_T& container, F functor)
-{
-  forEachValue(container.cbegin(), container.cend(), functor);
-};
-
-template <typename container_T, class F, std::enable_if_t<std::is_same_v<std::random_access_iterator_tag, typename std::iterator_traits<typename container_T::const_iterator>::iterator_category>, bool> = true>
+template <typename container_T, class F>
 inline void forEachIndexValue(const container_T& container, typename container_T::const_iterator begin, typename container_T::const_iterator end, F functor)
 {
-  typename container_T::source_type index = container.getOffset() + std::distance(container.cbegin(), begin);
-  for (auto iter = begin; iter != end; ++iter) {
-    functor(index++, *iter);
-  }
+  algorithmImpl::forEachIndexValue(container, begin, end, functor);
 };
 
-template <typename container_T, class F,
-          std::enable_if_t<std::is_same_v<std::bidirectional_iterator_tag, typename std::iterator_traits<typename container_T::iterator>::iterator_category> ||
-                             std::is_same_v<std::random_access_iterator_tag, typename std::iterator_traits<typename container_T::iterator>::iterator_category>,
-                           bool> = true>
+template <typename container_T, class F, std::enable_if_t<isDenseContainer_v<container_T>, bool> = true>
+inline void forEachIndexValue(container_T& container, typename container_T::iterator begin, typename container_T::iterator end, F functor)
+{
+  algorithmImpl::forEachIndexValue(container, begin, end, functor);
+};
+
+template <typename container_T, class F>
 inline void forEachIndexValue(const container_T& container, F functor)
 {
-  return forEachIndexValue(container, container.begin(), container.end(), functor);
+  forEachIndexValue(container, container.begin(), container.end(), functor);
 };
 
-template <class container_T, typename source_IT,
-          std::enable_if_t<std::is_same_v<std::bidirectional_iterator_tag, typename std::iterator_traits<source_IT>::iterator_category> ||
-                             std::is_same_v<std::random_access_iterator_tag, typename std::iterator_traits<source_IT>::iterator_category>,
-                           bool> = true>
-auto getMinMax(const container_T& container, source_IT begin, source_IT end) -> std::pair<typename container_T::source_type,
-                                                                                          typename container_T::source_type>
+template <typename container_T, class F>
+inline void forEachIndexValue(container_T& container, F functor)
 {
-  if (begin != end) {
-    const auto min = getIndex(container, begin);
-    const auto max = getIndex(container, --end);
+  forEachIndexValue(container, container.begin(), container.end(), functor);
+};
+
+template <typename container_T>
+inline auto trim(typename container_T::iterator begin, typename container_T::iterator end, typename container_T::const_reference zeroElem = {})
+  -> std::pair<typename container_T::iterator, typename container_T::iterator>
+{
+  return algorithmImpl::trim<container_T, typename container_T::iterator>(begin, end, zeroElem);
+};
+
+template <typename container_T>
+inline auto trim(typename container_T::const_iterator begin, typename container_T::const_iterator end, typename container_T::const_reference zeroElem = {})
+  -> std::pair<typename container_T::const_iterator, typename container_T::const_iterator>
+{
+  return algorithmImpl::trim<container_T, typename container_T::const_iterator>(begin, end, zeroElem);
+}
+
+template <typename container_T, std::enable_if_t<isStorageContainer_v<container_T>, bool> = true>
+inline decltype(auto) trim(container_T& container, const typename container_T::value_type& zeroElem = {})
+{
+  return algorithmImpl::trim<container_T, typename container_T::iterator>(container.begin(), container.end(), zeroElem);
+};
+
+template <typename container_T, std::enable_if_t<isContainer_v<container_T>, bool> = true>
+inline decltype(auto) trim(const container_T& container, const typename container_T::value_type& zeroElem = {})
+{
+  return algorithmImpl::trim<container_T, typename container_T::const_iterator>(container.begin(), container.end(), zeroElem);
+};
+
+template <class container_T,
+          std::enable_if_t<isDenseContainer_v<container_T> || isSparseContainer_v<container_T>, bool> = true>
+auto getMinMax(const container_T& container,
+               typename container_T::const_iterator begin,
+               typename container_T::const_iterator end,
+               typename container_T::const_reference zeroElem = {})
+  -> std::pair<typename container_T::source_type, typename container_T::source_type>
+{
+  auto [trimmedBegin, trimmedEnd] = trim<container_T>(begin, end, zeroElem);
+
+  if (trimmedBegin != trimmedEnd) {
+    const auto min = getIndex(container, trimmedBegin);
+    const auto max = getIndex(container, --trimmedEnd);
     assert(max >= min);
     return {min, max};
-  } else {
-    return {container.getOffset(), container.getOffset()};
   }
+  return {container.getOffset(), container.getOffset()};
 };
 
-template <typename container_T,
-          std::enable_if_t<std::is_same_v<std::bidirectional_iterator_tag, typename std::iterator_traits<typename container_T::iterator>::iterator_category> ||
-                             std::is_same_v<std::random_access_iterator_tag, typename std::iterator_traits<typename container_T::iterator>::iterator_category>,
-                           bool> = true>
-auto getMinMax(const container_T& container) -> std::pair<typename container_T::source_type,
-                                                          typename container_T::source_type>
+template <typename container_T, std::enable_if_t<isHashContainer_v<container_T>, bool> = true>
+auto getMinMax(const container_T& container,
+               typename container_T::const_iterator begin,
+               typename container_T::const_iterator end,
+               typename container_T::const_reference zeroElem = {})
+  -> std::pair<typename container_T::source_type, typename container_T::source_type>
 {
-  auto [trimmedBegin, trimmedEnd] = trim(container.begin(), container.end());
-  return getMinMax(container, trimmedBegin, trimmedEnd);
+  using iterator_type = typename container_T::const_iterator;
+  using value_type = typename std::iterator_traits<iterator_type>::value_type::second_type;
+  using return_type = std::pair<value_type, value_type>;
+
+  bool empty = container.empty();
+
+  if constexpr (isRenormedHistogram_v<container_T>) {
+    empty = container.getNumSamples() == container.getIncompressibleSymbolFrequency();
+  }
+
+  if (empty) {
+    return return_type{container.getOffset(), container.getOffset()};
+  };
+
+  const auto [minIter, maxIter] = std::minmax_element(begin, end, [](const auto& a, const auto& b) { return a.first < b.first; });
+  return return_type{minIter->first, maxIter->first};
+};
+
+template <typename container_T>
+auto getMinMax(const container_T& container, typename container_T::const_reference zeroElem = {})
+  -> std::pair<typename container_T::source_type, typename container_T::source_type>
+{
+  return getMinMax(container, container.begin(), container.end(), zeroElem);
 };
 
 } // namespace o2::rans::internal

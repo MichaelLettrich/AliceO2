@@ -53,8 +53,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_emptyDictSizeEstimate, histogram_T, histogram
 
   std::vector<uint32_t> frequencies{};
   histogram_T histogram{frequencies.begin(), frequencies.end(), 0};
-  const auto [trimmedBegin, trimmedEnd] = trim(histogram.begin(), histogram.end());
-  const auto [min, max] = getMinMax(histogram, trimmedBegin, trimmedEnd);
+  const auto [trimmedBegin, trimmedEnd] = internal::trim(histogram);
+  const auto [min, max] = internal::getMinMax(histogram, trimmedBegin, trimmedEnd);
 
   DictSizeEstimate estimate{histogram.getNumSamples()};
 
@@ -84,8 +84,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_defaultDictSizeEstimate, histogram_T, histogr
   std::vector<uint32_t> frequencies{9, 0, 8, 0, 7, 0, 6, 0, 5, 0, 4, 0, 3, 0, 2, 0, 1};
   histogram_T histogram{frequencies.begin(), frequencies.end(), 0};
 
-  const auto [trimmedBegin, trimmedEnd] = trim(histogram.begin(), histogram.end());
-  const auto [min, max] = getMinMax(histogram, trimmedBegin, trimmedEnd);
+  const auto [trimmedBegin, trimmedEnd] = internal::trim(histogram);
+  const auto [min, max] = internal::getMinMax(histogram, trimmedBegin, trimmedEnd);
 
   DictSizeEstimate estimate{histogram.getNumSamples()};
 

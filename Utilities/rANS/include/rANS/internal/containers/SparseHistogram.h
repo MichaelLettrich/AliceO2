@@ -75,10 +75,31 @@ template <typename source_T>
 template <typename source_IT>
 auto SparseHistogram<source_T>::addSamplesImpl(source_IT begin, source_IT end) -> SparseHistogram&
 {
-  std::for_each(begin, end, [this](const source_type& symbol) {
-    ++this->mNSamples;
-    ++this->mContainer[symbol];
-  });
+
+  if constexpr (std::is_same_v<typename std::iterator_traits<source_IT>::iterator_category, std::random_access_iterator_tag>) {
+
+    const auto size = std::distance(begin, end);
+    constexpr size_t nUnroll = 2;
+
+    size_t pos{};
+    if (end - nUnroll > begin) {
+      for (pos = 0; pos < size - nUnroll; pos += nUnroll) {
+        ++this->mContainer[begin[pos + 0]];
+        ++this->mContainer[begin[pos + 1]];
+        this->mNSamples += nUnroll;
+      }
+    }
+
+    for (auto iter = begin + pos; iter != end; ++iter) {
+      ++this->mNSamples;
+      ++this->mContainer[*iter];
+    }
+  } else {
+    std::for_each(begin, end, [this](const source_type& symbol) {
+      ++this->mNSamples;
+      ++this->mContainer[symbol];
+    });
+  }
   return *this;
 }
 
@@ -104,7 +125,7 @@ size_t countNUsedAlphabetSymbols(const SparseHistogram<source_T>& histogram)
   using iterator_value_type = typename SparseHistogram<source_T>::const_iterator::value_type;
   using value_type = typename SparseHistogram<source_T>::value_type;
 
-  return std::count_if(histogram.begin(), histogram.end(), [](iterator_value_type v) { return v.second.get() != value_type{}; });
+  return std::count_if(histogram.begin(), histogram.end(), [](iterator_value_type v) { return v.second != value_type{}; });
 }
 
 } // namespace o2::rans

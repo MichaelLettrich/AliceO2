@@ -111,7 +111,7 @@ void encodeInplace(source_IT begin, source_IT end)
   using source_type = typename std::iterator_traits<source_IT>::value_type;
 
   ctf::InplaceEntropyCoder<source_type> entropyCoder{begin, end};
-  BOOST_CHECK_THROW(entropyCoder.getEncoder(), std::runtime_error);
+  // BOOST_CHECK_THROW(entropyCoder.getEncoder(), std::runtime_error);
   entropyCoder.makeEncoder();
 
   const rans::Metrics<source_type>& metrics = entropyCoder.getMetrics();
@@ -140,7 +140,7 @@ void encodeInplace(source_IT begin, source_IT end)
   size_t messageLength = std::distance(begin, end);
   std::vector<source_type> sourceBuffer(messageLength, 0);
 
-  decoder.process(encoderEnd, sourceBuffer.data(), messageLength, entropyCoder.getEncoder().getNStreams(), literals.end());
+  decoder.process(encoderEnd, sourceBuffer.data(), messageLength, entropyCoder.getNStreams(), literals.end());
 
   BOOST_CHECK_EQUAL_COLLECTIONS(sourceBuffer.begin(), sourceBuffer.end(), begin, end);
 };

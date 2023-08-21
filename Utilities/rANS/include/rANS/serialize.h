@@ -30,7 +30,6 @@
 #include "rANS/internal/pack/eliasDelta.h"
 #include "rANS/internal/common/exceptions.h"
 #include "rANS/internal/transform/algorithm.h"
-#include "rANS/internal/transform/sparseAlgorithm.h"
 
 namespace o2::rans
 {
@@ -51,7 +50,7 @@ inline constexpr count_t getFrequency(const container_T& container, typename con
 template <typename container_T, std::enable_if_t<isSparseContainer_v<container_T>, bool> = true>
 inline constexpr count_t getFrequency(const container_T& container, typename container_T::const_iterator::value_type symbolPair)
 {
-  return getFrequency(container, symbolPair.second.get());
+  return getFrequency(container, symbolPair.second);
 };
 
 template <typename container_T, std::enable_if_t<isHashContainer_v<container_T>, bool> = true>
@@ -169,15 +168,12 @@ dest_IT compressRenormedDictionary(const container_T& container, dest_IT dstBuff
   using const_iterator = typename container_T::const_iterator;
 
   BitPtr dstIter{dstBufferBegin};
-  // const auto [trimmedBegin, trimmedEnd] = trim(container.cbegin(), container.cend(), getNullElement(container));
-  // auto iter = trimmedBegin;
-  const auto begin = std::find_if(container.cbegin(), container.cend(), [&container](const auto& val) { return getFrequency(container, val) > 0; });
+  const auto [trimmedBegin, trimmedEnd] = trim(container, getNullElement(container));
   std::optional<source_type> lastValidIndex{};
-  forEachIndexValue(container, begin, container.end(), [&](const source_type& index, const auto& symbol) {
+  forEachIndexValue(container, trimmedBegin, trimmedEnd, [&](const source_type& index, const auto& symbol) {
     auto frequency = getFrequency(container, symbol);
     if (lastValidIndex.has_value()) {
       if (frequency > 0) {
-        // LOG(info) << fmt::format("index {}, lastValidIndex {}", index, *lastValidIndex);
         assert(index > *lastValidIndex);
         uint32_t offset = index - *lastValidIndex;
         lastValidIndex = index;
@@ -185,8 +181,10 @@ dest_IT compressRenormedDictionary(const container_T& container, dest_IT dstBuff
         dstIter = eliasDeltaEncode(dstIter, frequency);
       }
     } else {
-      dstIter = eliasDeltaEncode(dstIter, frequency);
-      lastValidIndex = index;
+      if (frequency > 0) {
+        dstIter = eliasDeltaEncode(dstIter, frequency);
+        lastValidIndex = index;
+      }
     }
   });
   // write out incompressibleFrequency

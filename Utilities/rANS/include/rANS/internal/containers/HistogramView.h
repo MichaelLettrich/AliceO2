@@ -102,7 +102,12 @@ class HistogramView
 template <typename Hist_IT>
 [[nodiscard]] HistogramView<Hist_IT> trim(const HistogramView<Hist_IT>& buffer)
 {
-  auto [nonZeroBegin, nonZeroEnd] = internal::trim(buffer.begin(), buffer.end());
+
+  using value_type = typename HistogramView<Hist_IT>::value_type;
+
+  auto isZero = [](const value_type& i) { return i == value_type{}; };
+  auto nonZeroBegin = std::find_if_not(buffer.begin(), buffer.end(), isZero);
+  auto nonZeroEnd = nonZeroBegin == buffer.end() ? buffer.end() : std::find_if_not(std::make_reverse_iterator(buffer.end()), std::make_reverse_iterator(buffer.begin()), isZero).base();
 
   std::ptrdiff_t newOffset;
   if (nonZeroBegin == nonZeroEnd) {

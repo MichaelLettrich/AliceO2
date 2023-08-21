@@ -33,6 +33,11 @@
 #ifdef RANS_SIMD
 #include "rANS/internal/common/simdops.h"
 #include "rANS/internal/common/simdtypes.h"
+
+#ifdef RANS_OPENMP
+#include <omp.h>
+#endif
+
 #endif /* RANS_SIMD */
 
 namespace o2::rans
@@ -115,7 +120,6 @@ class Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>> : public inte
   using pointer = typename containerBase_type::pointer;
   using const_pointer = typename containerBase_type::const_pointer;
   using const_iterator = typename containerBase_type::const_iterator;
-  using iterator = typename containerBase_type::iterator;
 
   Histogram() = default;
 
@@ -126,6 +130,22 @@ class Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>> : public inte
   using HistogramConcept_type::addSamples;
 
   using HistogramConcept_type::addFrequencies;
+
+  template <typename source_IT>
+  Histogram& addSamples(source_IT begin, source_IT end, source_type min, source_type max)
+  {
+    if constexpr (std::is_pointer_v<source_IT>) {
+      return addSamplesImpl(gsl::make_span(begin, end), min, max);
+    } else {
+      return addSamplesImpl(begin, end, min, max);
+    }
+  };
+
+  template <typename source_IT>
+  Histogram& addSamples(gsl::span<const source_type> span, source_type min, source_type max)
+  {
+    return addSamplesImpl(span, min, max);
+  };
 
   Histogram& resize(source_type min, source_type max);
 
@@ -215,28 +235,61 @@ inline auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addSam
 
   const source_type offset = this->getOffset();
 
-  auto addQWord = [&, this](uint64_t in64) {
-    uint64_t i = in64;
-    ++this->mContainer[static_cast<source_type>(i)];
-    i = in64 >> 32;
-    ++this->mContainer[static_cast<source_type>(i)];
-  };
+  if (getRangeBits(min, max) <= 17) {
+    container_type histogram{this->mContainer.size(), this->mContainer.getOffset()};
 
-  if (end - nUnroll > begin) {
-    for (; iter < end - nUnroll; iter += nUnroll) {
-      addQWord(load64(iter));
-      addQWord(load64(iter + ElemsPerQWord));
-      addQWord(load64(iter + 2 * ElemsPerQWord));
-      addQWord(load64(iter + 3 * ElemsPerQWord));
-      this->mNSamples += nUnroll;
-      __builtin_prefetch(iter + 512, 0);
+    auto addQWord = [&, this](uint64_t in64) {
+      uint64_t i = in64;
+      ++this->mContainer[static_cast<source_type>(i)];
+      i = in64 >> 32;
+      ++histogram[static_cast<source_type>(i)];
+    };
+
+    if (end - nUnroll > begin) {
+      for (; iter < end - nUnroll; iter += nUnroll) {
+        addQWord(load64(iter));
+        addQWord(load64(iter + ElemsPerQWord));
+        addQWord(load64(iter + 2 * ElemsPerQWord));
+        addQWord(load64(iter + 3 * ElemsPerQWord));
+        this->mNSamples += nUnroll;
+        __builtin_prefetch(iter + 512, 0);
+      }
+    }
+
+    while (iter != end) {
+      ++this->mNSamples;
+      ++this->mContainer[*iter++];
+    }
+
+#pragma omp simd
+    for (size_t i = 0; i < this->size(); ++i) {
+      this->mContainer.data()[i] += histogram.data()[i];
+    }
+  } else {
+    auto addQWord = [&, this](uint64_t in64) {
+      uint64_t i = in64;
+      ++this->mContainer[static_cast<source_type>(i)];
+      i = in64 >> 32;
+      ++this->mContainer[static_cast<source_type>(i)];
+    };
+
+    if (end - nUnroll > begin) {
+      for (; iter < end - nUnroll; iter += nUnroll) {
+        addQWord(load64(iter));
+        addQWord(load64(iter + ElemsPerQWord));
+        addQWord(load64(iter + 2 * ElemsPerQWord));
+        addQWord(load64(iter + 3 * ElemsPerQWord));
+        this->mNSamples += nUnroll;
+        __builtin_prefetch(iter + 512, 0);
+      }
+    }
+
+    while (iter != end) {
+      ++this->mNSamples;
+      ++this->mContainer[*iter++];
     }
   }
 
-  while (iter != end) {
-    ++this->mNSamples;
-    ++this->mContainer[*iter++];
-  }
   return *this;
 };
 
@@ -372,7 +425,6 @@ class Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>> : public inte
   using pointer = typename containerBase_type::pointer;
   using const_pointer = typename containerBase_type::const_pointer;
   using const_iterator = typename containerBase_type::const_iterator;
-  using iterator = typename containerBase_type::iterator;
 
   Histogram() : containerBase_type{MaxSize, std::numeric_limits<source_type>::min()} {};
 
@@ -381,6 +433,18 @@ class Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>> : public inte
                                                                   HistogramConcept_type{begin, end, offset} {};
 
   using HistogramConcept_type::addSamples;
+
+  template <typename source_IT>
+  inline Histogram& addSamples(source_IT begin, source_IT end, source_type min, source_type max)
+  {
+    return addSamplesImpl(begin, end);
+  };
+
+  template <typename source_IT>
+  Histogram& addSamples(gsl::span<const source_type> span, source_type min, source_type max)
+  {
+    return addSamplesImpl(span);
+  };
 
   using HistogramConcept_type::addFrequencies;
 
@@ -463,7 +527,7 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addSamplesImp
       ++this->mContainer[*iter++];
     }
 
-#pragma gcc unroll(3)
+#pragma omp unroll partial(3)
     for (size_t j = 0; j < 3; ++j) {
 #pragma omp simd
       for (size_t i = 0; i < 256; ++i) {
