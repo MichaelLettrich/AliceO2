@@ -24,6 +24,7 @@
 
 #include "rANS/internal/common/typetraits.h"
 #include "rANS/internal/common/utils.h"
+#include "rANS/internal/transform/algorithm.h"
 
 namespace o2::rans::internal
 {

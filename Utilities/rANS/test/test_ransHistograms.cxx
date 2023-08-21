@@ -27,6 +27,11 @@
 
 #include "rANS/histogram.h"
 #include "rANS/internal/containers/SparseHistogram.h"
+#include "rANS/internal/containers/HashHistogram.h"
+#include "rANS/internal/transform/algorithm.h"
+#include "rANS/internal/transform/sparseAlgorithm.h"
+#include "rANS/internal/transform/hashAlgorithm.h"
+#include "rANS/internal/common/typetraits.h"
 #include "rANS/compat.h"
 
 using namespace o2::rans;
@@ -44,6 +49,9 @@ using large_histogram_types = mp::mp_list<Histogram<int32_t>>;
 
 using sparse_histogram_types = mp::mp_list<SparseHistogram<uint32_t>,
                                            SparseHistogram<int32_t>>;
+
+using hash_histogram_types = mp::mp_list<HashHistogram<uint32_t>,
+                                         HashHistogram<int32_t>>;
 
 namespace boost
 {
@@ -74,20 +82,63 @@ struct print_log_value<::std::pair<F, std::reference_wrapper<S>>> {
 } // namespace test_tools
 } // namespace boost
 
-using histogram_types = mp::mp_flatten<mp::mp_list<small_histogram_types, large_histogram_types, sparse_histogram_types>>;
+using histogram_types = mp::mp_flatten<mp::mp_list<small_histogram_types, large_histogram_types, sparse_histogram_types, hash_histogram_types>>;
 
-using variable_histograms_types = mp::mp_flatten<mp::mp_list<large_histogram_types, sparse_histogram_types>>;
+using variable_histograms_types = mp::mp_flatten<mp::mp_list<large_histogram_types, sparse_histogram_types, hash_histogram_types>>;
 
 template <typename histogram_T>
-bool hasFixedOffset()
+void checkEquivalent(const histogram_T& a, const histogram_T& b)
 {
-  using source_type = typename histogram_T::source_type;
-  if constexpr (std::is_same_v<histogram_T, SparseHistogram<source_type>>) {
-    return true;
-  } else {
-    return (sizeof(source_type) < 4);
+  for (auto iter = a.begin(); iter != a.end(); ++iter) {
+    auto index = internal::getIndex(a, iter);
+    auto value = internal::getValue(iter);
+    BOOST_CHECK_EQUAL(b[index], value);
   }
-}
+};
+
+template <class histogram_T, typename map_T>
+size_t getTableSize(const map_T& resultsMap)
+{
+  using namespace o2::rans::internal;
+  using source_type = typename histogram_T::source_type;
+  if constexpr (isDenseContainer_v<histogram_T>) {
+    if constexpr (sizeof(source_type) < 4) {
+      return static_cast<size_t>(std::numeric_limits<std::make_unsigned_t<source_type>>::max()) + 1;
+    } else {
+      const auto [minIter, maxIter] = std::minmax_element(std::begin(resultsMap), std::end(resultsMap), [](const auto& a, const auto& b) { return a.first < b.first; });
+      return maxIter->first - minIter->first + std::is_signed_v<source_type>;
+    }
+  } else if constexpr (isSparseContainer_v<histogram_T>) {
+    std::vector<int32_t> buckets;
+    for (const auto [key, value] : resultsMap) {
+      buckets.push_back(key / histogram_T::container_type::getBucketSize());
+    }
+    std::sort(buckets.begin(), buckets.end());
+    auto end = std::unique(buckets.begin(), buckets.end());
+    return histogram_T::container_type::getBucketSize() * std::distance(buckets.begin(), end);
+  } else {
+    return std::count_if(resultsMap.begin(), resultsMap.end(), [](const auto& val) { return val.second > 0; });
+  }
+};
+
+template <class histogram_T, typename map_T>
+auto getOffset(const map_T& resultsMap) -> typename map_T::key_type
+{
+  using namespace o2::rans::internal;
+  using source_type = typename histogram_T::source_type;
+  if constexpr (isDenseContainer_v<histogram_T>) {
+    if constexpr (sizeof(source_type) < 4) {
+      return std::numeric_limits<source_type>::min();
+    } else {
+      const auto [minIter, maxIter] = std::minmax_element(std::begin(resultsMap), std::end(resultsMap), [](const auto& a, const auto& b) { return a.first < b.first; });
+      return minIter->first;
+    }
+  } else if constexpr (isSparseContainer_v<histogram_T>) {
+    return std::numeric_limits<source_type>::min();
+  } else {
+    return 0;
+  }
+};
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_emptyTablesSmall, histogram_T, small_histogram_types)
 {
@@ -116,17 +167,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_emptyTablesLarge, histogram_T, variable_histo
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamples, histogram_T, histogram_types)
 {
   using source_type = typename histogram_T::source_type;
-
-  auto computeTableSize = [](const auto& resultsMap) {
-    if constexpr (sizeof(source_type) < 4) {
-      return 1ul << (sizeof(source_type) * 8);
-    } else {
-      const auto [minIter, maxIter] = std::minmax_element(std::begin(resultsMap), std::end(resultsMap), [](const auto& a, const auto& b) { return a.first < b.first; });
-      return maxIter->first - minIter->first + std::is_signed_v<source_type>;
-    }
-  };
-
-  const size_t fixedSizeOffset = std::numeric_limits<source_type>::min();
 
   std::vector<source_type> samples{
     static_cast<source_type>(-5),
@@ -162,21 +202,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamples, histogram_T, histogram_types)
                                                     {static_cast<source_type>(8), 8},
                                                     {static_cast<source_type>(14), 1}};
 
-  size_t tableSize = [&]() {
-    if constexpr (std::is_same_v<histogram_T, SparseHistogram<source_type>>) {
-      return 2 * histogram_T::container_type::getBucketSize();
-    } else {
-      return computeTableSize(results);
-    }
-  }();
-
   histogram_T histogram{};
   histogram.addSamples(samples.begin(), samples.end());
 
   histogram_T histogram2{};
   histogram2.addSamples(samples);
 
-  BOOST_CHECK_EQUAL_COLLECTIONS(histogram.begin(), histogram.end(), histogram2.begin(), histogram2.end());
+  checkEquivalent(histogram, histogram2);
 
   for (const auto [symbol, value] : results) {
     BOOST_TEST_MESSAGE(fmt::format("testing symbol {}", static_cast<int64_t>(symbol)));
@@ -184,17 +216,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamples, histogram_T, histogram_types)
   }
 
   BOOST_CHECK_EQUAL(histogram.empty(), false);
-  BOOST_CHECK_EQUAL(histogram.size(), tableSize);
-
-  if (sizeof(source_type) < 4 || std::is_same_v<histogram_T, SparseHistogram<source_type>>) {
-    BOOST_CHECK_EQUAL(histogram.getOffset(), fixedSizeOffset);
-  } else {
-    if constexpr (std::is_signed_v<source_type>) {
-      BOOST_CHECK_EQUAL(histogram.getOffset(), -5);
-    } else {
-      BOOST_CHECK_EQUAL(histogram.getOffset(), 0);
-    }
-  }
+  BOOST_CHECK_EQUAL(histogram.size(), getTableSize<histogram_T>(results));
+  BOOST_CHECK_EQUAL(histogram.getOffset(), getOffset<histogram_T>(results));
 
   BOOST_CHECK(histogram.begin() != histogram.end());
   BOOST_CHECK(histogram.cbegin() != histogram.cend());
@@ -225,19 +248,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamples, histogram_T, histogram_types)
   results[static_cast<source_type>(0)] = 6;
   results[static_cast<source_type>(50)] = 6;
 
-  tableSize = [&]() {
-    if constexpr (std::is_same_v<histogram_T, SparseHistogram<source_type>>) {
-      return 2 * histogram_T::container_type::getBucketSize();
-    } else {
-      return computeTableSize(results);
-    }
-  }();
-
   histogram.addSamples(samples2.begin(), samples2.end());
 
   histogram2.addSamples(samples2);
 
-  BOOST_CHECK_EQUAL_COLLECTIONS(histogram.begin(), histogram.end(), histogram2.begin(), histogram2.end());
+  checkEquivalent(histogram, histogram2);
 
   for (const auto [symbol, value] : results) {
     BOOST_TEST_MESSAGE(fmt::format("testing symbol {}", static_cast<int64_t>(symbol)));
@@ -245,17 +260,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addSamples, histogram_T, histogram_types)
   }
 
   BOOST_CHECK_EQUAL(histogram.empty(), false);
-  BOOST_CHECK_EQUAL(histogram.size(), tableSize);
-
-  if (sizeof(source_type) < 4 || std::is_same_v<histogram_T, SparseHistogram<source_type>>) {
-    BOOST_CHECK_EQUAL(histogram.getOffset(), fixedSizeOffset);
-  } else {
-    if constexpr (std::is_signed_v<source_type>) {
-      BOOST_CHECK_EQUAL(histogram.getOffset(), -10);
-    } else {
-      BOOST_CHECK_EQUAL(histogram.getOffset(), 0);
-    }
-  }
+  BOOST_CHECK_EQUAL(histogram.size(), getTableSize<histogram_T>(results));
+  BOOST_CHECK_EQUAL(histogram.getOffset(), getOffset<histogram_T>(results));
 
   BOOST_CHECK(histogram.begin() != histogram.end());
   BOOST_CHECK(histogram.cbegin() != histogram.cend());
@@ -278,22 +284,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequencies, histogram_T, histogram_types)
     {static_cast<source_type>(5), 5},
   };
 
-  size_t fixedtableSize = [&]() {
-    if constexpr (std::is_same_v<histogram_T, SparseHistogram<source_type>>) {
-      return 1 * histogram_T::container_type::getBucketSize();
-    } else {
-      return utils::pow2(utils::toBits<source_type>());
-    }
-  }();
-  const size_t fixedSizeOffset = std::numeric_limits<source_type>::min();
-
   histogram_T histogram{};
   histogram.addFrequencies(frequencies.begin(), frequencies.end(), 0);
 
   histogram_T histogram2{};
   histogram2.addFrequencies(gsl::make_span(frequencies), 0);
 
-  BOOST_CHECK_EQUAL_COLLECTIONS(histogram.begin(), histogram.end(), histogram2.begin(), histogram2.end());
+  checkEquivalent(histogram, histogram2);
 
   for (const auto [symbol, value] : results) {
     BOOST_TEST_MESSAGE(fmt::format("testing symbol {}", static_cast<int64_t>(symbol)));
@@ -301,8 +298,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequencies, histogram_T, histogram_types)
   }
 
   BOOST_CHECK_EQUAL(histogram.empty(), false);
-  BOOST_CHECK_EQUAL(histogram.size(), hasFixedOffset<histogram_T>() ? fixedtableSize : 5);
-  BOOST_CHECK_EQUAL(histogram.getOffset(), hasFixedOffset<histogram_T>() ? fixedSizeOffset : 1);
+  BOOST_CHECK_EQUAL(histogram.size(), getTableSize<histogram_T>(results));
+  BOOST_CHECK_EQUAL(histogram.getOffset(), getOffset<histogram_T>(results));
+
   BOOST_CHECK(histogram.begin() != histogram.end());
   BOOST_CHECK(histogram.cbegin() != histogram.cend());
   BOOST_CHECK_EQUAL(countNUsedAlphabetSymbols(histogram), 5);
@@ -319,12 +317,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequencies, histogram_T, histogram_types)
     results[static_cast<source_type>(2 + -1)] += 4;
     results[static_cast<source_type>(11 + -1)] += 5;
 
-    if constexpr (std::is_same_v<histogram_T, SparseHistogram<source_type>>) {
-      fixedtableSize = 2 * histogram_T::container_type::getBucketSize();
-    }
-
-    BOOST_CHECK_EQUAL(histogram.size(), hasFixedOffset<histogram_T>() ? fixedtableSize : 12);
-    BOOST_CHECK_EQUAL(histogram.getOffset(), hasFixedOffset<histogram_T>() ? fixedSizeOffset : -1);
+    BOOST_CHECK_EQUAL(histogram.size(), getTableSize<histogram_T>(results));
+    BOOST_CHECK_EQUAL(histogram.getOffset(), getOffset<histogram_T>(results));
     BOOST_CHECK_EQUAL(countNUsedAlphabetSymbols(histogram), 7);
   } else {
     histogram.addFrequencies(frequencies2.begin(), frequencies2.end(), 3);
@@ -334,12 +328,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequencies, histogram_T, histogram_types)
     results[static_cast<source_type>(2 + 3)] += 4;
     results[static_cast<source_type>(11 + 3)] += 5;
 
-    BOOST_CHECK_EQUAL(histogram.size(), hasFixedOffset<histogram_T>() ? fixedtableSize : 14);
-    BOOST_CHECK_EQUAL(histogram.getOffset(), hasFixedOffset<histogram_T>() ? fixedSizeOffset : 1);
+    BOOST_CHECK_EQUAL(histogram.size(), getTableSize<histogram_T>(results));
+    BOOST_CHECK_EQUAL(histogram.getOffset(), getOffset<histogram_T>(results));
     BOOST_CHECK_EQUAL(countNUsedAlphabetSymbols(histogram), 6);
   }
   BOOST_CHECK_EQUAL(histogram.getNumSamples(), 27);
-  BOOST_CHECK_EQUAL_COLLECTIONS(histogram.begin(), histogram.end(), histogram2.begin(), histogram2.end());
+
+  checkEquivalent(histogram, histogram2);
 
   for (const auto [symbol, value] : results) {
     BOOST_TEST_MESSAGE(fmt::format("testing symbol {}", static_cast<int64_t>(symbol)));
@@ -365,14 +360,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSignChange, histogram_T, histog
     {static_cast<source_type>(5), 5},
   };
 
-  size_t fixedtableSize = [&]() {
-    if constexpr (std::is_same_v<histogram_T, SparseHistogram<source_type>>) {
-      return 1 * histogram_T::container_type::getBucketSize();
-    } else {
-      return utils::pow2(utils::toBits<source_type>());
-    }
-  }();
-
   const size_t fixedSizeOffset = std::numeric_limits<source_type>::min();
 
   histogram_T histogram{};
@@ -381,7 +368,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSignChange, histogram_T, histog
   histogram_T histogram2{};
   histogram2.addFrequencies(gsl::make_span(frequencies), 0);
 
-  BOOST_CHECK_EQUAL_COLLECTIONS(histogram.begin(), histogram.end(), histogram2.begin(), histogram2.end());
+  checkEquivalent(histogram, histogram2);
 
   for (const auto [symbol, value] : results) {
     BOOST_TEST_MESSAGE(fmt::format("testing symbol {}", static_cast<int64_t>(symbol)));
@@ -389,8 +376,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSignChange, histogram_T, histog
   }
 
   BOOST_CHECK_EQUAL(histogram.empty(), false);
-  BOOST_CHECK_EQUAL(histogram.size(), hasFixedOffset<histogram_T>() ? fixedtableSize : 5);
-  BOOST_CHECK_EQUAL(histogram.getOffset(), hasFixedOffset<histogram_T>() ? fixedSizeOffset : 1);
+  BOOST_CHECK_EQUAL(histogram.size(), getTableSize<histogram_T>(results));
+  BOOST_CHECK_EQUAL(histogram.getOffset(), getOffset<histogram_T>(results));
   BOOST_CHECK(histogram.begin() != histogram.end());
   BOOST_CHECK(histogram.cbegin() != histogram.cend());
   BOOST_CHECK_EQUAL(countNUsedAlphabetSymbols(histogram), 5);
@@ -398,10 +385,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSignChange, histogram_T, histog
 
   // lets add more frequencies;
   std::vector<value_type> frequencies2{3, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0};
-
-  if constexpr (std::is_same_v<histogram_T, SparseHistogram<source_type>>) {
-    fixedtableSize = 2 * histogram_T::container_type::getBucketSize();
-  }
 
   if constexpr (std::is_signed_v<source_type>) {
     const std::ptrdiff_t offset = utils::pow2(utils::toBits<source_type>() - 1);
@@ -419,8 +402,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSignChange, histogram_T, histog
       results[static_cast<source_type>(2 + offset)] += 4;
       results[static_cast<source_type>(11 + offset)] += 5;
 
-      BOOST_CHECK_EQUAL(histogram.size(), hasFixedOffset<histogram_T>() ? fixedtableSize : 14);
-      BOOST_CHECK_EQUAL(histogram.getOffset(), hasFixedOffset<histogram_T>() ? fixedSizeOffset : 1);
+      BOOST_CHECK_EQUAL(histogram.size(), getTableSize<histogram_T>(results));
+      BOOST_CHECK_EQUAL(histogram.getOffset(), getOffset<histogram_T>(results));
       BOOST_CHECK_EQUAL(countNUsedAlphabetSymbols(histogram), 8);
     }
   } else {
@@ -432,8 +415,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSignChange, histogram_T, histog
     results[static_cast<source_type>(2 + offset)] += 4;
     results[static_cast<source_type>(11 + offset)] += 5;
 
-    BOOST_CHECK_EQUAL(histogram.size(), hasFixedOffset<histogram_T>() ? fixedtableSize : 12);
-    BOOST_CHECK_EQUAL(histogram.getOffset(), hasFixedOffset<histogram_T>() ? fixedSizeOffset : -1);
+    BOOST_CHECK_EQUAL(histogram.size(), getTableSize<histogram_T>(results));
+    BOOST_CHECK_EQUAL(histogram.getOffset(), getOffset<histogram_T>(results));
     BOOST_CHECK_EQUAL(countNUsedAlphabetSymbols(histogram), 7);
   }
 
@@ -443,7 +426,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSignChange, histogram_T, histog
   } else {
     BOOST_CHECK_EQUAL(histogram.getNumSamples(), 27);
   }
-  BOOST_CHECK_EQUAL_COLLECTIONS(histogram.begin(), histogram.end(), histogram2.begin(), histogram2.end());
+
+  checkEquivalent(histogram, histogram2);
 
   for (const auto [symbol, value] : results) {
     BOOST_TEST_MESSAGE(fmt::format("testing symbol {}", static_cast<int64_t>(symbol)));
@@ -455,7 +439,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSignChange, histogram_T, histog
   BOOST_CHECK(histogram.cbegin() != histogram.cend());
 };
 
-using renorm_types = mp::mp_list<Histogram<uint8_t>, Histogram<uint32_t>, SparseHistogram<int32_t>>;
+using renorm_types = mp::mp_list<Histogram<uint8_t>, Histogram<uint32_t>, SparseHistogram<int32_t>, HashHistogram<int32_t>>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_renorm, histogram_T, renorm_types)
 {

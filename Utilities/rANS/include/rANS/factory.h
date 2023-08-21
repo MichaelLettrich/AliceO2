@@ -30,6 +30,9 @@
 #include "rANS/internal/containers/SparseHistogram.h"
 #include "rANS/internal/containers/SparseSymbolTable.h"
 
+#include "rANS/internal/containers/HashHistogram.h"
+#include "rANS/internal/containers/HashSymbolTable.h"
+
 #include "rANS/internal/containers/Symbol.h"
 
 #include "rANS/internal/encode/Encoder.h"
@@ -120,6 +123,31 @@ struct makeSparseHistogram {
   };
 };
 
+struct makeHashHistogram {
+
+  template <typename source_IT>
+  [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end)
+  {
+    using source_type = typename std::iterator_traits<source_IT>::value_type;
+    using histogram_type = HashHistogram<source_type>;
+
+    histogram_type f{};
+    f.addSamples(begin, end);
+    return f;
+  };
+
+  template <typename source_T>
+  [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range)
+  {
+    using source_type = typename std::remove_cv_t<source_T>;
+    using histogram_type = HashHistogram<source_type>;
+
+    histogram_type f;
+    f.addSamples(range);
+    return f;
+  };
+};
+
 template <CoderTag coderTag_V = defaults::DefaultTag,
           size_t nStreams_V = defaults::CoderPreset<coderTag_V>::nStreams,
           size_t renormingLowerBound_V = defaults::CoderPreset<coderTag_V>::renormingLowerBound>
@@ -152,6 +180,20 @@ class makeEncoder
     using symbol_type = typename SymbolTraits<coderTag>::type;
     using coder_command = typename CoderTraits<coderTag>::template type<this_type::RenormingLowerBound>;
     using symbolTable_type = SparseSymbolTable<source_type, symbol_type>;
+    using encoderType = Encoder<coder_command, symbolTable_type, this_type::NStreams>;
+
+    return encoderType{renormed};
+  };
+
+  template <typename source_T>
+  [[nodiscard]] inline static constexpr decltype(auto) fromRenormed(const RenormedHashHistogram<source_T>& renormed)
+  {
+    using namespace internal;
+    constexpr CoderTag coderTag = coderTag_V;
+    using source_type = source_T;
+    using symbol_type = typename SymbolTraits<coderTag>::type;
+    using coder_command = typename CoderTraits<coderTag>::template type<this_type::RenormingLowerBound>;
+    using symbolTable_type = HashSymbolTable<source_type, symbol_type>;
     using encoderType = Encoder<coder_command, symbolTable_type, this_type::NStreams>;
 
     return encoderType{renormed};
@@ -336,6 +378,9 @@ using defaultEncoder_type = decltype(makeEncoder<>::fromRenormed(RenormedHistogr
 
 template <typename source_T>
 using defaultSparseEncoder_type = decltype(makeEncoder<>::fromRenormed(RenormedSparseHistogram<source_T>{}));
+
+template <typename source_T>
+using defaultHashEncoder_type = decltype(makeEncoder<>::fromRenormed(RenormedHashHistogram<source_T>{}));
 
 template <typename source_T>
 using defaultDecoder_type = decltype(makeDecoder<>::fromRenormed(RenormedHistogram<source_T>{}));

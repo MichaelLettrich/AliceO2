@@ -26,6 +26,7 @@
 #include "rANS/internal/containers/RenormedHistogram.h"
 #include "rANS/internal/transform/algorithm.h"
 #include "rANS/internal/transform/sparseAlgorithm.h"
+#include "rANS/internal/transform/hashAlgorithm.h"
 
 namespace o2::rans
 {
@@ -51,7 +52,8 @@ class SparseSymbolTable : public internal::SparseVectorContainer<source_T, symbo
 
   SparseSymbolTable() = default;
 
-  explicit SparseSymbolTable(const RenormedSparseHistogram<source_type>& renormedHistogram);
+  template <typename container_T>
+  explicit SparseSymbolTable(const container_T& renormedHistogram);
 
   [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const noexcept
   {
@@ -92,7 +94,8 @@ class SparseSymbolTable : public internal::SparseVectorContainer<source_T, symbo
 };
 
 template <class source_T, class value_T>
-SparseSymbolTable<source_T, value_T>::SparseSymbolTable(const RenormedSparseHistogram<source_type>& histogram)
+template <typename container_T>
+SparseSymbolTable<source_T, value_T>::SparseSymbolTable(const container_T& histogram)
 {
   using namespace utils;
   using namespace internal;

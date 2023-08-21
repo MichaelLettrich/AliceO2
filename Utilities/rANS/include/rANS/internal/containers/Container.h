@@ -22,38 +22,24 @@
 
 #include "rANS/internal/containers/ShiftableVector.h"
 #include "rANS/internal/containers/SparseVector.h"
+#include "rANS/internal/containers/HashTable.h"
 
 namespace o2::rans::internal
 {
-
-template <typename container_T>
-struct container_traits;
-
-template <typename source_T, typename value_T>
-struct container_traits<ShiftableVector<source_T, value_T>> {
-  using source_type = typename ShiftableVector<source_T, value_T>::source_type;
-  using value_type = typename ShiftableVector<source_T, value_T>::value_type;
-};
-
-template <typename source_T, typename value_T>
-struct container_traits<SparseVector<source_T, value_T>> {
-  using source_type = source_T;
-  using value_type = value_T;
-};
 
 template <class container_T, class derived_T>
 class Container
 {
  public:
-  using source_type = typename container_traits<container_T>::source_type;
-  using value_type = typename container_traits<container_T>::value_type;
+  using source_type = typename container_T::source_type;
+  using value_type = typename container_T::value_type;
   using container_type = container_T;
   using size_type = typename container_type::size_type;
   using difference_type = typename container_type::difference_type;
-  using reference = typename container_type::reference;
-  using const_reference = typename container_type::const_reference;
-  using pointer = typename container_type::pointer;
-  using const_pointer = typename container_type::const_pointer;
+  using reference = typename std::add_lvalue_reference_t<value_type>;
+  using const_reference = typename std::add_lvalue_reference_t<std::add_const_t<value_type>>;
+  using pointer = typename std::add_pointer_t<value_type>;
+  using const_pointer = typename std::add_pointer_t<std::add_const_t<value_type>>;
   using const_iterator = typename container_type::const_iterator;
   using iterator = const_iterator;
 
@@ -152,6 +138,38 @@ class SparseVectorContainer : public Container<SparseVector<source_T, value_T>, 
   SparseVectorContainer() = default;
 };
 
+template <typename source_T, typename value_T>
+class HashContainer : public Container<HashTable<source_T, value_T>, HashContainer<source_T, value_T>>
+{
+  using base_type = Container<HashTable<source_T, value_T>, HashContainer<source_T, value_T>>;
+  friend base_type;
+
+ public:
+  using source_type = typename base_type::source_type;
+  using value_type = typename base_type::value_type;
+  using container_type = typename base_type::container_type;
+  using size_type = typename base_type::size_type;
+  using difference_type = typename base_type::difference_type;
+  using reference = typename base_type::reference;
+  using const_reference = typename base_type::const_reference;
+  using pointer = typename base_type::pointer;
+  using const_pointer = typename base_type::const_pointer;
+  using const_iterator = typename base_type::const_iterator;
+  using iterator = typename base_type::iterator;
+
+  [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const { return this->mContainer[sourceSymbol]; };
+
+  [[nodiscard]] inline source_type getOffset() const noexcept { return 0; };
+
+  [[nodiscard]] inline const_reference getNullElement() const { return this->mContainer.getNullElement(); };
+
+ protected:
+  HashContainer() = default;
+  HashContainer(value_type nullElement)
+  {
+    this->mContainer = container_type(std::move(nullElement));
+  };
+};
 } // namespace o2::rans::internal
 
 #endif /* RANS_INTERNAL_CONTAINERS_CONTAINER_H_ */
