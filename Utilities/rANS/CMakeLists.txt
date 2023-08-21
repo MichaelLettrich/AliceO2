@@ -64,6 +64,17 @@ o2_add_test(BitPtr
             LABELS utils)
             target_compile_options(${TEST_BITPTR} PRIVATE ${RANS_COMPILE_OPTIONS})
 
+o2_add_test(SparseVector
+            NAME SparseVector
+            SOURCES test/test_ransSparseVector.cxx
+            PUBLIC_LINK_LIBRARIES O2::rANS
+            COMPONENT_NAME rANS
+            TARGETVARNAME TEST_SPARSEVECTOR
+            LABELS utils)
+            target_compile_options(${TEST_SPARSEVECTOR} PRIVATE ${RANS_COMPILE_OPTIONS} -fsanitize=address -fsanitize=leak -fsanitize=undefined)
+            target_link_options(${TEST_SPARSEVECTOR} PRIVATE -fsanitize=address -fsanitize=leak -fsanitize=undefined)
+
+
 o2_add_test(Pack
             NAME Pack
             SOURCES test/test_ransPack.cxx
@@ -116,7 +127,8 @@ o2_add_test(Histograms
             COMPONENT_NAME rANS
             TARGETVARNAME TEST_HISTOGRAMS
             LABELS utils)
-            target_compile_options(${TEST_HISTOGRAMS} PRIVATE ${RANS_COMPILE_OPTIONS})
+            target_compile_options(${TEST_HISTOGRAMS} PRIVATE ${RANS_COMPILE_OPTIONS} -fsanitize=address -fsanitize=leak -fsanitize=undefined)
+            target_link_options(${TEST_HISTOGRAMS} PRIVATE -fsanitize=address -fsanitize=leak -fsanitize=undefined)
 
 o2_add_test(Metrics
             NAME Metrics
@@ -125,7 +137,8 @@ o2_add_test(Metrics
             COMPONENT_NAME rANS
             TARGETVARNAME TEST_METRICS
             LABELS utils)
-            target_compile_options(${TEST_METRICS} PRIVATE ${RANS_COMPILE_OPTIONS})
+            target_compile_options(${TEST_METRICS} PRIVATE ${RANS_COMPILE_OPTIONS} -fsanitize=address -fsanitize=leak -fsanitize=undefined)
+            target_link_options(${TEST_METRICS} PRIVATE -fsanitize=address -fsanitize=leak -fsanitize=undefined)
 
 o2_add_test(SymbolTables
             NAME SymbolTables
@@ -134,7 +147,8 @@ o2_add_test(SymbolTables
             COMPONENT_NAME rANS
             TARGETVARNAME TEST_SYMBOL_TABLES
             LABELS utils)
-            target_compile_options(${TEST_SYMBOL_TABLES} PRIVATE ${RANS_COMPILE_OPTIONS})
+            target_compile_options(${TEST_SYMBOL_TABLES} PRIVATE ${RANS_COMPILE_OPTIONS} -fsanitize=address -fsanitize=leak -fsanitize=undefined)
+            target_link_options(${TEST_SYMBOL_TABLES} PRIVATE -fsanitize=address -fsanitize=leak -fsanitize=undefined)
 
 o2_add_test(ReverseSymbolLookupTable
             NAME ReverseSymbolLookupTable
@@ -180,6 +194,12 @@ if(${RANS_ENABLE_JSON})
                       COMPONENT_NAME rANS
                       IS_BENCHMARK
                       PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+
+    o2_add_executable(Histogram
+                      SOURCES benchmarks/bench_ransHistogram.cxx
+                      COMPONENT_NAME rANS
+                      IS_BENCHMARK
+                      PUBLIC_LINK_LIBRARIES O2::libransBenchmark)          
 
     o2_add_executable(Encode
                       SOURCES benchmarks/bench_ransEncode.cxx

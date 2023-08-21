@@ -94,7 +94,7 @@ class SourceMessageProxy
   };
 
  private:
-  inline static constexpr size_t MessageSize = rans::utils::pow2(20);
+  inline static constexpr size_t MessageSize = rans::utils::pow2(10);
   SourceMessage<uint8_t> sourceMessage8u{MessageSize};
   SourceMessage<int8_t> sourceMessage8{MessageSize};
   SourceMessage<uint16_t> sourceMessage16u{MessageSize};
@@ -116,6 +116,8 @@ void encodeInplace(source_IT begin, source_IT end)
 
   const rans::Metrics<source_type>& metrics = entropyCoder.getMetrics();
   const rans::SizeEstimate sizeEstimate = metrics.getSizeEstimate();
+
+  LOGP(info, "dataset[{},{}], coder[{},{}]", metrics.getDatasetProperties().min, metrics.getDatasetProperties().max, *metrics.getCoderProperties().min, *metrics.getCoderProperties().max);
 
   std::vector<buffer_type> encodeBuffer(sizeEstimate.getCompressedDatasetSize<buffer_type>(), 0);
   std::vector<buffer_type> literalSymbolsBuffer(sizeEstimate.getIncompressibleSize<buffer_type>(), 0);

@@ -19,16 +19,16 @@
 #include <numeric>
 #include <fairlogger/Logger.h>
 
-#include "rANS/internal/containers/CountingContainer.h"
+#include "rANS/internal/containers/Container.h"
 #include "rANS/internal/containers/HistogramView.h"
 
 namespace o2::rans
 {
 
-template <typename source_T>
-class RenormedHistogram : public internal::CountingContainer<source_T>
+template <class container_T>
+class RenormedHistogramImpl : public container_T
 {
-  using base_type = internal::CountingContainer<source_T>;
+  using base_type = container_T;
 
  public:
   using source_type = typename base_type::source_type;
@@ -42,18 +42,22 @@ class RenormedHistogram : public internal::CountingContainer<source_T>
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
   using iterator = typename base_type::iterator;
-  using const_reverse_iterator = typename base_type::const_reverse_iterator;
-  using reverse_iterator = typename base_type::reverse_iterator;
 
-  RenormedHistogram() : base_type(){};
+  RenormedHistogramImpl() : base_type(){};
 
-  inline RenormedHistogram(container_type frequencies, size_t renormingBits, value_type nIncompressible) : mNIncompressible(nIncompressible)
+  inline RenormedHistogramImpl(container_type frequencies, size_t renormingBits, value_type nIncompressible) : mNIncompressible(nIncompressible)
   {
     this->mContainer = std::move(frequencies);
     this->mNSamples = utils::pow2(renormingBits);
 
 #if !defined(NDEBUG)
-    size_t nSamples = std::accumulate(this->begin(), this->end(), 0);
+    size_t nSamples = std::accumulate(this->begin(), this->end(), 0, [](const auto& a, const auto& b) {
+      if constexpr (std::is_integral_v<std::remove_reference_t<decltype(b)>>) {
+        return a + b;
+      } else {
+        return a + internal::getValue<container_type>(b);
+      }
+    });
     nSamples += this->mNIncompressible;
     assert(internal::isPow2(nSamples));
     assert(nSamples == this->mNSamples);
@@ -68,23 +72,24 @@ class RenormedHistogram : public internal::CountingContainer<source_T>
 
   [[nodiscard]] inline bool hasIncompressibleSymbol() const noexcept { return mNIncompressible != 0; };
 
-  friend void swap(RenormedHistogram& a, RenormedHistogram& b) noexcept
-  {
-    using std::swap;
-    swap(static_cast<typename RenormedHistogram::base_type&>(a),
-         static_cast<typename RenormedHistogram::base_type&>(b));
-  };
-
  private:
   value_type mNIncompressible{};
 };
 
 template <typename source_T>
-std::pair<source_T, source_T> getMinMax(const RenormedHistogram<source_T>& histogram)
+using RenormedHistogram = RenormedHistogramImpl<internal::VectorContainer<source_T, uint32_t>>;
+
+template <typename source_T>
+using RenormedSparseHistogram = RenormedHistogramImpl<internal::SparseVectorContainer<source_T, uint32_t>>;
+
+template <typename container_T>
+size_t countNUsedAlphabetSymbols(const RenormedHistogramImpl<container_T>& histogram)
 {
-  auto view = trim(makeHistogramView(histogram));
-  return {view.getMin(), view.getMax()};
-};
+  return std::count_if(histogram.begin(), histogram.end(),
+                       [](typename RenormedHistogramImpl<container_T>::const_reference v) {
+                         return v != typename RenormedHistogramImpl<container_T>::value_type{};
+                       });
+}
 
 } // namespace o2::rans
 

@@ -20,8 +20,11 @@
 
 #include "rANS/internal/containers/RenormedHistogram.h"
 #include "rANS/internal/containers/Histogram.h"
+#include "rANS/internal/containers/SparseHistogram.h"
 #include "rANS/internal/metrics/Metrics.h"
 #include "rANS/internal/common/utils.h"
+#include "rANS/internal/transform/algorithm.h"
+#include "rANS/internal/transform/sparseAlgorithm.h"
 
 namespace o2::rans
 {
@@ -39,12 +42,18 @@ inline size_t getNUsedAlphabetSymbols(const Histogram<source_T>& f)
     const size_t nUsedAlphabetSymbols = f.empty() ? 0 : f.size();
     return nUsedAlphabetSymbols;
   } else {
-    return f.countNUsedAlphabetSymbols();
+    return countNUsedAlphabetSymbols(f);
   }
 }
 
 template <typename source_T>
-RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, Metrics<source_T>& metrics, RenormingPolicy renormingPolicy, size_t lowProbabilityCutoffBits = 0)
+inline size_t getNUsedAlphabetSymbols(const SparseHistogram<source_T>& f)
+{
+  return countNUsedAlphabetSymbols(f);
+}
+
+template <typename histogram_T>
+decltype(auto) renorm(histogram_T histogram, Metrics<typename histogram_T::source_type>& metrics, RenormingPolicy renormingPolicy, size_t lowProbabilityCutoffBits = 0)
 {
   using namespace o2::rans;
   using namespace o2::rans::internal;
@@ -52,11 +61,11 @@ RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, Metrics<source
   if (histogram.empty()) {
     LOG(warning) << "rescaling Frequency Table for empty message";
   }
-
-  using source_type = source_T;
-  using count_type = typename Histogram<source_T>::value_type;
-  using difference_type = typename Histogram<source_T>::difference_type;
-  using container_type = typename Histogram<source_T>::container_type;
+  using histogram_type = histogram_T;
+  using source_type = typename histogram_type::source_type;
+  using count_type = typename histogram_type::value_type;
+  using difference_type = typename histogram_type::difference_type;
+  using container_type = typename histogram_type::container_type;
   using iterator_type = typename container_type::iterator;
 
   const source_type offset = histogram.getOffset();
@@ -72,34 +81,33 @@ RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, Metrics<source
   count_type nIncompressibleSamples = 0;
   count_type nIncompressibleSymbols = 0;
   count_type nSamplesRescaledUncorrected = 0;
-  std::vector<iterator_type> correctableIndices;
+  std::vector<source_type> correctableIndices;
   correctableIndices.reserve(nUsedAlphabetSymbols);
 
   auto scaleFrequency = [nSamplesRescaled](double_t symbolProbability) -> double_t { return symbolProbability * nSamplesRescaled; };
 
   container_type rescaledHistogram = std::move(histogram).release();
 
-  for (auto frequencyIter = rescaledHistogram.begin(); frequencyIter != rescaledHistogram.end(); ++frequencyIter) {
-    const count_type frequency = *frequencyIter;
+  forEachIndexValue(rescaledHistogram, [&](const source_type& index, const count_t& frequency) {
     if (frequency > 0) {
       const double_t symbolProbability = static_cast<double_t>(frequency) / nSamples;
       if (symbolProbability < probabilityCutOffThreshold) {
         nIncompressibleSamples += frequency;
         ++nIncompressibleSymbols;
         incompressibleSymbolProbability += symbolProbability;
-        *frequencyIter = 0;
+        rescaledHistogram[index] = 0;
       } else {
         const double_t scaledFrequencyD = scaleFrequency(symbolProbability);
         count_type rescaledFrequency = internal::roundSymbolFrequency(scaledFrequencyD);
         assert(rescaledFrequency > 0);
-        *frequencyIter = rescaledFrequency;
+        rescaledHistogram[index] = rescaledFrequency;
         nSamplesRescaledUncorrected += rescaledFrequency;
         if (rescaledFrequency > 1) {
-          correctableIndices.push_back(frequencyIter);
+          correctableIndices.push_back(index);
         }
       }
     }
-  }
+  });
 
   // treat incompressible symbol:
   const count_type incompressibleSymbolFrequency = [&]() -> count_type {
@@ -115,14 +123,14 @@ RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, Metrics<source
   nSamplesRescaledUncorrected += incompressibleSymbolFrequency;
 
   // correction
-  std::stable_sort(correctableIndices.begin(), correctableIndices.end(), [&rescaledHistogram](const iterator_type& a, const iterator_type& b) { return *a < *b; });
+  std::stable_sort(correctableIndices.begin(), correctableIndices.end(), [&rescaledHistogram](const source_type& a, const source_type& b) { return rescaledHistogram[a] < rescaledHistogram[b]; });
 
   difference_type nCorrections = static_cast<difference_type>(nSamplesRescaled) - static_cast<difference_type>(nSamplesRescaledUncorrected);
   const double_t rescalingFactor = static_cast<double_t>(nSamplesRescaled) / static_cast<double_t>(nSamplesRescaledUncorrected);
 
-  for (auto iter : correctableIndices) {
+  for (auto index : correctableIndices) {
     if (std::abs(nCorrections) > 0) {
-      const difference_type uncorrectedFrequency = *iter;
+      const difference_type uncorrectedFrequency = rescaledHistogram[index];
       difference_type correction = uncorrectedFrequency - roundSymbolFrequency(uncorrectedFrequency * rescalingFactor);
 
       if (nCorrections < 0) {
@@ -136,7 +144,7 @@ RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, Metrics<source
       // the corrected frequency must be at least 1 though
       const count_type correctedFrequency = std::max(1l, uncorrectedFrequency - correction);
       nCorrections += uncorrectedFrequency - correctedFrequency;
-      *iter = correctedFrequency;
+      rescaledHistogram[index] = correctedFrequency;
     } else {
       break;
     }
@@ -146,39 +154,46 @@ RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, Metrics<source
     throw HistogramError(fmt::format("rANS rescaling incomplete: {} corrections Remaining", nCorrections));
   }
 
-  RenormedHistogram<source_type> ret{std::move(rescaledHistogram), renormingPrecisionBits, incompressibleSymbolFrequency};
-
   auto& coderProperties = metrics.getCoderProperties();
   *coderProperties.renormingPrecisionBits = renormingPrecisionBits;
   *coderProperties.nIncompressibleSymbols = nIncompressibleSymbols;
   *coderProperties.nIncompressibleSamples = nIncompressibleSamples;
-  std::tie(*coderProperties.min, *coderProperties.max) = getMinMax(ret);
 
-  return ret;
+  if constexpr (std::is_same_v<histogram_type, Histogram<source_type>>) {
+    RenormedHistogram<source_type> ret{std::move(rescaledHistogram), renormingPrecisionBits, incompressibleSymbolFrequency};
+    std::tie(*coderProperties.min, *coderProperties.max) = getMinMax(ret);
+    return ret;
+  } else {
+    static_assert(std::is_same_v<histogram_type, SparseHistogram<source_type>>);
+    RenormedSparseHistogram<source_type> ret{std::move(rescaledHistogram), renormingPrecisionBits, incompressibleSymbolFrequency};
+    std::tie(*coderProperties.min, *coderProperties.max) = getMinMax(ret);
+    return ret;
+  }
 };
-
 } // namespace renormImpl
 
-template <typename source_T>
-RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, size_t newPrecision, RenormingPolicy renormingPolicy = RenormingPolicy::Auto, size_t lowProbabilityCutoffBits = 0)
+template <typename histogram_T>
+decltype(auto) renorm(histogram_T histogram, size_t newPrecision, RenormingPolicy renormingPolicy = RenormingPolicy::Auto, size_t lowProbabilityCutoffBits = 0)
 {
+  using source_type = typename histogram_T::source_type;
   const size_t nUsedAlphabetSymbols = renormImpl::getNUsedAlphabetSymbols(histogram);
-  Metrics<source_T> metrics{};
+  Metrics<source_type> metrics{};
   *metrics.getCoderProperties().renormingPrecisionBits = newPrecision;
   metrics.getDatasetProperties().nUsedAlphabetSymbols = nUsedAlphabetSymbols;
   return renormImpl::renorm(std::move(histogram), metrics, renormingPolicy, lowProbabilityCutoffBits);
 };
 
-template <typename source_T>
-RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, Metrics<source_T>& metrics, RenormingPolicy renormingPolicy = RenormingPolicy::Auto, size_t lowProbabilityCutoffBits = 0)
+template <typename histogram_T>
+decltype(auto) renorm(histogram_T histogram, Metrics<typename histogram_T::source_type>& metrics, RenormingPolicy renormingPolicy = RenormingPolicy::Auto, size_t lowProbabilityCutoffBits = 0)
 {
   return renormImpl::renorm(std::move(histogram), metrics, renormingPolicy, lowProbabilityCutoffBits);
 };
 
-template <typename source_T>
-RenormedHistogram<source_T> renorm(Histogram<source_T> histogram, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
+template <typename histogram_T>
+decltype(auto) renorm(histogram_T histogram, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
 {
-  Metrics<source_T> metrics{histogram};
+  using source_type = typename histogram_T::source_type;
+  Metrics<source_type> metrics{histogram};
   return renorm(std::move(histogram), metrics, renormingPolicy);
 };
 

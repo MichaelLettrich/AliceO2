@@ -22,6 +22,9 @@
 #include "rANS/internal/containers/SymbolTable.h"
 #include "rANS/internal/containers/Symbol.h"
 
+#include "rANS/internal/containers/SparseHistogram.h"
+#include "rANS/internal/containers/SparseSymbolTable.h"
+
 #include "rANS/internal/encode/Encoder.h"
 #include "rANS/internal/encode/SingleStreamEncoderImpl.h"
 
@@ -77,6 +80,10 @@ template <typename source_T, typename value_T>
 struct isSymbolTable<SymbolTable<source_T, value_T>> : std::true_type {
 };
 
+template <typename source_T, typename value_T>
+struct isSymbolTable<SparseSymbolTable<source_T, value_T>> : std::true_type {
+};
+
 template <typename T>
 inline constexpr bool isSymbolTable_v = isSymbolTable<T>::value;
 
@@ -88,15 +95,12 @@ template <typename source_T>
 struct isHistogram<Histogram<source_T>> : std::true_type {
 };
 
-template <typename T>
-inline constexpr bool isHistogram_v = isHistogram<T>::value;
-
-template <typename T>
-struct isCountingContainer : public std::is_base_of<CountingContainer<typename T::source_type, T>, T> {
+template <typename source_T>
+struct isHistogram<SparseHistogram<source_T>> : std::true_type {
 };
 
 template <typename T>
-inline constexpr bool isCountingContainer_v = isCountingContainer<T>::value;
+inline constexpr bool isHistogram_v = isHistogram<T>::value;
 
 template <typename T>
 struct isRenormedHistogram : std::false_type {
@@ -106,8 +110,48 @@ template <typename source_T>
 struct isRenormedHistogram<RenormedHistogram<source_T>> : std::true_type {
 };
 
+template <typename source_T>
+struct isRenormedHistogram<RenormedSparseHistogram<source_T>> : std::true_type {
+};
+
 template <typename T>
 inline constexpr bool isRenormedHistogram_v = isRenormedHistogram<T>::value;
+
+template <typename T>
+struct isDenseContainer : std::false_type {
+};
+template <typename source_T>
+struct isDenseContainer<Histogram<source_T>> : std::true_type {
+};
+
+template <typename source_T>
+struct isDenseContainer<RenormedHistogram<source_T>> : std::true_type {
+};
+
+template <typename source_T, typename value_T>
+struct isDenseContainer<SymbolTable<source_T, value_T>> : std::true_type {
+};
+
+template <typename T>
+inline constexpr bool isDenseContainer_v = isDenseContainer<T>::value;
+
+template <typename T>
+struct isSparseContainer : std::false_type {
+};
+template <typename source_T>
+struct isSparseContainer<SparseHistogram<source_T>> : std::true_type {
+};
+
+template <typename source_T>
+struct isSparseContainer<RenormedSparseHistogram<source_T>> : std::true_type {
+};
+
+template <typename source_T, typename value_T>
+struct isSparseContainer<SparseSymbolTable<source_T, value_T>> : std::true_type {
+};
+
+template <typename T>
+inline constexpr bool isSparseContainer_v = isSparseContainer<T>::value;
 
 template <CoderTag tag_V>
 struct SymbolTraits {

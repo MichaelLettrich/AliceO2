@@ -29,6 +29,8 @@
 #include "rANS/internal/pack/pack.h"
 #include "rANS/internal/pack/eliasDelta.h"
 #include "rANS/internal/common/exceptions.h"
+#include "rANS/internal/transform/algorithm.h"
+#include "rANS/internal/transform/sparseAlgorithm.h"
 
 namespace o2::rans
 {
@@ -37,14 +39,20 @@ namespace internal
 {
 
 template <typename container_T>
-inline constexpr count_t getFrequency(const container_T& container, typename container_T::const_iterator iter)
+inline constexpr count_t getFrequency(const container_T& container, typename container_T::const_reference symbol)
 {
-  const auto& ret = *iter;
   if constexpr (isSymbolTable_v<container_T>) {
-    return container.isEscapeSymbol(ret) ? 0 : ret.getFrequency();
+    return container.isEscapeSymbol(symbol) ? 0 : symbol.getFrequency();
   } else {
-    return ret;
+    return symbol;
   }
+};
+
+template <typename container_T, std::enable_if_t<isSparseContainer_v<container_T>, bool> = true>
+inline constexpr count_t getFrequency(const container_T& container, typename container_T::const_iterator::value_type symbolPair)
+{
+  const auto& symbol = symbolPair.second.get();
+  return getFrequency(container, symbol);
 };
 
 template <typename container_T>
@@ -141,41 +149,35 @@ dest_IT compressRenormedDictionary(const container_T& container, dest_IT dstBuff
   static_assert(std::is_pointer_v<dest_IT>, "only raw pointers are permited as a target for serialization");
   static_assert((isSymbolTable_v<container_T> || isRenormedHistogram_v<container_T>), "only renormed Histograms and symbol tables are accepted. Non-renormed histograms might not compress well");
 
-  auto getNextNonzeroIter = [&container](auto begin, auto end) {
-    for (auto iter = begin; iter != end; ++iter) {
-      if (getFrequency(container, iter) > 0) {
-        return iter;
-      }
-    }
-    return end;
-  };
+  using source_type = typename container_T::source_type;
 
   BitPtr dstIter{dstBufferBegin};
   // encoding the container values back-to-front, so that the decoder can run in correct order.
 
   // find the first non-zero entry
-  const auto begin = getNextNonzeroIter(container.cbegin(), container.cend());
+  const auto begin = std::find_if(container.cbegin(), container.cend(), [&container](const auto& val) { return getFrequency(container, val) > 0; });
   // and write it;
+  // this one is special, since it will not have an offset.
   auto iter = begin;
-  uint32_t offset{};
+  source_type lastValidIndex{};
   if (iter != container.cend()) {
-    auto frequency = getFrequency(container, iter);
-    dstIter = eliasDeltaEncode(dstIter, getFrequency(container, iter));
+    auto frequency = getFrequency(container, *iter);
+    dstIter = eliasDeltaEncode(dstIter, frequency);
+    lastValidIndex = getIndex(container, iter);
     ++iter;
-    offset = 1;
   }
 
   // all subsequent entries
-  for (; iter != container.end(); ++iter) {
-    auto frequency = getFrequency(container, iter);
+  forEachIndexValue(container, iter, container.end(), [&](const source_type& index, const auto& symbol) {
+    auto frequency = getFrequency(container, symbol);
     if (frequency > 0) {
+      assert(index > lastValidIndex);
+      uint32_t offset = index - lastValidIndex;
+      lastValidIndex = index;
       dstIter = eliasDeltaEncode(dstIter, offset);
       dstIter = eliasDeltaEncode(dstIter, frequency);
-      offset = 1;
-    } else {
-      ++offset;
     }
-  }
+  });
   // write out incompressibleFrequency
   dstIter = eliasDeltaEncode(dstIter, getIncompressibleFrequency(container) + 1);
   // finish off by a 1 to identify start of the sequence.
