@@ -25,8 +25,6 @@
 #include "rANS/internal/containers/Container.h"
 #include "rANS/internal/containers/RenormedHistogram.h"
 #include "rANS/internal/transform/algorithm.h"
-#include "rANS/internal/transform/sparseAlgorithm.h"
-#include "rANS/internal/transform/hashAlgorithm.h"
 
 namespace o2::rans
 {
@@ -48,7 +46,6 @@ class SparseSymbolTable : public internal::SparseVectorContainer<source_T, symbo
   using pointer = typename base_type::pointer;
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
-  using iterator = typename base_type::iterator;
 
   SparseSymbolTable() = default;
 
@@ -123,8 +120,7 @@ SparseSymbolTable<source_T, value_T>::SparseSymbolTable(const container_T& histo
 template <typename source_T, typename symbol_T>
 std::pair<source_T, source_T> getMinMax(const SparseSymbolTable<source_T, symbol_T>& symbolTable)
 {
-  auto [trimmedBegin, trimmedEnd] = trim(symbolTable.begin(), symbolTable.end(), symbolTable.getEscapeSymbol());
-  return getMinMax(symbolTable, trimmedBegin, trimmedEnd);
+  return internal::getMinMax(symbolTable, symbolTable.getEscapeSymbol());
 };
 
 template <typename source_T, typename symbol_T>
@@ -133,8 +129,8 @@ size_t countNUsedAlphabetSymbols(const SparseSymbolTable<source_T, symbol_T>& hi
   using container_type = typename SparseSymbolTable<source_T, symbol_T>::container_type;
 
   return std::count_if(histogram.begin(), histogram.end(),
-                       [&](const auto& iterValue) {
-                         return !histogram.isEscapeSymbol(internal::getValue<container_type>(iterValue));
+                       [&](const auto& value) {
+                         return !histogram.isEscapeSymbol(internal::getValue(value));
                        });
 }
 

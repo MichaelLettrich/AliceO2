@@ -255,7 +255,7 @@ class SparseVectorIterator
 
   using source_type = typename container_T::source_type;
   using difference_type = std::ptrdiff_t;
-  using value_type = std::pair<source_type, std::reference_wrapper<container_value_type>>;
+  using value_type = std::pair<source_type, container_value_type&>;
   using pointer = PtrHelper;
   using reference = value_type&;
   using iterator_category = std::bidirectional_iterator_tag;
@@ -372,25 +372,6 @@ class SparseVectorIterator
   lut_iterator mLutIter{};
   bucket_iterator mBucketIter{};
 };
-
-template <class container_T>
-inline auto getValue(SparseVectorIterator<container_T> iter) -> typename SparseVectorIterator<container_T>::container_value_type&
-{
-  return iter->second.get();
-}
-
-template <class container_T>
-inline void setValue(SparseVectorIterator<container_T> iter,
-                     std::add_lvalue_reference_t<std::add_const_t<typename SparseVectorIterator<container_T>::container_value_type>> value)
-{
-  iter->second.get() = value;
-}
-
-template <class container_T>
-inline auto getValue(std::add_lvalue_reference_t<std::add_const_t<typename std::iterator_traits<typename container_T::const_iterator>::value_type>> value) -> typename container_T::const_iterator::container_value_type
-{
-  return value.second.get();
-}
 
 } // namespace o2::rans::internal
 

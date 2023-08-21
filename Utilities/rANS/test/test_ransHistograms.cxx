@@ -29,8 +29,6 @@
 #include "rANS/internal/containers/SparseHistogram.h"
 #include "rANS/internal/containers/HashHistogram.h"
 #include "rANS/internal/transform/algorithm.h"
-#include "rANS/internal/transform/sparseAlgorithm.h"
-#include "rANS/internal/transform/hashAlgorithm.h"
 #include "rANS/internal/common/typetraits.h"
 #include "rANS/compat.h"
 
@@ -74,7 +72,7 @@ template <class F, class S>
 struct print_log_value<::std::pair<F, std::reference_wrapper<S>>> {
   void operator()(::std::ostream& os, ::std::pair<F, std::reference_wrapper<S>> const& p)
   {
-    os << "([" << p.first << "], [" << p.second.get() << "])";
+    os << "([" << p.first << "], [" << p.second << "])";
   }
 };
 

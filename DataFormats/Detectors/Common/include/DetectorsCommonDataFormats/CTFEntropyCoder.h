@@ -115,13 +115,18 @@ class InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) < 4, void>
   template <typename source_IT>
   InplaceEntropyCoder(source_IT srcBegin, source_IT srcEnd);
 
+  template <typename source_IT>
+  InplaceEntropyCoder(source_IT srcBegin, source_IT srcEnd, source_type min, source_type max) : InplaceEntropyCoder(srcBegin, srcEnd){};
+
   void makeEncoder();
 
   // getters
 
   inline const metrics_type& getMetrics() const noexcept { return mMetrics; };
 
-  inline const encoder_type& getEncoder() const { return const_cast<const encoder_type&>(const_cast<InplaceEntropyCoder&>(*this).getEncoderImpl()); };
+  inline size_t getNStreams() const { return mEncoder->getNStreams(); };
+
+  inline size_t getSymbolTablePrecision() const { return mEncoder->getSymbolTable().getPrecision(); };
 
   inline size_t getNIncompressibleSamples() const noexcept { return mIncompressibleBuffer.size(); };
 
@@ -185,6 +190,7 @@ InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) < 4, void>>::Inp
 template <typename source_T>
 void InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) < 4, void>>::makeEncoder()
 {
+
   auto& hist = getHistogram();
   auto renormed = rans::renorm(std::move(hist), mMetrics);
   mEncoder = rans::makeEncoder<>::fromRenormed(renormed);
@@ -196,7 +202,6 @@ template <typename src_IT, typename dst_IT>
 dst_IT InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) < 4, void>>::encode(src_IT srcBegin, src_IT srcEnd, dst_IT dstBegin, dst_IT dstEnd)
 {
   static_assert(std::is_same_v<source_T, typename std::iterator_traits<src_IT>::value_type>);
-
   dst_IT messageEnd = dstBegin;
   auto& encoder = getEncoderImpl();
 
@@ -239,15 +244,18 @@ class InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) == 4, void
 {
  public:
   using source_type = source_T;
-  using histogram_type = rans::SparseHistogram<source_type>;
-  using renormedHistogram_type = rans::RenormedSparseHistogram<source_type>;
+  using histogram_type = rans::Histogram<source_type>;
+  using renormedHistogram_type = rans::RenormedHistogram<source_type>;
   using metrics_type = rans::Metrics<source_type>;
-  using encoder_type = typename rans::defaultSparseEncoder_type<source_type>;
+  using encoder_type = typename rans::defaultEncoder_type<source_type>;
 
   InplaceEntropyCoder() = default;
 
   template <typename source_IT>
   InplaceEntropyCoder(source_IT srcBegin, source_IT srcEnd);
+
+  template <typename source_IT>
+  InplaceEntropyCoder(source_IT srcBegin, source_IT srcEnd, source_type min, source_type max);
 
   void makeEncoder();
 
@@ -255,9 +263,21 @@ class InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) == 4, void
 
   inline const metrics_type& getMetrics() const noexcept { return mMetrics; };
 
-  inline const encoder_type& getEncoder() const { return const_cast<const encoder_type&>(const_cast<InplaceEntropyCoder&>(*this).getEncoderImpl()); };
-
   inline size_t getNIncompressibleSamples() const noexcept { return mIncompressibleBuffer.size(); };
+
+  inline size_t getNStreams() const noexcept
+  {
+    size_t nStreams{};
+    std::visit([&, this](auto&& encoder) { nStreams = encoder.getNStreams(); }, mEncoder);
+    return nStreams;
+  }
+
+  inline size_t getSymbolTablePrecision() const noexcept
+  {
+    size_t precision{};
+    std::visit([&, this](auto&& encoder) { precision = encoder.getSymbolTable().getPrecision(); }, mEncoder);
+    return precision;
+  }
 
   template <typename dst_T = uint8_t>
   inline size_t getPackedIncompressibleSize() const noexcept;
@@ -273,34 +293,11 @@ class InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) == 4, void
   inline dst_T* writeIncompressible(dst_T* dstBegin, dst_T* dstEnd);
 
  private:
-  inline histogram_type& getHistogram()
-  {
-    if (mHistogram.has_value()) {
-      return *mHistogram;
-    } else {
-      throw std::runtime_error("uninitialized histogram");
-    };
-  };
-
-  inline void setHistogram(histogram_type&& hist)
-  {
-    mHistogram = std::move(hist);
-  };
-
-  inline encoder_type& getEncoderImpl()
-  {
-    if (mEncoder.has_value()) {
-      return *mEncoder;
-    } else {
-      throw std::runtime_error("uninitialized encoder");
-    }
-  };
-  inline void setEncoder(encoder_type&& encoder) { mEncoder = std::move(encoder); };
-
-  std::optional<histogram_type> mHistogram{};
+  std::variant<rans::Histogram<source_T>, rans::SparseHistogram<source_T>, rans::HashHistogram<source_T>> mHistogram{};
   metrics_type mMetrics{};
 
-  std::optional<encoder_type> mEncoder{};
+  std::variant<rans::defaultEncoder_type<source_T>, rans::defaultSparseEncoder_type<source_T>, rans::defaultHashEncoder_type<source_T>> mEncoder{};
+  // std::optional<encoder_type> mEncoder{};
   std::vector<source_T> mIncompressibleBuffer{};
   Packer<source_type> mIncompressiblePacker{};
 };
@@ -311,17 +308,66 @@ InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) == 4, void>>::In
 {
   static_assert(std::is_same_v<source_T, typename std::iterator_traits<src_IT>::value_type>);
 
-  setHistogram(rans::makeSparseHistogram::fromSamples(srcBegin, srcEnd));
-  mMetrics = metrics_type{getHistogram()};
+  const size_t nSamples = std::distance(srcBegin, srcEnd);
+  if (nSamples < 100000) {
+    mHistogram.template emplace<2>(rans::makeHashHistogram::fromSamples(srcBegin, srcEnd));
+    mMetrics = metrics_type{std::get<2>(mHistogram)};
+  } else {
+    mHistogram.template emplace<1>(rans::makeSparseHistogram::fromSamples(srcBegin, srcEnd));
+    mMetrics = metrics_type{std::get<1>(mHistogram)};
+  }
+
+  mIncompressiblePacker = Packer(mMetrics);
+};
+
+template <typename source_T>
+template <typename source_IT>
+InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) == 4, void>>::InplaceEntropyCoder(source_IT srcBegin, source_IT srcEnd, source_type min, source_type max)
+{
+
+  static_assert(std::is_same_v<source_T, typename std::iterator_traits<source_IT>::value_type>);
+
+  const size_t nSamples = std::distance(srcBegin, srcEnd);
+  const size_t rangeBits = rans::utils::getRangeBits(min, max);
+  const size_t nBins = max - min + 1;
+
+  if (rangeBits <= 16) {
+    mHistogram.template emplace<0>(rans::makeHistogram::fromSamples(srcBegin, srcEnd, min, max));
+    mMetrics = metrics_type{std::get<0>(mHistogram), min, max};
+  } else if (nSamples / nBins <= 0.3) {
+    mHistogram.template emplace<2>(rans::makeHashHistogram::fromSamples(srcBegin, srcEnd));
+    mMetrics = metrics_type{std::get<2>(mHistogram), min, max};
+  } else {
+    mHistogram.template emplace<1>(rans::makeSparseHistogram::fromSamples(srcBegin, srcEnd));
+    mMetrics = metrics_type{std::get<1>(mHistogram), min, max};
+  }
+
   mIncompressiblePacker = Packer(mMetrics);
 };
 
 template <typename source_T>
 void InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) == 4, void>>::makeEncoder()
 {
-  auto& hist = getHistogram();
-  auto renormed = rans::renorm(std::move(hist), mMetrics);
-  mEncoder = rans::makeEncoder<>::fromRenormed(renormed);
+
+  std::visit([this](auto&& histogram) {
+    auto renormed = rans::renorm(std::move(histogram), mMetrics);
+
+    const size_t rangeBits = rans::utils::getRangeBits(*mMetrics.getCoderProperties().min, *mMetrics.getCoderProperties().max);
+    const size_t nBins = *mMetrics.getCoderProperties().max - *mMetrics.getCoderProperties().min + 1;
+
+    if (rangeBits <= 18) {
+      mEncoder.template emplace<0>(renormed);
+    } else {
+      if constexpr (std::is_same_v<decltype(renormed), rans::Histogram<source_T>>) {
+        mEncoder.template emplace<0>(renormed);
+      } else if constexpr (std::is_same_v<decltype(renormed), rans::SparseHistogram<source_T>>) {
+        mEncoder.template emplace<1>(renormed);
+      } else {
+        mEncoder.template emplace<2>(renormed);
+      }
+    }
+  },
+             mHistogram);
   mIncompressiblePacker = Packer(mMetrics);
 };
 
@@ -332,16 +378,19 @@ dst_IT InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) == 4, voi
   static_assert(std::is_same_v<source_T, typename std::iterator_traits<src_IT>::value_type>);
 
   dst_IT messageEnd = dstBegin;
-  auto& encoder = getEncoderImpl();
 
-  if (encoder.getSymbolTable().hasEscapeSymbol()) {
-    mIncompressibleBuffer.reserve(*mMetrics.getCoderProperties().nIncompressibleSamples);
-    auto [encodedMessageEnd, literalsEnd] = encoder.process(srcBegin, srcEnd, dstBegin, std::back_inserter(mIncompressibleBuffer));
-    messageEnd = encodedMessageEnd;
-  } else {
-    messageEnd = encoder.process(srcBegin, srcEnd, dstBegin);
-  }
-  rans::utils::checkBounds(messageEnd, dstEnd);
+  std::visit([&, this](auto&& encoder) {
+    if (encoder.getSymbolTable().hasEscapeSymbol()) {
+      mIncompressibleBuffer.reserve(*mMetrics.getCoderProperties().nIncompressibleSamples);
+      auto [encodedMessageEnd, literalsEnd] = encoder.process(srcBegin, srcEnd, dstBegin, std::back_inserter(mIncompressibleBuffer));
+      messageEnd = encodedMessageEnd;
+    } else {
+      messageEnd = encoder.process(srcBegin, srcEnd, dstBegin);
+    }
+    rans::utils::checkBounds(messageEnd, dstEnd);
+  },
+             mEncoder);
+
   return messageEnd;
 };
 
@@ -349,7 +398,9 @@ template <typename source_T>
 template <typename dst_IT>
 inline dst_IT InplaceEntropyCoder<source_T, std::enable_if_t<sizeof(source_T) == 4, void>>::writeDictionary(dst_IT dstBegin, dst_IT dstEnd)
 {
-  dst_IT end = rans::compressRenormedDictionary(mEncoder->getSymbolTable(), dstBegin);
+  dst_IT end{};
+  std::visit([&, this](auto&& encoder) { end = rans::compressRenormedDictionary(encoder.getSymbolTable(), dstBegin); }, mEncoder);
+
   rans::utils::checkBounds(end, dstEnd);
   return end;
 };

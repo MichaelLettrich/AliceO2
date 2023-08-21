@@ -80,7 +80,7 @@ BOOST_AUTO_TEST_CASE(test_write)
 
   BOOST_TEST_MESSAGE("testing forward iterators");
   for (auto iter = vec.begin(); iter != vec.end(); ++iter) {
-    auto value = iter->second.get();
+    auto value = iter->second;
     if (value > 0) {
       BOOST_TEST_MESSAGE(fmt::format("checking symbol [{}]:{}", iter->first, value));
       BOOST_CHECK_EQUAL(results[iter->first], value);
@@ -89,7 +89,7 @@ BOOST_AUTO_TEST_CASE(test_write)
 
   BOOST_TEST_MESSAGE("testing const forward iterators");
   for (auto iter = vec.cbegin(); iter != vec.cend(); ++iter) {
-    auto value = iter->second.get();
+    auto value = iter->second;
     if (value > 0) {
       BOOST_TEST_MESSAGE(fmt::format("checking symbol [{}]:{}", iter->first, value));
       BOOST_CHECK_EQUAL(results[iter->first], value);
@@ -98,7 +98,7 @@ BOOST_AUTO_TEST_CASE(test_write)
 
   BOOST_TEST_MESSAGE("testing reverse iterators");
   for (auto iter = vec.rbegin(); iter != vec.rend(); ++iter) {
-    auto value = iter->second.get();
+    auto value = iter->second;
     if (value > 0) {
       BOOST_TEST_MESSAGE(fmt::format("checking symbol [{}]:{}", iter->first, value));
       BOOST_CHECK_EQUAL(results[iter->first], value);
@@ -107,7 +107,7 @@ BOOST_AUTO_TEST_CASE(test_write)
 
   BOOST_TEST_MESSAGE("testing const reverse iterators");
   for (auto iter = vec.crbegin(); iter != vec.crend(); ++iter) {
-    auto value = iter->second.get();
+    auto value = iter->second;
     if (value > 0) {
       BOOST_TEST_MESSAGE(fmt::format("checking symbol [{}]:{}", iter->first, value));
       BOOST_CHECK_EQUAL(results[iter->first], value);

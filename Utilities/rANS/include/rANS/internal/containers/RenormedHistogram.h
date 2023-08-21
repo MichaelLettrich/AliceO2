@@ -41,7 +41,6 @@ class RenormedHistogramImpl : public container_T
   using pointer = typename base_type::pointer;
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
-  using iterator = typename base_type::iterator;
 
   RenormedHistogramImpl() : base_type(){};
 

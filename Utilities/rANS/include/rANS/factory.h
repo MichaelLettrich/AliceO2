@@ -86,6 +86,19 @@ struct makeHistogram {
     return f;
   };
 
+  template <typename source_IT>
+  [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end,
+                                                         typename std::iterator_traits<source_IT>::value_type min,
+                                                         typename std::iterator_traits<source_IT>::value_type max)
+  {
+    using source_type = typename std::iterator_traits<source_IT>::value_type;
+    using histogram_type = Histogram<source_type>;
+
+    histogram_type f{};
+    f.addSamples(begin, end, min, max);
+    return f;
+  };
+
   template <typename source_T>
   [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range)
   {
@@ -94,6 +107,17 @@ struct makeHistogram {
 
     histogram_type f;
     f.addSamples(range);
+    return f;
+  };
+
+  template <typename source_T>
+  [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range, source_T min, source_T max)
+  {
+    using source_type = typename std::remove_cv_t<source_T>;
+    using histogram_type = Histogram<source_type>;
+
+    histogram_type f;
+    f.addSamples(range, min, max);
     return f;
   };
 };

@@ -27,6 +27,15 @@ namespace o2::rans
 namespace internal
 {
 template <typename source_T, typename value_T>
+class ShiftableVector;
+
+template <class source_T, class value_T>
+class SparseVector;
+
+template <typename source_T, typename value_T>
+class HashTable;
+
+template <typename source_T, typename value_T>
 class VectorContainer;
 
 template <typename source_T, typename value_T>
@@ -34,9 +43,6 @@ class SparseVectorContainer;
 
 template <typename source_T, typename value_T>
 class HashContainer;
-
-template <typename source_T, typename value_T>
-class HashTable;
 
 } // namespace internal
 
@@ -73,6 +79,13 @@ using RenormedHashHistogram = RenormedHistogramImpl<internal::HashContainer<sour
 
 namespace internal
 {
+template <typename T>
+struct removeCVRef {
+  using type = std::remove_cv_t<std::remove_reference_t<T>>;
+};
+
+template <typename T>
+using removeCVRef_t = typename removeCVRef<T>::type;
 
 template <typename T>
 struct isSymbolTable : std::false_type {
@@ -91,7 +104,7 @@ struct isSymbolTable<HashSymbolTable<source_T, value_T>> : std::true_type {
 };
 
 template <typename T>
-inline constexpr bool isSymbolTable_v = isSymbolTable<T>::value;
+inline constexpr bool isSymbolTable_v = isSymbolTable<removeCVRef_t<T>>::value;
 
 template <typename T>
 struct isHistogram : std::false_type {
@@ -110,7 +123,7 @@ struct isHistogram<HashHistogram<source_T>> : std::true_type {
 };
 
 template <typename T>
-inline constexpr bool isHistogram_v = isHistogram<T>::value;
+inline constexpr bool isHistogram_v = isHistogram<removeCVRef_t<T>>::value;
 
 template <typename T>
 struct isRenormedHistogram : std::false_type {
@@ -129,11 +142,16 @@ struct isRenormedHistogram<RenormedHashHistogram<source_T>> : std::true_type {
 };
 
 template <typename T>
-inline constexpr bool isRenormedHistogram_v = isRenormedHistogram<T>::value;
+inline constexpr bool isRenormedHistogram_v = isRenormedHistogram<removeCVRef_t<T>>::value;
 
 template <typename T>
 struct isDenseContainer : std::false_type {
 };
+
+template <typename source_T, typename value_T>
+struct isDenseContainer<ShiftableVector<source_T, value_T>> : std::true_type {
+};
+
 template <typename source_T>
 struct isDenseContainer<Histogram<source_T, void>> : std::true_type {
 };
@@ -147,11 +165,16 @@ struct isDenseContainer<SymbolTable<source_T, value_T>> : std::true_type {
 };
 
 template <typename T>
-inline constexpr bool isDenseContainer_v = isDenseContainer<T>::value;
+inline constexpr bool isDenseContainer_v = isDenseContainer<removeCVRef_t<T>>::value;
 
 template <typename T>
 struct isSparseContainer : std::false_type {
 };
+
+template <typename source_T, typename value_T>
+struct isSparseContainer<SparseVector<source_T, value_T>> : std::true_type {
+};
+
 template <typename source_T>
 struct isSparseContainer<SparseHistogram<source_T>> : std::true_type {
 };
@@ -165,7 +188,7 @@ struct isSparseContainer<SparseSymbolTable<source_T, value_T>> : std::true_type 
 };
 
 template <typename T>
-inline constexpr bool isSparseContainer_v = isSparseContainer<T>::value;
+inline constexpr bool isSparseContainer_v = isSparseContainer<removeCVRef_t<T>>::value;
 
 template <typename T>
 struct isHashContainer : std::false_type {
@@ -188,7 +211,41 @@ struct isHashContainer<HashSymbolTable<source_T, value_T>> : std::true_type {
 };
 
 template <typename T>
-inline constexpr bool isHashContainer_v = isHashContainer<T>::value;
+inline constexpr bool isHashContainer_v = isHashContainer<removeCVRef_t<T>>::value;
+
+template <typename T, typename = void>
+struct isContainer : std::false_type {
+};
+
+template <typename T>
+struct isContainer<T, std::enable_if_t<isDenseContainer_v<T> || isSparseContainer_v<T> || isHashContainer_v<T>>> : std::true_type {
+};
+
+template <typename T>
+inline constexpr bool isContainer_v = isContainer<removeCVRef_t<T>>::value;
+
+template <typename T>
+class isStorageContainer : public std::false_type
+{
+};
+
+template <typename source_T, typename value_T>
+class isStorageContainer<ShiftableVector<source_T, value_T>> : public std::true_type
+{
+};
+
+template <class source_T, class value_T>
+class isStorageContainer<SparseVector<source_T, value_T>> : public std::true_type
+{
+};
+
+template <typename source_T, typename value_T>
+class isStorageContainer<HashTable<source_T, value_T>> : public std::true_type
+{
+};
+
+template <typename T>
+inline constexpr bool isStorageContainer_v = isStorageContainer<removeCVRef_t<T>>::value;
 
 template <typename T>
 struct isPair : public std::false_type {
@@ -199,7 +256,7 @@ struct isPair<std::pair<A, B>> : public std::true_type {
 };
 
 template <typename T>
-inline constexpr bool isPair_v = isPair<T>::value;
+inline constexpr bool isPair_v = isPair<removeCVRef_t<T>>::value;
 
 } // namespace internal
 } // namespace o2::rans

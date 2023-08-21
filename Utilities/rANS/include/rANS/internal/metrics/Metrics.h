@@ -29,8 +29,6 @@
 #include "rANS/internal/metrics/utils.h"
 #include "rANS/internal/metrics/SizeEstimate.h"
 #include "rANS/internal/transform/algorithm.h"
-#include "rANS/internal/transform/sparseAlgorithm.h"
-#include "rANS/internal/transform/hashAlgorithm.h"
 
 namespace o2::rans
 {
@@ -44,9 +42,13 @@ class Metrics
   using source_type = source_T;
 
   Metrics() = default;
-  Metrics(const Histogram<source_type>& histogram, float_t cutoffPrecision = defaultCutoffPrecision);
-  Metrics(const SparseHistogram<source_type>& histogram, float_t cutoffPrecision = defaultCutoffPrecision);
-  Metrics(const HashHistogram<source_type>& histogram, float_t cutoffPrecision = defaultCutoffPrecision);
+  inline Metrics(const Histogram<source_type>& histogram, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {}, {}, cutoffPrecision); };
+  inline Metrics(const SparseHistogram<source_type>& histogram, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {}, {}, cutoffPrecision); };
+  inline Metrics(const HashHistogram<source_type>& histogram, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {}, {}, cutoffPrecision); };
+
+  inline Metrics(const Histogram<source_type>& histogram, source_type min, source_type max, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {min}, {max}, cutoffPrecision); };
+  inline Metrics(const SparseHistogram<source_type>& histogram, source_type min, source_type max, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {min}, {max}, cutoffPrecision); };
+  inline Metrics(const HashHistogram<source_type>& histogram, source_type min, source_type max, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {min}, {max}, cutoffPrecision); };
 
   [[nodiscard]] inline const DatasetProperties<source_type>& getDatasetProperties() const noexcept { return mDatasetProperties; };
   [[nodiscard]] inline const CoderProperties<source_type>& getCoderProperties() const noexcept { return mCoderProperties; };
@@ -57,7 +59,10 @@ class Metrics
 
  protected:
   template <typename histogram_T>
-  void computeMetrics(const histogram_T& frequencyTable);
+  void init(const histogram_T& histogram, std::optional<source_type> min, std::optional<source_type> max, float_t cutoffPrecision);
+
+  template <typename histogram_T>
+  void computeMetrics(const histogram_T& histogram, std::optional<source_type> min, std::optional<source_type> max);
   size_t computeRenormingPrecision(float_t cutoffPrecision) noexcept;
   size_t computeIncompressibleCount(gsl::span<uint32_t> distribution, uint32_t renormingPrecision) noexcept;
 
@@ -66,27 +71,10 @@ class Metrics
 };
 
 template <typename source_T>
-inline Metrics<source_T>::Metrics(const Histogram<source_T>& histogram, float_t cutoffPrecision)
+template <typename histogram_T>
+inline void Metrics<source_T>::init(const histogram_T& histogram, std::optional<source_type> min, std::optional<source_type> max, float_t cutoffPrecision)
 {
-  computeMetrics(histogram);
-  mCoderProperties.renormingPrecisionBits = computeRenormingPrecision(cutoffPrecision);
-  mCoderProperties.nIncompressibleSymbols = computeIncompressibleCount(mDatasetProperties.symbolLengthDistribution, *mCoderProperties.renormingPrecisionBits);
-  mCoderProperties.nIncompressibleSamples = computeIncompressibleCount(mDatasetProperties.weightedSymbolLengthDistribution, *mCoderProperties.renormingPrecisionBits);
-}
-
-template <typename source_T>
-inline Metrics<source_T>::Metrics(const SparseHistogram<source_type>& histogram, float_t cutoffPrecision)
-{
-  computeMetrics(histogram);
-  mCoderProperties.renormingPrecisionBits = computeRenormingPrecision(cutoffPrecision);
-  mCoderProperties.nIncompressibleSymbols = computeIncompressibleCount(mDatasetProperties.symbolLengthDistribution, *mCoderProperties.renormingPrecisionBits);
-  mCoderProperties.nIncompressibleSamples = computeIncompressibleCount(mDatasetProperties.weightedSymbolLengthDistribution, *mCoderProperties.renormingPrecisionBits);
-}
-
-template <typename source_T>
-inline Metrics<source_T>::Metrics(const HashHistogram<source_type>& histogram, float_t cutoffPrecision)
-{
-  computeMetrics(histogram);
+  computeMetrics(histogram, min, max);
   mCoderProperties.renormingPrecisionBits = computeRenormingPrecision(cutoffPrecision);
   mCoderProperties.nIncompressibleSymbols = computeIncompressibleCount(mDatasetProperties.symbolLengthDistribution, *mCoderProperties.renormingPrecisionBits);
   mCoderProperties.nIncompressibleSamples = computeIncompressibleCount(mDatasetProperties.weightedSymbolLengthDistribution, *mCoderProperties.renormingPrecisionBits);
@@ -94,7 +82,7 @@ inline Metrics<source_T>::Metrics(const HashHistogram<source_type>& histogram, f
 
 template <typename source_T>
 template <typename histogram_T>
-void Metrics<source_T>::computeMetrics(const histogram_T& histogram)
+void Metrics<source_T>::computeMetrics(const histogram_T& histogram, std::optional<source_type> min, std::optional<source_type> max)
 {
   using namespace internal;
   using namespace utils;
@@ -104,8 +92,13 @@ void Metrics<source_T>::computeMetrics(const histogram_T& histogram)
 
   mCoderProperties.dictSizeEstimate = DictSizeEstimate{histogram.getNumSamples()};
   if (histogram.getNumSamples() > 0) {
-    const auto [trimmedBegin, trimmedEnd] = trim(histogram.begin(), histogram.end());
-    std::tie(mDatasetProperties.min, mDatasetProperties.max) = getMinMax(histogram, trimmedBegin, trimmedEnd);
+    const auto [trimmedBegin, trimmedEnd] = trim(histogram);
+    if (min.has_value()) {
+      mDatasetProperties.min = *min;
+      mDatasetProperties.max = *max;
+    } else {
+      std::tie(mDatasetProperties.min, mDatasetProperties.max) = getMinMax(histogram, trimmedBegin, trimmedEnd);
+    }
     assert(mDatasetProperties.max >= mDatasetProperties.min);
     mDatasetProperties.numSamples = histogram.getNumSamples();
     mDatasetProperties.alphabetRangeBits = getRangeBits(mDatasetProperties.min, mDatasetProperties.max);
