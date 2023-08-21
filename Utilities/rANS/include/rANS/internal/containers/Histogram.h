@@ -26,8 +26,8 @@
 
 #include "rANS/internal/common/utils.h"
 #include "rANS/internal/common/exceptions.h"
-#include "rANS/internal/containers/HistogramInterface.h"
-#include "rANS/internal/containers/CountingContainer.h"
+#include "rANS/internal/containers/HistogramConcept.h"
+#include "rANS/internal/containers/Container.h"
 #include "rANS/internal/containers/HistogramView.h"
 
 #ifdef RANS_SIMD
@@ -89,17 +89,20 @@ template <typename source_T, typename = void>
 class Histogram;
 
 template <typename source_T>
-class Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>> : public internal::CountingContainer<source_T>,
-                                                                     public internal::HistogramInterface<source_T,
-                                                                                                         typename internal::CountingContainer<source_T>::value_type,
-                                                                                                         typename internal::CountingContainer<source_T>::difference_type,
-                                                                                                         Histogram<source_T>>
+class Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>> : public internal::VectorContainer<source_T, uint32_t>,
+                                                                     public internal::HistogramConcept<source_T,
+                                                                                                       typename internal::VectorContainer<source_T, uint32_t>::value_type,
+                                                                                                       typename internal::VectorContainer<source_T, uint32_t>::difference_type,
+                                                                                                       Histogram<source_T>>
 {
-  using containerBase_type = internal::CountingContainer<source_T>;
-  using HistogramInterface_type = internal::HistogramInterface<source_T,
-                                                               typename internal::CountingContainer<source_T>::value_type,
-                                                               typename internal::CountingContainer<source_T>::difference_type,
-                                                               Histogram<source_T>>;
+  using containerBase_type = internal::VectorContainer<source_T, uint32_t>;
+  using HistogramConcept_type = internal::HistogramConcept<source_T,
+                                                           typename internal::VectorContainer<source_T, uint32_t>::value_type,
+                                                           typename internal::VectorContainer<source_T, uint32_t>::difference_type,
+                                                           Histogram<source_T>>;
+
+  friend containerBase_type;
+  friend HistogramConcept_type;
 
  public:
   using source_type = source_T;
@@ -113,30 +116,16 @@ class Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>> : public inte
   using const_pointer = typename containerBase_type::const_pointer;
   using const_iterator = typename containerBase_type::const_iterator;
   using iterator = typename containerBase_type::iterator;
-  using const_reverse_iterator = typename containerBase_type::const_reverse_iterator;
-  using reverse_iterator = typename containerBase_type::reverse_iterator;
 
   Histogram() = default;
 
   template <typename freq_IT>
-  Histogram(freq_IT begin, freq_IT end, difference_type offset) : containerBase_type(), HistogramInterface_type{begin, end, offset} {};
-
-  Histogram& addSamples(gsl::span<const source_type> span);
-
-  template <typename source_IT>
-  Histogram& addSamples(source_IT begin, source_IT end);
-
-  template <typename source_IT>
-  Histogram& addSamples(source_IT begin, source_IT end, source_type min, source_type max);
-
-  Histogram& addSamples(gsl::span<const source_type> span, source_type min, source_type max);
+  Histogram(freq_IT begin, freq_IT end, difference_type offset) : containerBase_type(), HistogramConcept_type{begin, end, offset} {};
 
   // operations
+  using HistogramConcept_type::addSamples;
 
-  using HistogramInterface_type::addFrequencies;
-
-  template <typename freq_IT>
-  Histogram& addFrequencies(freq_IT begin, freq_IT end, difference_type offset);
+  using HistogramConcept_type::addFrequencies;
 
   Histogram& resize(source_type min, source_type max);
 
@@ -145,12 +134,19 @@ class Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>> : public inte
     return resize(this->getOffset(), this->getOffset() + newSize);
   };
 
-  friend void swap(Histogram& a, Histogram& b) noexcept
-  {
-    using std::swap;
-    swap(static_cast<typename Histogram::containerBase_type&>(a),
-         static_cast<typename Histogram::containerBase_type&>(b));
-  };
+ protected:
+  Histogram& addSamplesImpl(gsl::span<const source_type> span);
+
+  template <typename source_IT>
+  Histogram& addSamplesImpl(source_IT begin, source_IT end);
+
+  template <typename source_IT>
+  Histogram& addSamplesImpl(source_IT begin, source_IT end, source_type min, source_type max);
+
+  Histogram& addSamplesImpl(gsl::span<const source_type> span, source_type min, source_type max);
+
+  template <typename freq_IT>
+  Histogram& addFrequenciesImpl(freq_IT begin, freq_IT end, difference_type offset);
 
  private:
   inline static constexpr size_t MaxSize{utils::pow2(30)}; // 4GB per histogram size limit;
@@ -176,11 +172,11 @@ inline bool Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::isVali
 }
 
 template <typename source_T>
-inline auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addSamples(gsl::span<const source_type> samples) -> Histogram&
+inline auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addSamplesImpl(gsl::span<const source_type> samples) -> Histogram&
 {
   if (samples.size() > 0) {
     const auto [min, max] = internal::minmax(samples);
-    addSamples(samples, min, max);
+    addSamplesImpl(samples, min, max);
   } else {
     LOG(warning) << "Passed empty message to " << __func__; // RS this is ok for empty columns
   }
@@ -189,11 +185,11 @@ inline auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addSam
 
 template <typename source_T>
 template <typename source_IT>
-inline auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addSamples(source_IT begin, source_IT end) -> Histogram&
+inline auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addSamplesImpl(source_IT begin, source_IT end) -> Histogram&
 {
   if (begin != end) {
     const auto [minIter, maxIter] = std::minmax_element(begin, end);
-    addSamples(begin, end, *minIter, *maxIter);
+    addSamplesImpl(begin, end, *minIter, *maxIter);
   } else {
     LOG(warning) << "Passed empty message to " << __func__; // RS this is ok for empty columns
   }
@@ -201,7 +197,7 @@ inline auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addSam
 }
 
 template <typename source_T>
-inline auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addSamples(gsl::span<const source_type> samples, source_type min, source_type max) -> Histogram&
+inline auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addSamplesImpl(gsl::span<const source_type> samples, source_type min, source_type max) -> Histogram&
 {
   using namespace internal;
   using namespace utils;
@@ -246,7 +242,7 @@ inline auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addSam
 
 template <typename source_T>
 template <typename source_IT>
-auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addSamples(source_IT begin, source_IT end, source_type min, source_type max) -> Histogram&
+auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addSamplesImpl(source_IT begin, source_IT end, source_type min, source_type max) -> Histogram&
 {
   if (begin == end) {
     LOG(warning) << "Passed empty message to " << __func__; // RS this is ok for empty columns
@@ -268,14 +264,9 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addSamples(so
 
 template <typename source_T>
 template <typename freq_IT>
-auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addFrequencies(freq_IT begin, freq_IT end, difference_type offset) -> Histogram&
+auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addFrequenciesImpl(freq_IT begin, freq_IT end, difference_type offset) -> Histogram&
 {
   using namespace internal;
-
-  auto frequencyCountingDecorator = [this](value_type frequency) {
-    this->mNSamples += frequency;
-    return frequency;
-  };
 
   const auto thisHistogramView = makeHistogramView(this->mContainer);
   const auto addedHistogramView = trim(HistogramView{begin, end, offset});
@@ -297,8 +288,8 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addFrequencie
 
     if (thisHistogramView.empty()) {
       this->mContainer = container_type(addedHistogramView.size(), addedHistogramView.getOffset());
-      std::transform(addedHistogramView.begin(), addedHistogramView.end(), this->mContainer.begin(), [this, frequencyCountingDecorator](count_t frequency) {
-        return frequencyCountingDecorator(frequency);
+      std::transform(addedHistogramView.begin(), addedHistogramView.end(), this->mContainer.begin(), [this](count_t frequency) {
+        return this->countSamples(frequency);
       });
     } else {
       const difference_type newSize = newMax - newMin + 1;
@@ -314,7 +305,7 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::addFrequencie
       assert(histogramOverlap.size() == addedHistogramView.size());
       std::transform(addedHistogramView.begin(), addedHistogramView.end(),
                      histogramOverlap.begin(), histogramOverlap.begin(),
-                     [this, frequencyCountingDecorator](const count_t& a, const count_t& b) { return safeadd(frequencyCountingDecorator(a), b); });
+                     [this](const count_t& a, const count_t& b) { return safeadd(this->countSamples(a), b); });
 
       this->mContainer = container_type{std::move(newHistogram), static_cast<source_type>(newHistogramView.getOffset())};
     }
@@ -355,17 +346,20 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::resize(source
 }
 
 template <typename source_T>
-class Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>> : public internal::CountingContainer<source_T>,
-                                                                     public internal::HistogramInterface<source_T,
-                                                                                                         typename internal::CountingContainer<source_T>::value_type,
-                                                                                                         typename internal::CountingContainer<source_T>::difference_type,
-                                                                                                         Histogram<source_T>>
+class Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>> : public internal::VectorContainer<source_T, uint32_t>,
+                                                                     internal::HistogramConcept<source_T,
+                                                                                                typename internal::VectorContainer<source_T, uint32_t>::value_type,
+                                                                                                typename internal::VectorContainer<source_T, uint32_t>::difference_type,
+                                                                                                Histogram<source_T>>
 {
-  using containerBase_type = internal::CountingContainer<source_T>;
-  using HistogramInterface_type = internal::HistogramInterface<source_T,
-                                                               typename internal::CountingContainer<source_T>::value_type,
-                                                               typename internal::CountingContainer<source_T>::difference_type,
-                                                               Histogram<source_T>>;
+  using containerBase_type = internal::VectorContainer<source_T, uint32_t>;
+  using HistogramConcept_type = internal::HistogramConcept<source_T,
+                                                           typename internal::VectorContainer<source_T, uint32_t>::value_type,
+                                                           typename internal::VectorContainer<source_T, uint32_t>::difference_type,
+                                                           Histogram<source_T>>;
+
+  friend containerBase_type;
+  friend HistogramConcept_type;
 
  public:
   using source_type = source_T;
@@ -379,39 +373,36 @@ class Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>> : public inte
   using const_pointer = typename containerBase_type::const_pointer;
   using const_iterator = typename containerBase_type::const_iterator;
   using iterator = typename containerBase_type::iterator;
-  using const_reverse_iterator = typename containerBase_type::const_reverse_iterator;
-  using reverse_iterator = typename containerBase_type::reverse_iterator;
 
-  Histogram() = default;
+  Histogram() : containerBase_type{MaxSize, std::numeric_limits<source_type>::min()} {};
 
   template <typename freq_IT>
-  Histogram(freq_IT begin, freq_IT end, difference_type offset) : containerBase_type(), HistogramInterface_type{begin, end, offset} {};
+  Histogram(freq_IT begin, freq_IT end, difference_type offset) : containerBase_type{MaxSize, std::numeric_limits<source_type>::min()},
+                                                                  HistogramConcept_type{begin, end, offset} {};
 
-  // operations
+  using HistogramConcept_type::addSamples;
+
+  using HistogramConcept_type::addFrequencies;
+
+ protected:
   template <typename source_IT>
-  Histogram& addSamples(source_IT begin, source_IT end);
+  Histogram& addSamplesImpl(source_IT begin, source_IT end);
 
-  Histogram& addSamples(gsl::span<const source_type> samples);
+  Histogram& addSamplesImpl(gsl::span<const source_type> samples);
 
   template <typename freq_IT>
-  Histogram& addFrequencies(freq_IT begin, freq_IT end, difference_type offset);
+  Histogram& addFrequenciesImpl(freq_IT begin, freq_IT end, difference_type offset);
 
-  using HistogramInterface_type::addFrequencies;
-
-  friend void swap(Histogram& a, Histogram& b) noexcept
-  {
-    using std::swap;
-    swap(static_cast<typename Histogram::containerBase_type&>(a),
-         static_cast<typename Histogram::containerBase_type&>(b));
-  };
+ private:
+  inline static constexpr size_t MaxSize = utils::pow2(utils::toBits<source_type>());
 };
 
 template <typename source_T>
 template <typename source_IT>
-auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addSamples(source_IT begin, source_IT end) -> Histogram&
+auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addSamplesImpl(source_IT begin, source_IT end) -> Histogram&
 {
   if constexpr (std::is_pointer_v<source_IT>) {
-    return addSamples({begin, end});
+    return addSamplesImpl({begin, end});
   } else {
     std::for_each(begin, end, [this](const source_type& symbol) {
       ++this->mNSamples;
@@ -421,7 +412,7 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addSamples(so
 }
 
 template <typename source_T>
-auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addSamples(gsl::span<const source_type> samples) -> Histogram&
+auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addSamplesImpl(gsl::span<const source_type> samples) -> Histogram&
 {
   using namespace internal;
   using namespace utils;
@@ -516,7 +507,7 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addSamples(gs
 
 template <typename source_T>
 template <typename freq_IT>
-auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addFrequencies(freq_IT begin, freq_IT end, difference_type offset) -> Histogram&
+auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addFrequenciesImpl(freq_IT begin, freq_IT end, difference_type offset) -> Histogram&
 {
   using namespace internal;
 
@@ -543,19 +534,17 @@ auto Histogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addFrequencie
                                                                        // The resulting overflows are handled correctly by the container via [] operator.
   for (freq_IT iter = addedHistogramView.begin(); iter != addedHistogramView.end(); ++iter) {
     auto frequency = *iter;
-    this->mNSamples += frequency;
-    this->mContainer[idx] = safeadd(this->mContainer[idx], frequency);
+    this->mContainer[idx] = safeadd(this->mContainer[idx], this->countSamples(frequency));
     ++idx;
   }
   return *this;
 }
 
 template <typename source_T>
-std::pair<source_T, source_T> getMinMax(const Histogram<source_T>& histogram)
+size_t countNUsedAlphabetSymbols(const Histogram<source_T>& histogram)
 {
-  auto view = trim(makeHistogramView(histogram));
-  return {view.getMin(), view.getMax()};
-};
+  return std::count_if(histogram.begin(), histogram.end(), [](typename Histogram<source_T>::const_reference v) { return v != typename Histogram<source_T>::value_type{}; });
+}
 
 } // namespace o2::rans
 

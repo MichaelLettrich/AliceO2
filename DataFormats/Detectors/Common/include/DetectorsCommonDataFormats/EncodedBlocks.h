@@ -1180,7 +1180,7 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::entropyCodeRANSCompat(const input_IT 
     return size_t(0);
   }();
 
-  LOGP(info, "Min, {} Max, {}, size, {}, nusedAlphabetSymbols {}, nSamples {}", view.getMin(), view.getMax(), view.size(), frequencyTable.countNUsedAlphabetSymbols(), frequencyTable.getNumSamples());
+  LOGP(info, "Min, {} Max, {}, size, {}, nSamples {}", view.getMin(), view.getMax(), view.size(), frequencyTable.getNumSamples());
 
   *thisMetadata = detail::makeMetadataRansCompat<input_t, ransState_t, ransStream_t>(encoder.getNStreams(),
                                                                                      messageLength,

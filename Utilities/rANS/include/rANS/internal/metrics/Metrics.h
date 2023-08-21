@@ -23,11 +23,12 @@
 
 #include "rANS/internal/common/utils.h"
 #include "rANS/internal/containers/Histogram.h"
-#include "rANS/internal/containers/RenormedHistogram.h"
-#include "rANS/internal/containers/SymbolTable.h"
+#include "rANS/internal/containers/SparseHistogram.h"
 #include "rANS/internal/metrics/properties.h"
 #include "rANS/internal/metrics/utils.h"
 #include "rANS/internal/metrics/SizeEstimate.h"
+#include "rANS/internal/transform/algorithm.h"
+#include "rANS/internal/transform/sparseAlgorithm.h"
 
 namespace o2::rans
 {
@@ -40,6 +41,7 @@ class Metrics
 
   Metrics() = default;
   Metrics(const Histogram<source_type>& histogram, float_t cutoffPrecision = 0.999);
+  Metrics(const SparseHistogram<source_type>& histogram, float_t cutoffPrecision = 0.999);
 
   [[nodiscard]] inline const DatasetProperties<source_type>& getDatasetProperties() const noexcept { return mDatasetProperties; };
   [[nodiscard]] inline const CoderProperties<source_type>& getCoderProperties() const noexcept { return mCoderProperties; };
@@ -49,7 +51,8 @@ class Metrics
   [[nodiscard]] inline SizeEstimate getSizeEstimate() const noexcept { return SizeEstimate(*this); };
 
  protected:
-  void computeMetrics(const Histogram<source_T>& frequencyTable);
+  template <typename histogram_T>
+  void computeMetrics(const histogram_T& frequencyTable);
   size_t computeRenormingPrecision(float_t cutoffPrecision) noexcept;
   size_t computeIncompressibleCount(gsl::span<uint32_t> distribution, uint32_t renormingPrecision) noexcept;
 
@@ -67,25 +70,36 @@ inline Metrics<source_T>::Metrics(const Histogram<source_T>& histogram, float_t 
 }
 
 template <typename source_T>
-void Metrics<source_T>::computeMetrics(const Histogram<source_T>& histogram)
+inline Metrics<source_T>::Metrics(const SparseHistogram<source_type>& histogram, float_t cutoffPrecision)
+{
+  computeMetrics(histogram);
+  mCoderProperties.renormingPrecisionBits = computeRenormingPrecision(cutoffPrecision);
+  mCoderProperties.nIncompressibleSymbols = computeIncompressibleCount(mDatasetProperties.symbolLengthDistribution, *mCoderProperties.renormingPrecisionBits);
+  mCoderProperties.nIncompressibleSamples = computeIncompressibleCount(mDatasetProperties.weightedSymbolLengthDistribution, *mCoderProperties.renormingPrecisionBits);
+}
+
+template <typename source_T>
+template <typename histogram_T>
+void Metrics<source_T>::computeMetrics(const histogram_T& histogram)
 {
   using namespace internal;
   using namespace utils;
+  using source_type = typename histogram_T::source_type;
+  using value_type = typename histogram_T::value_type;
+  static_assert(std::is_same_v<source_type, source_T>);
 
   mCoderProperties.dictSizeEstimate = DictSizeEstimate{histogram.getNumSamples()};
   DictSizeEstimateCounter dictSizeCounter{&(mCoderProperties.dictSizeEstimate)};
 
-  const auto trimmedFrequencyView = trim(makeHistogramView(histogram));
-  mDatasetProperties.min = trimmedFrequencyView.getMin();
-  mDatasetProperties.max = trimmedFrequencyView.getMax();
+  const auto [trimmedBegin, trimmedEnd] = trim(histogram.begin(), histogram.end());
+  std::tie(mDatasetProperties.min, mDatasetProperties.max) = getMinMax(histogram, trimmedBegin, trimmedEnd);
   assert(mDatasetProperties.max >= mDatasetProperties.min);
   mDatasetProperties.numSamples = histogram.getNumSamples();
   mDatasetProperties.alphabetRangeBits = getRangeBits(mDatasetProperties.min, mDatasetProperties.max);
 
   const double_t reciprocalNumSamples = 1.0 / static_cast<double_t>(histogram.getNumSamples());
 
-  for (size_t i = 0; i < trimmedFrequencyView.size(); ++i) {
-    const uint32_t frequency = trimmedFrequencyView.data()[i];
+  forEachValue(trimmedBegin, trimmedEnd, [&, this](const uint32_t& frequency) {
     dictSizeCounter.update();
 
     if (frequency) {
@@ -102,7 +116,7 @@ void Metrics<source_T>::computeMetrics(const Histogram<source_T>& histogram)
       ++mDatasetProperties.symbolLengthDistribution[symbolDistributionBucket];
       mDatasetProperties.weightedSymbolLengthDistribution[symbolDistributionBucket] += frequency;
     }
-  }
+  });
 };
 
 template <typename source_T>

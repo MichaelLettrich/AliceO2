@@ -69,6 +69,16 @@ o2_add_test(BitPtr
             LABELS utils)
             target_compile_options(${TEST_BITPTR} PRIVATE ${RANS_TEST_ARCH})
 
+o2_add_test(SparseVector
+            NAME SparseVector
+            SOURCES test/test_ransSparseVector.cxx
+            PUBLIC_LINK_LIBRARIES O2::rANS
+            COMPONENT_NAME rANS
+            TARGETVARNAME TEST_SPARSEVECTOR
+            LABELS utils)
+            target_compile_options(${TEST_SPARSEVECTOR} PRIVATE ${RANS_TEST_ARCH})
+
+
 o2_add_test(Pack
             NAME Pack
             SOURCES test/test_ransPack.cxx
@@ -182,6 +192,12 @@ if(${RANS_ENABLE_JSON})
 
     o2_add_executable(CombinedIterator
                       SOURCES benchmarks/bench_ransCombinedIterator.cxx
+                      COMPONENT_NAME rANS
+                      IS_BENCHMARK
+                      PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+
+    o2_add_executable(Histogram
+                      SOURCES benchmarks/bench_ransHistogram.cxx
                       COMPONENT_NAME rANS
                       IS_BENCHMARK
                       PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
