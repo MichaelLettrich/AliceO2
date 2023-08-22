@@ -30,7 +30,9 @@
 #include <boost/mp11.hpp>
 #include <fmt/core.h>
 
-#include "DetectorsCommonDataFormats/CTFEntropyCoder.h"
+#include "DetectorsCommonDataFormats/internal/Packer.h"
+#include "DetectorsCommonDataFormats/internal/ExternalEntropyCoder.h"
+#include "DetectorsCommonDataFormats/internal/InplaceEntropyCoder.h"
 #include "rANS/histogram.h"
 #include "rANS/metrics.h"
 #include "rANS/factory.h"
@@ -110,7 +112,7 @@ void encodeInplace(source_IT begin, source_IT end)
 {
   using source_type = typename std::iterator_traits<source_IT>::value_type;
 
-  ctf::InplaceEntropyCoder<source_type> entropyCoder{begin, end};
+  ctf::internal::InplaceEntropyCoder<source_type> entropyCoder{begin, end};
   // BOOST_CHECK_THROW(entropyCoder.getEncoder(), std::runtime_error);
   entropyCoder.makeEncoder();
 
@@ -294,7 +296,7 @@ void encodeExternal(source_IT begin, source_IT end)
 {
   using source_type = typename std::iterator_traits<source_IT>::value_type;
 
-  ctf::ExternalEntropyCoder<source_type> entropyCoder{ExternalEncoders.getEncoder<source_type>()};
+  ctf::internal::ExternalEntropyCoder<source_type> entropyCoder{ExternalEncoders.getEncoder<source_type>()};
 
   const size_t sourceExtent = std::distance(begin, end);
   std::vector<buffer_type> encodeBuffer(entropyCoder.template computePayloadSizeEstimate<buffer_type>(sourceExtent), 0);

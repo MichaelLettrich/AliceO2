@@ -29,7 +29,9 @@
 #include "DetectorsCommonDataFormats/CTFDictHeader.h"
 #include "DetectorsCommonDataFormats/CTFIOSize.h"
 #include "DetectorsCommonDataFormats/ANSHeader.h"
-#include "DetectorsCommonDataFormats/CTFEntropyCoder.h"
+#include "DetectorsCommonDataFormats/internal/ExternalEntropyCoder.h"
+#include "DetectorsCommonDataFormats/internal/InplaceEntropyCoder.h"
+#include "DetectorsCommonDataFormats/internal/Packer.h"
 #include "DetectorsCommonDataFormats/Metadata.h"
 #include "rANS/compat.h"
 #include "rANS/histogram.h"
@@ -1226,7 +1228,7 @@ CTFIOSize EncodedBlocks<H, N, W>::encodeRANSV1External(const input_IT srcBegin, 
 {
   using storageBuffer_t = W;
   using input_t = typename std::iterator_traits<input_IT>::value_type;
-  using ransEncoder_t = typename ExternalEntropyCoder<input_t>::encoder_type;
+  using ransEncoder_t = typename internal::ExternalEntropyCoder<input_t>::encoder_type;
   using ransState_t = typename ransEncoder_t::coder_type::state_type;
   using ransStream_t = typename ransEncoder_t::stream_type;
 
@@ -1238,7 +1240,7 @@ CTFIOSize EncodedBlocks<H, N, W>::encodeRANSV1External(const input_IT srcBegin, 
   auto* thisMetadata = &mMetadata[slot];
 
   const size_t messageLength = std::distance(srcBegin, srcEnd);
-  ExternalEntropyCoder<input_t> encoder{std::any_cast<const ransEncoder_t&>(encoderExt)};
+  internal::ExternalEntropyCoder<input_t> encoder{std::any_cast<const ransEncoder_t&>(encoderExt)};
 
   const size_t payloadSizeWords = encoder.template computePayloadSizeEstimate<storageBuffer_t>(messageLength);
   std::tie(thisBlock, thisMetadata) = expandStorage(slot, payloadSizeWords, buffer);
@@ -1298,7 +1300,7 @@ CTFIOSize EncodedBlocks<H, N, W>::encodeRANSV1Inplace(const input_IT srcBegin, c
   auto* thisBlock = &mBlocks[slot];
   auto* thisMetadata = &mMetadata[slot];
 
-  InplaceEntropyCoder<input_t> encoder{};
+  internal::InplaceEntropyCoder<input_t> encoder{};
   rans::SourceProxy<input_IT> proxy{srcBegin, srcEnd, [](input_IT begin, input_IT end) {
                                       const size_t nSamples = std::distance(begin, end);
                                       return (!std::is_pointer_v<input_IT> && (nSamples < rans::utils::pow2(23)));
@@ -1306,9 +1308,9 @@ CTFIOSize EncodedBlocks<H, N, W>::encodeRANSV1Inplace(const input_IT srcBegin, c
 
   try {
     if (proxy.isCached()) {
-      encoder = InplaceEntropyCoder<input_t>{proxy.beginCache(), proxy.endCache()};
+      encoder = internal::InplaceEntropyCoder<input_t>{proxy.beginCache(), proxy.endCache()};
     } else {
-      encoder = InplaceEntropyCoder<input_t>{proxy.beginIter(), proxy.endIter()};
+      encoder = internal::InplaceEntropyCoder<input_t>{proxy.beginIter(), proxy.endIter()};
     }
   } catch (const rans::HistogramError& error) {
     LOGP(warning, "Failed to build Dictionary for rANS encoding, using fallback option");
@@ -1399,7 +1401,7 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::pack(const input_IT srcBegin, const i
 
   const size_t messageLength = std::distance(srcBegin, srcEnd);
 
-  Packer<input_t> packer{metrics};
+  internal::Packer<input_t> packer{metrics};
   size_t packingBufferWords = packer.template getPackingBufferSize<storageBuffer_t>(messageLength);
   auto [thisBlock, thisMetadata] = expandStorage(slot, packingBufferWords, buffer);
 
