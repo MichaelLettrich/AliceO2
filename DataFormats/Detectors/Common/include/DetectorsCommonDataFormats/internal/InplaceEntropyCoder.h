@@ -253,7 +253,7 @@ template <typename dst_IT>
     // copy
     std::memcpy(dstBegin, mDictBuffer.data(), mDictBuffer.size());
 
-    //determine location of end
+    // determine location of end
     auto end = reinterpret_cast<uint8_t*>(dstBegin) + mDictBuffer.size();
     // realign pointer
     constexpr size_t alignment = std::alignment_of_v<dst_type>;

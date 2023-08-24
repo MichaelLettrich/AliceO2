@@ -234,7 +234,7 @@ Iterator conventions:
 * mContainer->empty() is never true
 * mUsedBuckets determines how many buckets are currently occupied
 * if there are no used buckets, begin() and end() must point to mContainer.end();
-* if a find_next operation does not find any further allocated buckets, we are at the end. 
+* if a find_next operation does not find any further allocated buckets, we are at the end.
 * trying to increment a one-past the end or singular iterator is undefined behavior
 * "end() is not a valid position indicator for a bucket unless mUsedBuckets==0, in which case begin()==end()"
 */

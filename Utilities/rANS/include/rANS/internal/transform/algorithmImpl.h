@@ -59,7 +59,7 @@ inline auto trim(IT begin, IT end, typename container_T::const_reference zeroEle
   iterator_type nonZeroBegin = [&]() -> iterator_type {
     auto lutIter = begin.getLUTIterator();
     if (lutIter != end.getLUTIterator()) {
-      //finish first incomplete bucket
+      // finish first incomplete bucket
       auto nonZeroBegin = std::find_if_not(begin.getBucketIterator(), lutIter->end(), isZero);
       if (nonZeroBegin != lutIter->end()) {
         return {begin.getContainer(), lutIter, nonZeroBegin};
@@ -85,14 +85,14 @@ inline auto trim(IT begin, IT end, typename container_T::const_reference zeroEle
     return end;
   }();
 
-  //empty
+  // empty
   if (nonZeroBegin == end) {
     return {end, end};
   }
 
   iterator_type nonZeroEnd = [&]() -> iterator_type {
     auto lutIter = end.getLUTIterator();
-    //start at the tail, i.e. the last, possibly incomplete or empty bucket
+    // start at the tail, i.e. the last, possibly incomplete or empty bucket
     if (end.getBucketIterator() != bucket_iterator{}) {
       // if a tail exists, process it
       auto nonZeroEnd = std::find_if_not(std::make_reverse_iterator(end.getBucketIterator()), lutIter->rend(), isZero);
@@ -110,7 +110,7 @@ inline auto trim(IT begin, IT end, typename container_T::const_reference zeroEle
       }
     }
 
-    //finish at first ,possibly incomplete bucket
+    // finish at first ,possibly incomplete bucket
     assert(lutIter == begin.getLUTIterator());
     auto bucketREnd = std::make_reverse_iterator(begin.getBucketIterator());
     auto nonZeroEnd = std::find_if_not(lutIter->rbegin(), bucketREnd, isZero);
