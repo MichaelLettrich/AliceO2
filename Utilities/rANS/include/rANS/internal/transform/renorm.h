@@ -136,7 +136,25 @@ decltype(auto) renorm(histogram_T histogram, Metrics<typename histogram_T::sourc
   nSamplesRescaledUncorrected += incompressibleSymbolFrequency;
 
   // correction
-  std::stable_sort(correctableIndices.begin(), correctableIndices.end(), [](const auto& a, const auto& b) { return a.second < b.second; });
+  const auto nSorted = [&]() {
+    const auto& datasetProperties = metrics.getDatasetProperties();
+    float_t cumulProbability{};
+    size_t nSymbols{};
+    for (size_t i = 0; i < datasetProperties.weightedSymbolLengthDistribution.size(); ++i) {
+      cumulProbability += datasetProperties.weightedSymbolLengthDistribution[i];
+      nSymbols += datasetProperties.symbolLengthDistribution[i];
+      if (cumulProbability > 0.99) {
+        break;
+      }
+    }
+    return nSymbols;
+  }();
+
+  if (nSorted < correctableIndices.size()) {
+    std::partial_sort(correctableIndices.begin(), correctableIndices.begin() + nSorted, correctableIndices.end(), [](const auto& a, const auto& b) { return a.second < b.second; });
+  } else {
+    std::stable_sort(correctableIndices.begin(), correctableIndices.end(), [](const auto& a, const auto& b) { return a.second < b.second; });
+  }
 
   difference_type nCorrections = static_cast<difference_type>(nSamplesRescaled) - static_cast<difference_type>(nSamplesRescaledUncorrected);
   const double_t rescalingFactor = static_cast<double_t>(nSamplesRescaled) / static_cast<double_t>(nSamplesRescaledUncorrected);
