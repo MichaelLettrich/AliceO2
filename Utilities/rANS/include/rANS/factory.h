@@ -23,9 +23,9 @@
 #include "rANS/internal/metrics/Metrics.h"
 #include "rANS/internal/transform/renorm.h"
 
-#include "rANS/internal/containers/Histogram.h"
+#include "rANS/internal/containers/DenseHistogram.h"
 #include "rANS/internal/containers/RenormedHistogram.h"
-#include "rANS/internal/containers/SymbolTable.h"
+#include "rANS/internal/containers/DenseSymbolTable.h"
 
 #include "rANS/internal/containers/SparseHistogram.h"
 #include "rANS/internal/containers/SparseSymbolTable.h"
@@ -55,7 +55,7 @@ struct makeHistogram {
   [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end)
   {
     using source_type = typename std::iterator_traits<source_IT>::value_type;
-    using histogram_type = Histogram<source_type>;
+    using histogram_type = DenseHistogram<source_type>;
 
     histogram_type f{};
     f.addSamples(begin, end);
@@ -68,7 +68,7 @@ struct makeHistogram {
                                                          typename std::iterator_traits<source_IT>::value_type max)
   {
     using source_type = typename std::iterator_traits<source_IT>::value_type;
-    using histogram_type = Histogram<source_type>;
+    using histogram_type = DenseHistogram<source_type>;
 
     histogram_type f{};
     f.addSamples(begin, end, min, max);
@@ -79,7 +79,7 @@ struct makeHistogram {
   [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range)
   {
     using source_type = typename std::remove_cv_t<source_T>;
-    using histogram_type = Histogram<source_type>;
+    using histogram_type = DenseHistogram<source_type>;
 
     histogram_type f;
     f.addSamples(range);
@@ -90,7 +90,7 @@ struct makeHistogram {
   [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range, source_T min, source_T max)
   {
     using source_type = typename std::remove_cv_t<source_T>;
-    using histogram_type = Histogram<source_type>;
+    using histogram_type = DenseHistogram<source_type>;
 
     histogram_type f;
     f.addSamples(range, min, max);
@@ -183,14 +183,14 @@ class makeEncoder
 
  public:
   template <typename source_T>
-  [[nodiscard]] inline static constexpr decltype(auto) fromRenormed(const RenormedHistogram<source_T>& renormed)
+  [[nodiscard]] inline static constexpr decltype(auto) fromRenormed(const RenormedDenseHistogram<source_T>& renormed)
   {
     using namespace internal;
     constexpr CoderTag coderTag = coderTag_V;
     using source_type = source_T;
     using symbol_type = typename SymbolTraits<coderTag>::type;
     using coder_command = typename CoderTraits<coderTag>::template type<this_type::RenormingLowerBound>;
-    using symbolTable_type = SymbolTable<source_type, symbol_type>;
+    using symbolTable_type = DenseSymbolTable<source_type, symbol_type>;
     using encoderType = Encoder<coder_command, symbolTable_type, this_type::NStreams>;
 
     return encoderType{renormed};
@@ -260,21 +260,21 @@ class makeEncoder
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T> histogram, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
+  [[nodiscard]] inline static decltype(auto) fromHistogram(DenseHistogram<source_T> histogram, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
   {
     const auto renormedHistogram = renorm(std::move(histogram), renormingPolicy);
     return this_type::fromRenormed(renormedHistogram);
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T> histogram, Metrics<source_T>& metrics, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
+  [[nodiscard]] inline static decltype(auto) fromHistogram(DenseHistogram<source_T> histogram, Metrics<source_T>& metrics, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
   {
     const auto renormedHistogram = renorm(std::move(histogram), metrics, renormingPolicy);
     return this_type::fromRenormed(renormedHistogram);
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T> histogram, size_t renormingPrecision, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
+  [[nodiscard]] inline static decltype(auto) fromHistogram(DenseHistogram<source_T> histogram, size_t renormingPrecision, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
   {
     const auto renormedHistogram = renorm(std::move(histogram), renormingPrecision, renormingPolicy);
     return this_type::fromRenormed(renormedHistogram);
@@ -335,7 +335,7 @@ class makeDecoder
 
  public:
   template <typename source_T>
-  [[nodiscard]] inline static constexpr decltype(auto) fromRenormed(const RenormedHistogram<source_T>& renormed)
+  [[nodiscard]] inline static constexpr decltype(auto) fromRenormed(const RenormedDenseHistogram<source_T>& renormed)
   {
     using namespace internal;
 
@@ -347,21 +347,21 @@ class makeDecoder
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T> histogram, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
+  [[nodiscard]] inline static decltype(auto) fromHistogram(DenseHistogram<source_T> histogram, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
   {
     const auto renormedHistogram = renorm(std::move(histogram), renormingPolicy);
     return this_type::fromRenormed(renormedHistogram);
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T> histogram, Metrics<source_T>& metrics, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
+  [[nodiscard]] inline static decltype(auto) fromHistogram(DenseHistogram<source_T> histogram, Metrics<source_T>& metrics, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
   {
     const auto renormedHistogram = renorm(std::move(histogram), metrics, renormingPolicy);
     return this_type::fromRenormed(renormedHistogram);
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromHistogram(Histogram<source_T> histogram, size_t renormingPrecision, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
+  [[nodiscard]] inline static decltype(auto) fromHistogram(DenseHistogram<source_T> histogram, size_t renormingPrecision, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
   {
     const auto renormedHistogram = renorm(std::move(histogram), renormingPrecision);
     return this_type::fromRenormed(renormedHistogram);
@@ -411,7 +411,7 @@ class makeDecoder
 };
 
 template <typename source_T>
-using defaultEncoder_type = decltype(makeEncoder<>::fromRenormed(RenormedHistogram<source_T>{}));
+using defaultEncoder_type = decltype(makeEncoder<>::fromRenormed(RenormedDenseHistogram<source_T>{}));
 
 template <typename source_T>
 using defaultSparseEncoder_type = decltype(makeEncoder<>::fromRenormed(RenormedSparseHistogram<source_T>{}));
@@ -420,7 +420,7 @@ template <typename source_T>
 using defaultHashEncoder_type = decltype(makeEncoder<>::fromRenormed(RenormedHashHistogram<source_T>{}));
 
 template <typename source_T>
-using defaultDecoder_type = decltype(makeDecoder<>::fromRenormed(RenormedHistogram<source_T>{}));
+using defaultDecoder_type = decltype(makeDecoder<>::fromRenormed(RenormedDenseHistogram<source_T>{}));
 
 } // namespace o2::rans
 

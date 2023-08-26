@@ -47,7 +47,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeEmptyHistogram, T, test_ty
   using source_type = boost::mp11::mp_first<T>;
   using buffer_type = boost::mp11::mp_second<T>;
 
-  Histogram<source_type> h{};
+  DenseHistogram<source_type> h{};
   Metrics<source_type> metrics{h};
   auto srcRenormedHistogram = renorm(h, metrics);
   SizeEstimate sizeEstimate{metrics};
@@ -68,8 +68,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeEmptyHistogram, T, test_ty
   BOOST_CHECK_EQUAL(srcRenormedHistogram.getOffset(), restoredRenormedHistogram.getOffset());
   BOOST_CHECK_EQUAL(srcRenormedHistogram.getNumSamples(), restoredRenormedHistogram.getNumSamples());
 
-  SymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
-  SymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
+  DenseSymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
+  DenseSymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
 
   BOOST_CHECK_EQUAL_COLLECTIONS(srcSymbolTable.begin(), srcSymbolTable.end(), restoredSymbolTable.begin(), restoredSymbolTable.end());
 };
@@ -79,10 +79,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeEmptySymbolTable, T, test_
   using source_type = boost::mp11::mp_first<T>;
   using buffer_type = boost::mp11::mp_second<T>;
 
-  Histogram<source_type> h{};
+  DenseHistogram<source_type> h{};
   Metrics<source_type> metrics{h};
   auto srcRenormedHistogram = renorm(h, metrics);
-  SymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
+  DenseSymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
 
   SizeEstimate sizeEstimate{metrics};
 
@@ -101,7 +101,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeEmptySymbolTable, T, test_
   BOOST_CHECK_EQUAL(srcRenormedHistogram.getOffset(), restoredRenormedHistogram.getOffset());
   BOOST_CHECK_EQUAL(srcRenormedHistogram.getNumSamples(), restoredRenormedHistogram.getNumSamples());
 
-  SymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
+  DenseSymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
 
   BOOST_CHECK_EQUAL_COLLECTIONS(srcSymbolTable.begin(), srcSymbolTable.end(), restoredSymbolTable.begin(), restoredSymbolTable.end());
 };
@@ -197,8 +197,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeHistogram, T, test_types)
   BOOST_CHECK_EQUAL(srcRenormedHistogram.getIncompressibleSymbolFrequency(), restoredRenormedHistogram.getIncompressibleSymbolFrequency());
   BOOST_CHECK_EQUAL(srcRenormedHistogram.getNumSamples(), restoredRenormedHistogram.getNumSamples());
 
-  SymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
-  SymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
+  DenseSymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
+  DenseSymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
 
   BOOST_CHECK_EQUAL(srcSymbolTable.getOffset(), restoredSymbolTable.getOffset());
   BOOST_CHECK_EQUAL_COLLECTIONS(srcSymbolTable.begin(), srcSymbolTable.end(), restoredSymbolTable.begin(), restoredSymbolTable.end());
@@ -213,7 +213,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeSymbolTable, T, test_types
   auto h = makeHistogram::fromSamples(message.begin(), message.end());
   Metrics<source_type> metrics{h};
   auto srcRenormedHistogram = renorm(h, metrics);
-  SymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
+  DenseSymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
 
   SizeEstimate sizeEstimate{metrics};
   size_t bufferSize = sizeEstimate.getCompressedDictionarySize<buffer_type>();
@@ -232,7 +232,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeSymbolTable, T, test_types
   BOOST_CHECK_EQUAL(srcRenormedHistogram.getIncompressibleSymbolFrequency(), restoredRenormedHistogram.getIncompressibleSymbolFrequency());
   BOOST_CHECK_EQUAL(srcRenormedHistogram.getNumSamples(), restoredRenormedHistogram.getNumSamples());
 
-  SymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
+  DenseSymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
 
   BOOST_CHECK_EQUAL(srcSymbolTable.getOffset(), restoredSymbolTable.getOffset());
   BOOST_CHECK_EQUAL_COLLECTIONS(srcSymbolTable.begin(), srcSymbolTable.end(), restoredSymbolTable.begin(), restoredSymbolTable.end());
@@ -270,8 +270,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeSparseHistogram, T, sparse
   BOOST_CHECK_EQUAL(srcRenormedHistogram.getIncompressibleSymbolFrequency(), restoredRenormedHistogram.getIncompressibleSymbolFrequency());
   BOOST_CHECK_EQUAL(srcRenormedHistogram.getNumSamples(), restoredRenormedHistogram.getNumSamples());
 
-  SymbolTable<source_type, internal::Symbol> srcSymbolTable(crossCheckRenormedHistogram);
-  SymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
+  DenseSymbolTable<source_type, internal::Symbol> srcSymbolTable(crossCheckRenormedHistogram);
+  DenseSymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
 
   BOOST_CHECK_EQUAL(srcSymbolTable.getOffset(), restoredSymbolTable.getOffset());
   BOOST_CHECK_EQUAL_COLLECTIONS(srcSymbolTable.begin(), srcSymbolTable.end(), restoredSymbolTable.begin(), restoredSymbolTable.end());
@@ -288,7 +288,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeSparseSymbolTable, T, spar
   Metrics<source_type> metrics{h};
   auto srcRenormedHistogram = renorm(h, metrics);
   SparseSymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
-  SymbolTable<source_type, internal::Symbol> srcCrossCheckSymbolTable{renorm(h1, metrics)};
+  DenseSymbolTable<source_type, internal::Symbol> srcCrossCheckSymbolTable{renorm(h1, metrics)};
 
   SizeEstimate sizeEstimate{metrics};
   size_t bufferSize = sizeEstimate.getCompressedDictionarySize<buffer_type>();
@@ -307,7 +307,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeSparseSymbolTable, T, spar
   BOOST_CHECK_EQUAL(srcRenormedHistogram.getIncompressibleSymbolFrequency(), restoredRenormedHistogram.getIncompressibleSymbolFrequency());
   BOOST_CHECK_EQUAL(srcRenormedHistogram.getNumSamples(), restoredRenormedHistogram.getNumSamples());
 
-  SymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
+  DenseSymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
 
   BOOST_CHECK_EQUAL(srcCrossCheckSymbolTable.getOffset(), restoredSymbolTable.getOffset());
   BOOST_CHECK_EQUAL_COLLECTIONS(srcCrossCheckSymbolTable.begin(), srcCrossCheckSymbolTable.end(), restoredSymbolTable.begin(), restoredSymbolTable.end());
@@ -341,8 +341,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeHashHistogram, T, sparseTe
   BOOST_CHECK_EQUAL(srcRenormedHistogram.getIncompressibleSymbolFrequency(), restoredRenormedHistogram.getIncompressibleSymbolFrequency());
   BOOST_CHECK_EQUAL(srcRenormedHistogram.getNumSamples(), restoredRenormedHistogram.getNumSamples());
 
-  SymbolTable<source_type, internal::Symbol> srcSymbolTable(crossCheckRenormedHistogram);
-  SymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
+  DenseSymbolTable<source_type, internal::Symbol> srcSymbolTable(crossCheckRenormedHistogram);
+  DenseSymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
 
   BOOST_CHECK_EQUAL(srcSymbolTable.getOffset(), restoredSymbolTable.getOffset());
   BOOST_CHECK_EQUAL_COLLECTIONS(srcSymbolTable.begin(), srcSymbolTable.end(), restoredSymbolTable.begin(), restoredSymbolTable.end());
@@ -359,7 +359,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeHashSymbolTable, T, sparse
   Metrics<source_type> metrics{h};
   auto srcRenormedHistogram = renorm(h, metrics);
   HashSymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
-  SymbolTable<source_type, internal::Symbol> srcCrossCheckSymbolTable{renorm(h1, metrics)};
+  DenseSymbolTable<source_type, internal::Symbol> srcCrossCheckSymbolTable{renorm(h1, metrics)};
 
   SizeEstimate sizeEstimate{metrics};
   size_t bufferSize = sizeEstimate.getCompressedDictionarySize<buffer_type>();
@@ -378,7 +378,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeHashSymbolTable, T, sparse
   BOOST_CHECK_EQUAL(srcRenormedHistogram.getIncompressibleSymbolFrequency(), restoredRenormedHistogram.getIncompressibleSymbolFrequency());
   BOOST_CHECK_EQUAL(srcRenormedHistogram.getNumSamples(), restoredRenormedHistogram.getNumSamples());
 
-  SymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
+  DenseSymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
 
   BOOST_CHECK_EQUAL(srcCrossCheckSymbolTable.getOffset(), restoredSymbolTable.getOffset());
   BOOST_CHECK_EQUAL_COLLECTIONS(srcCrossCheckSymbolTable.begin(), srcCrossCheckSymbolTable.end(), restoredSymbolTable.begin(), restoredSymbolTable.end());

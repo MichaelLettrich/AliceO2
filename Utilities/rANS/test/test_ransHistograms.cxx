@@ -38,13 +38,13 @@ using namespace o2::rans;
 namespace mp = boost::mp11;
 
 using small_histogram_types = mp::mp_list<
-  Histogram<char>,
-  Histogram<uint8_t>,
-  Histogram<int8_t>,
-  Histogram<uint16_t>,
-  Histogram<int16_t>>;
+  DenseHistogram<char>,
+  DenseHistogram<uint8_t>,
+  DenseHistogram<int8_t>,
+  DenseHistogram<uint16_t>,
+  DenseHistogram<int16_t>>;
 
-using large_histogram_types = mp::mp_list<Histogram<int32_t>>;
+using large_histogram_types = mp::mp_list<DenseHistogram<int32_t>>;
 
 using sparse_histogram_types = mp::mp_list<SparseHistogram<uint32_t>,
                                            SparseHistogram<int32_t>>;
@@ -394,7 +394,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSignChange, histogram_T, histog
   if constexpr (std::is_signed_v<source_type>) {
     const std::ptrdiff_t offset = utils::pow2(utils::toBits<source_type>() - 1);
 
-    if constexpr (std::is_same_v<histogram_T, Histogram<int32_t>>) {
+    if constexpr (std::is_same_v<histogram_T, DenseHistogram<int32_t>>) {
       const std::ptrdiff_t largeOffset = utils::toBits<source_type>() - 1;
       BOOST_CHECK_THROW(histogram.addFrequencies(frequencies2.begin(), frequencies2.end(), offset), HistogramError);
       BOOST_CHECK_THROW(histogram2.addFrequencies(gsl::make_span(frequencies2), offset), HistogramError);
@@ -425,7 +425,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSignChange, histogram_T, histog
     BOOST_CHECK_EQUAL(countNUsedAlphabetSymbols(histogram), 7);
   }
 
-  if constexpr (std::is_same_v<histogram_T, Histogram<int32_t>>) {
+  if constexpr (std::is_same_v<histogram_T, DenseHistogram<int32_t>>) {
     // for the int32_t case we couldn't add samples, so no changes
     BOOST_CHECK_EQUAL(histogram.getNumSamples(), 15);
   } else {
@@ -444,7 +444,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSignChange, histogram_T, histog
   BOOST_CHECK(histogram.cbegin() != histogram.cend());
 };
 
-using renorm_types = mp::mp_list<Histogram<uint8_t>, Histogram<uint32_t>, SparseHistogram<int32_t>, HashHistogram<int32_t>, SetHistogram<int32_t>>;
+using renorm_types = mp::mp_list<DenseHistogram<uint8_t>, DenseHistogram<uint32_t>, SparseHistogram<int32_t>, HashHistogram<int32_t>, SetHistogram<int32_t>>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_renorm, histogram_T, renorm_types)
 {
@@ -466,7 +466,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_renorm, histogram_T, renorm_types)
   }
 }
 
-using legacy_renorm_types = mp::mp_list<Histogram<uint8_t>, Histogram<uint32_t>>;
+using legacy_renorm_types = mp::mp_list<DenseHistogram<uint8_t>, DenseHistogram<uint32_t>>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_renormLegacy, histogram_T, legacy_renorm_types)
 {
@@ -491,7 +491,7 @@ BOOST_AUTO_TEST_CASE(test_ExpectedCodewordLength)
   constexpr double_t eps = 1e-2;
 
   std::vector<uint32_t> frequencies{9, 0, 8, 0, 7, 0, 6, 0, 5, 0, 4, 0, 3, 0, 2, 0, 1};
-  Histogram<source_type> histogram{frequencies.begin(), frequencies.end(), 0};
+  DenseHistogram<source_type> histogram{frequencies.begin(), frequencies.end(), 0};
   Metrics<source_type> metrics{histogram};
   const auto renormedHistogram = renorm(histogram, metrics);
 

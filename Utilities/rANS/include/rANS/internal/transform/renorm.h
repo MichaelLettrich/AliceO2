@@ -19,7 +19,7 @@
 #include <fairlogger/Logger.h>
 
 #include "rANS/internal/containers/RenormedHistogram.h"
-#include "rANS/internal/containers/Histogram.h"
+#include "rANS/internal/containers/DenseHistogram.h"
 #include "rANS/internal/containers/SparseHistogram.h"
 #include "rANS/internal/containers/HashHistogram.h"
 #include "rANS/internal/containers/SetHistogram.h"
@@ -37,7 +37,7 @@ namespace renormImpl
 {
 
 template <typename source_T>
-inline size_t getNUsedAlphabetSymbols(const Histogram<source_T>& f)
+inline size_t getNUsedAlphabetSymbols(const DenseHistogram<source_T>& f)
 {
   if constexpr (sizeof(source_T) <= 2) {
     const size_t nUsedAlphabetSymbols = f.empty() ? 0 : f.size();
@@ -191,7 +191,7 @@ decltype(auto) renorm(histogram_T histogram, Metrics<typename histogram_T::sourc
   *coderProperties.nIncompressibleSamples = nIncompressibleSamples;
 
   if constexpr (isDenseContainer_v<histogram_type>) {
-    RenormedHistogram<source_type> ret{std::move(rescaledHistogram), renormingPrecisionBits, incompressibleSymbolFrequency};
+    RenormedDenseHistogram<source_type> ret{std::move(rescaledHistogram), renormingPrecisionBits, incompressibleSymbolFrequency};
     std::tie(*coderProperties.min, *coderProperties.max) = getMinMax(ret);
     return ret;
   } else if constexpr (isSparseContainer_v<histogram_type>) {

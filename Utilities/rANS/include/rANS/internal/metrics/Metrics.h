@@ -22,7 +22,7 @@
 #include <gsl/span>
 
 #include "rANS/internal/common/utils.h"
-#include "rANS/internal/containers/Histogram.h"
+#include "rANS/internal/containers/DenseHistogram.h"
 #include "rANS/internal/containers/SparseHistogram.h"
 #include "rANS/internal/containers/HashHistogram.h"
 #include "rANS/internal/metrics/properties.h"
@@ -42,12 +42,12 @@ class Metrics
   using source_type = source_T;
 
   Metrics() = default;
-  inline Metrics(const Histogram<source_type>& histogram, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {}, {}, cutoffPrecision); };
+  inline Metrics(const DenseHistogram<source_type>& histogram, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {}, {}, cutoffPrecision); };
   inline Metrics(const SparseHistogram<source_type>& histogram, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {}, {}, cutoffPrecision); };
   inline Metrics(const HashHistogram<source_type>& histogram, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {}, {}, cutoffPrecision); };
   inline Metrics(const SetHistogram<source_type>& histogram, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {}, {}, cutoffPrecision); };
 
-  inline Metrics(const Histogram<source_type>& histogram, source_type min, source_type max, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {min}, {max}, cutoffPrecision); };
+  inline Metrics(const DenseHistogram<source_type>& histogram, source_type min, source_type max, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {min}, {max}, cutoffPrecision); };
   inline Metrics(const SparseHistogram<source_type>& histogram, source_type min, source_type max, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {min}, {max}, cutoffPrecision); };
   inline Metrics(const HashHistogram<source_type>& histogram, source_type min, source_type max, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {min}, {max}, cutoffPrecision); };
   inline Metrics(const SetHistogram<source_type>& histogram, source_type min, source_type max, float_t cutoffPrecision = defaultCutoffPrecision) { init(histogram, {min}, {max}, cutoffPrecision); };

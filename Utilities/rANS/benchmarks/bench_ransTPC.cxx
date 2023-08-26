@@ -152,7 +152,7 @@ void ransEncodeDecode(const std::string& name, const std::vector<source_T>& inpu
 
   auto tmpHist = histogram;
   Metrics<source_type> metrics{};
-  RenormedHistogram<source_type> renormedHistogram{};
+  RenormedDenseHistogram<source_type> renormedHistogram{};
   t.timeAndLog("Renorming", "Renormed Frequency Table", [&]() mutable {
     metrics = Metrics<source_type>{histogram};
     renormedHistogram = renorm(std::move(tmpHist), metrics);

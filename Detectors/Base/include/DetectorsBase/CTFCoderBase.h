@@ -81,17 +81,17 @@ class CTFCoderBase
   void createCodersFromFile(const std::string& dictPath, o2::ctf::CTFCoderBase::OpType op, bool mayFail = false);
 
   template <typename S>
-  void createCoder(OpType op, const o2::rans::RenormedHistogram<S>& renormedHistogram, int slot)
+  void createCoder(OpType op, const o2::rans::RenormedDenseHistogram<S>& renormedHistogram, int slot)
   {
     LOG_IF(warning, renormedHistogram.empty()) << fmt::format("Empty dictionary provided for slot {}, {} will assume literal symbols only", slot, (op == OpType::Encoder ? "encoding" : "decoding"));
 
     if (mANSVersion == ANSVersionCompat) {
       switch (op) {
         case OpType::Encoder:
-          mCoders[slot] = std::make_any<rans::compat::encoder_type<S>>(rans::compat::makeEncoder::fromRenormed<S>(renormedHistogram));
+          mCoders[slot] = std::make_any<rans::compat::encoder_type<S>>(rans::compat::makeEncoder::fromRenormed(renormedHistogram));
           break;
         case OpType::Decoder:
-          mCoders[slot] = std::make_any<rans::compat::decoder_type<S>>(rans::compat::makeDecoder::fromRenormed<S>(renormedHistogram));
+          mCoders[slot] = std::make_any<rans::compat::decoder_type<S>>(rans::compat::makeDecoder::fromRenormed(renormedHistogram));
           break;
       }
     } else if (mANSVersion == ANSVersion1) {

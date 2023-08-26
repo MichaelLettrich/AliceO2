@@ -86,7 +86,7 @@ class RenormingData
 
  private:
   std::vector<source_T> mSourceMessage{};
-  RenormedHistogram<source_T> mRenormedHistogram{};
+  RenormedDenseHistogram<source_T> mRenormedHistogram{};
   ransState_t mState{};
 };
 

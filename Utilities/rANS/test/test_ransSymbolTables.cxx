@@ -24,7 +24,7 @@
 #include <iterator>
 
 #include "rANS/histogram.h"
-#include "rANS/internal/containers/SymbolTable.h"
+#include "rANS/internal/containers/DenseSymbolTable.h"
 #include "rANS/internal/containers/SparseSymbolTable.h"
 #include "rANS/internal/containers/HashSymbolTable.h"
 #include "rANS/internal/containers/Symbol.h"
@@ -38,12 +38,12 @@ size_t getNUniqueSymbols(const T& container)
   return std::count_if(container.begin(), container.end(), [](uint32_t value) { return value != 0; });
 };
 
-using histogram_t = boost::mpl::vector<Histogram<uint8_t>,
-                                       Histogram<int8_t>,
-                                       Histogram<uint16_t>,
-                                       Histogram<int16_t>,
-                                       Histogram<uint32_t>,
-                                       Histogram<int32_t>,
+using histogram_t = boost::mpl::vector<DenseHistogram<uint8_t>,
+                                       DenseHistogram<int8_t>,
+                                       DenseHistogram<uint16_t>,
+                                       DenseHistogram<int16_t>,
+                                       DenseHistogram<uint32_t>,
+                                       DenseHistogram<int32_t>,
                                        SparseHistogram<uint32_t>,
                                        SparseHistogram<int32_t>,
                                        HashHistogram<uint32_t>,
@@ -60,8 +60,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_empty, histogram_T, histogram_t)
 
   auto makeSymbolTable = [](const histogram_T& hist) {
     using source_type = typename histogram_T::source_type;
-    if constexpr (std::is_same_v<histogram_T, Histogram<source_type>>) {
-      return SymbolTable<source_type, Symbol>(renorm(hist));
+    if constexpr (std::is_same_v<histogram_T, DenseHistogram<source_type>>) {
+      return DenseSymbolTable<source_type, Symbol>(renorm(hist));
     } else if constexpr (std::is_same_v<histogram_T, SparseHistogram<source_type>>) {
       return SparseSymbolTable<source_type, Symbol>(renorm(hist));
     } else {
@@ -105,8 +105,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_symbolTable, histogram_T, histogram_t)
 
   auto makeSymbolTable = [](histogram_T&& hist, size_t scaleBits, RenormingPolicy renormingPolicy, size_t cutoff) {
     using source_type = typename histogram_T::source_type;
-    if constexpr (std::is_same_v<histogram_T, Histogram<source_type>>) {
-      return SymbolTable<source_type, Symbol>(renorm(std::move(hist), scaleBits, renormingPolicy, cutoff));
+    if constexpr (std::is_same_v<histogram_T, DenseHistogram<source_type>>) {
+      return DenseSymbolTable<source_type, Symbol>(renorm(std::move(hist), scaleBits, renormingPolicy, cutoff));
     } else if constexpr (std::is_same_v<histogram_T, SparseHistogram<source_type>>) {
       return SparseSymbolTable<source_type, Symbol>(renorm(std::move(hist), scaleBits, renormingPolicy, cutoff));
     } else {

@@ -180,12 +180,12 @@ dest_IT compressRenormedDictionary(const container_T& container, dest_IT dstBuff
 } // namespace o2::rans
 
 template <typename source_T, typename buffer_IT>
-RenormedHistogram<source_T> readRenormedDictionary(buffer_IT begin, buffer_IT end, source_T min, source_T max, size_t renormingPrecision)
+RenormedDenseHistogram<source_T> readRenormedDictionary(buffer_IT begin, buffer_IT end, source_T min, source_T max, size_t renormingPrecision)
 {
   static_assert(std::is_pointer_v<buffer_IT>, "can only deserialize from raw pointers");
 
   using namespace internal;
-  using container_type = typename RenormedHistogram<source_T>::container_type;
+  using container_type = typename RenormedDenseHistogram<source_T>::container_type;
   using value_type = typename container_type::value_type;
 
   DictionaryStreamParser<source_T> dictStream{begin, end, max};

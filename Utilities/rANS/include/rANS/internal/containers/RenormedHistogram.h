@@ -76,7 +76,7 @@ class RenormedHistogramImpl : public container_T
 };
 
 template <typename source_T>
-using RenormedHistogram = RenormedHistogramImpl<internal::VectorContainer<source_T, uint32_t>>;
+using RenormedDenseHistogram = RenormedHistogramImpl<internal::VectorContainer<source_T, uint32_t>>;
 
 template <typename source_T>
 using RenormedSparseHistogram = RenormedHistogramImpl<internal::SparseVectorContainer<source_T, uint32_t>>;

@@ -54,7 +54,7 @@ class SetContainer;
 
 // forward declarations
 template <typename source_T, typename>
-class Histogram;
+class DenseHistogram;
 
 template <typename source_T>
 class SparseHistogram;
@@ -69,7 +69,7 @@ template <typename container_T>
 class RenormedHistogramImpl;
 
 template <typename source_T, typename value_T>
-class SymbolTable;
+class DenseSymbolTable;
 
 template <typename source_T, typename value_T>
 class SparseSymbolTable;
@@ -78,7 +78,7 @@ template <typename source_T, typename value_T>
 class HashSymbolTable;
 
 template <typename source_T>
-using RenormedHistogram = RenormedHistogramImpl<internal::VectorContainer<source_T, uint32_t>>;
+using RenormedDenseHistogram = RenormedHistogramImpl<internal::VectorContainer<source_T, uint32_t>>;
 
 template <typename source_T>
 using RenormedSparseHistogram = RenormedHistogramImpl<internal::SparseVectorContainer<source_T, uint32_t>>;
@@ -104,7 +104,7 @@ struct isSymbolTable : std::false_type {
 };
 
 template <typename source_T, typename value_T>
-struct isSymbolTable<SymbolTable<source_T, value_T>> : std::true_type {
+struct isSymbolTable<DenseSymbolTable<source_T, value_T>> : std::true_type {
 };
 
 template <typename source_T, typename value_T>
@@ -123,7 +123,7 @@ struct isHistogram : std::false_type {
 };
 
 template <typename source_T>
-struct isHistogram<Histogram<source_T, void>> : std::true_type {
+struct isHistogram<DenseHistogram<source_T, void>> : std::true_type {
 };
 
 template <typename source_T>
@@ -146,7 +146,7 @@ struct isRenormedHistogram : std::false_type {
 };
 
 template <typename source_T>
-struct isRenormedHistogram<RenormedHistogram<source_T>> : std::true_type {
+struct isRenormedHistogram<RenormedDenseHistogram<source_T>> : std::true_type {
 };
 
 template <typename source_T>
@@ -173,15 +173,15 @@ struct isDenseContainer<ShiftableVector<source_T, value_T>> : std::true_type {
 };
 
 template <typename source_T>
-struct isDenseContainer<Histogram<source_T, void>> : std::true_type {
+struct isDenseContainer<DenseHistogram<source_T, void>> : std::true_type {
 };
 
 template <typename source_T>
-struct isDenseContainer<RenormedHistogram<source_T>> : std::true_type {
+struct isDenseContainer<RenormedDenseHistogram<source_T>> : std::true_type {
 };
 
 template <typename source_T, typename value_T>
-struct isDenseContainer<SymbolTable<source_T, value_T>> : std::true_type {
+struct isDenseContainer<DenseSymbolTable<source_T, value_T>> : std::true_type {
 };
 
 template <typename T>
