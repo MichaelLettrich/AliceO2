@@ -9,13 +9,13 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// @file   SparseSymbolTable.h
+/// @file   AdaptiveSymbolTable.h
 /// @author Michael Lettrich
 /// @since  2019-06-21
 /// @brief  Lookup table containing statistical information for each symbol in the alphabet required for encoding/decoding
 
-#ifndef RANS_INTERNAL_CONTAINERS_SPARSESYMBOLTABLE_H_
-#define RANS_INTERNAL_CONTAINERS_SPARSESYMBOLTABLE_H_
+#ifndef RANS_INTERNAL_CONTAINERS_ADAPTIVESYMBOLTABLE_H_
+#define RANS_INTERNAL_CONTAINERS_ADAPTIVESYMBOLTABLE_H_
 
 #include <vector>
 #include <cstdint>
@@ -30,7 +30,7 @@ namespace o2::rans
 {
 
 template <class source_T, class symbol_T>
-class SparseSymbolTable : public internal::SparseVectorContainer<source_T, symbol_T>
+class AdaptiveSymbolTable : public internal::SparseVectorContainer<source_T, symbol_T>
 {
   using base_type = internal::SparseVectorContainer<source_T, symbol_T>;
   friend base_type;
@@ -47,10 +47,10 @@ class SparseSymbolTable : public internal::SparseVectorContainer<source_T, symbo
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
 
-  SparseSymbolTable() = default;
+  AdaptiveSymbolTable() = default;
 
   template <typename container_T>
-  explicit SparseSymbolTable(const RenormedHistogramImpl<container_T>& renormedHistogram);
+  explicit AdaptiveSymbolTable(const RenormedHistogramImpl<container_T>& renormedHistogram);
 
   [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const noexcept
   {
@@ -92,7 +92,7 @@ class SparseSymbolTable : public internal::SparseVectorContainer<source_T, symbo
 
 template <class source_T, class value_T>
 template <typename container_T>
-SparseSymbolTable<source_T, value_T>::SparseSymbolTable(const RenormedHistogramImpl<container_T>& renormedHistogram)
+AdaptiveSymbolTable<source_T, value_T>::AdaptiveSymbolTable(const RenormedHistogramImpl<container_T>& renormedHistogram)
 {
   using namespace utils;
   using namespace internal;
@@ -118,15 +118,15 @@ SparseSymbolTable<source_T, value_T>::SparseSymbolTable(const RenormedHistogramI
 };
 
 template <typename source_T, typename symbol_T>
-std::pair<source_T, source_T> getMinMax(const SparseSymbolTable<source_T, symbol_T>& symbolTable)
+std::pair<source_T, source_T> getMinMax(const AdaptiveSymbolTable<source_T, symbol_T>& symbolTable)
 {
   return internal::getMinMax(symbolTable, symbolTable.getEscapeSymbol());
 };
 
 template <typename source_T, typename symbol_T>
-size_t countNUsedAlphabetSymbols(const SparseSymbolTable<source_T, symbol_T>& histogram)
+size_t countNUsedAlphabetSymbols(const AdaptiveSymbolTable<source_T, symbol_T>& histogram)
 {
-  using container_type = typename SparseSymbolTable<source_T, symbol_T>::container_type;
+  using container_type = typename AdaptiveSymbolTable<source_T, symbol_T>::container_type;
 
   return std::count_if(histogram.begin(), histogram.end(),
                        [&](const auto& value) {
@@ -136,4 +136,4 @@ size_t countNUsedAlphabetSymbols(const SparseSymbolTable<source_T, symbol_T>& hi
 
 } // namespace o2::rans
 
-#endif /* RANS_INTERNAL_CONTAINERS_SPARSESYMBOLTABLE_H_ */
+#endif /* RANS_INTERNAL_CONTAINERS_ADAPTIVESYMBOLTABLE_H_ */

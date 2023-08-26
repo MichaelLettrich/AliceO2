@@ -48,7 +48,7 @@ inline constexpr count_t getFrequency(const container_T& container, typename con
   }
 };
 
-template <typename container_T, std::enable_if_t<isSparseContainer_v<container_T>, bool> = true>
+template <typename container_T, std::enable_if_t<isAdaptiveContainer_v<container_T>, bool> = true>
 inline constexpr count_t getFrequency(const container_T& container, typename container_T::const_iterator::value_type symbolPair)
 {
   return getFrequency(container, symbolPair.second);

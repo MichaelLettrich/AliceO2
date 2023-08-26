@@ -14,8 +14,8 @@
 /// @since  2019-05-08
 /// @brief Histogram to depict frequencies of source symbols for rANS compression.
 
-#ifndef INCLUDE_RANS_INTERNAL_CONTAINERS_SPARSEHISTOGRAM_H_
-#define INCLUDE_RANS_INTERNAL_CONTAINERS_SPARSEHISTOGRAM_H_
+#ifndef INCLUDE_RANS_INTERNAL_CONTAINERS_ADAPTIVEHISTOGRAM_H_
+#define INCLUDE_RANS_INTERNAL_CONTAINERS_ADAPTIVEHISTOGRAM_H_
 
 #include "rANS/internal/common/utils.h"
 #include "rANS/internal/containers/HistogramConcept.h"
@@ -25,17 +25,17 @@ namespace o2::rans
 {
 
 template <typename source_T>
-class SparseHistogram : public internal::SparseVectorContainer<source_T, uint32_t>,
-                        public internal::HistogramConcept<source_T,
-                                                          typename internal::SparseVectorContainer<source_T, uint32_t>::value_type,
-                                                          typename internal::SparseVectorContainer<source_T, uint32_t>::difference_type,
-                                                          SparseHistogram<source_T>>
+class AdaptiveHistogram : public internal::SparseVectorContainer<source_T, uint32_t>,
+                          public internal::HistogramConcept<source_T,
+                                                            typename internal::SparseVectorContainer<source_T, uint32_t>::value_type,
+                                                            typename internal::SparseVectorContainer<source_T, uint32_t>::difference_type,
+                                                            AdaptiveHistogram<source_T>>
 {
   using containerBase_type = internal::SparseVectorContainer<source_T, uint32_t>;
   using HistogramConcept_type = internal::HistogramConcept<source_T,
                                                            typename internal::SparseVectorContainer<source_T, uint32_t>::value_type,
                                                            typename internal::SparseVectorContainer<source_T, uint32_t>::difference_type,
-                                                           SparseHistogram<source_T>>;
+                                                           AdaptiveHistogram<source_T>>;
 
   friend HistogramConcept_type;
 
@@ -51,10 +51,10 @@ class SparseHistogram : public internal::SparseVectorContainer<source_T, uint32_
   using const_pointer = typename containerBase_type::const_pointer;
   using const_iterator = typename containerBase_type::const_iterator;
 
-  SparseHistogram() = default;
+  AdaptiveHistogram() = default;
 
   template <typename freq_IT>
-  SparseHistogram(freq_IT begin, freq_IT end, source_type offset) : containerBase_type(), HistogramConcept_type{begin, end, offset} {};
+  AdaptiveHistogram(freq_IT begin, freq_IT end, source_type offset) : containerBase_type(), HistogramConcept_type{begin, end, offset} {};
 
   // operations
   using HistogramConcept_type::addSamples;
@@ -63,17 +63,17 @@ class SparseHistogram : public internal::SparseVectorContainer<source_T, uint32_
 
  protected:
   template <typename source_IT>
-  SparseHistogram& addSamplesImpl(source_IT begin, source_IT end);
+  AdaptiveHistogram& addSamplesImpl(source_IT begin, source_IT end);
 
-  inline SparseHistogram& addSamplesImpl(gsl::span<const source_type> samples) { return addSamplesImpl(samples.data(), samples.data() + samples.size()); };
+  inline AdaptiveHistogram& addSamplesImpl(gsl::span<const source_type> samples) { return addSamplesImpl(samples.data(), samples.data() + samples.size()); };
 
   template <typename freq_IT>
-  SparseHistogram& addFrequenciesImpl(freq_IT begin, freq_IT end, source_type offset);
+  AdaptiveHistogram& addFrequenciesImpl(freq_IT begin, freq_IT end, source_type offset);
 };
 
 template <typename source_T>
 template <typename source_IT>
-auto SparseHistogram<source_T>::addSamplesImpl(source_IT begin, source_IT end) -> SparseHistogram&
+auto AdaptiveHistogram<source_T>::addSamplesImpl(source_IT begin, source_IT end) -> AdaptiveHistogram&
 {
 
   if constexpr (std::is_same_v<typename std::iterator_traits<source_IT>::iterator_category, std::random_access_iterator_tag>) {
@@ -105,7 +105,7 @@ auto SparseHistogram<source_T>::addSamplesImpl(source_IT begin, source_IT end) -
 
 template <typename source_T>
 template <typename freq_IT>
-auto SparseHistogram<source_T>::addFrequenciesImpl(freq_IT begin, freq_IT end, source_type offset) -> SparseHistogram&
+auto AdaptiveHistogram<source_T>::addFrequenciesImpl(freq_IT begin, freq_IT end, source_type offset) -> AdaptiveHistogram&
 {
   source_type sourceSymbol = offset;
   for (auto iter = begin; iter != end; ++iter) {
@@ -120,14 +120,14 @@ auto SparseHistogram<source_T>::addFrequenciesImpl(freq_IT begin, freq_IT end, s
 }
 
 template <typename source_T>
-size_t countNUsedAlphabetSymbols(const SparseHistogram<source_T>& histogram)
+size_t countNUsedAlphabetSymbols(const AdaptiveHistogram<source_T>& histogram)
 {
-  using iterator_value_type = typename SparseHistogram<source_T>::const_iterator::value_type;
-  using value_type = typename SparseHistogram<source_T>::value_type;
+  using iterator_value_type = typename AdaptiveHistogram<source_T>::const_iterator::value_type;
+  using value_type = typename AdaptiveHistogram<source_T>::value_type;
 
   return std::count_if(histogram.begin(), histogram.end(), [](iterator_value_type v) { return v.second != value_type{}; });
 }
 
 } // namespace o2::rans
 
-#endif /* INCLUDE_RANS_INTERNAL_CONTAINERS_SPARSEHISTOGRAM_H_ */
+#endif /* INCLUDE_RANS_INTERNAL_CONTAINERS_ADAPTIVEHISTOGRAM_H_ */

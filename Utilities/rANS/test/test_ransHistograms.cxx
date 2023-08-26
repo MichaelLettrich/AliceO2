@@ -26,7 +26,7 @@
 #include <fmt/format.h>
 
 #include "rANS/histogram.h"
-#include "rANS/internal/containers/SparseHistogram.h"
+#include "rANS/internal/containers/AdaptiveHistogram.h"
 #include "rANS/internal/containers/HashHistogram.h"
 #include "rANS/internal/containers/SetHistogram.h"
 #include "rANS/internal/transform/algorithm.h"
@@ -46,8 +46,8 @@ using small_histogram_types = mp::mp_list<
 
 using large_histogram_types = mp::mp_list<DenseHistogram<int32_t>>;
 
-using sparse_histogram_types = mp::mp_list<SparseHistogram<uint32_t>,
-                                           SparseHistogram<int32_t>>;
+using sparse_histogram_types = mp::mp_list<AdaptiveHistogram<uint32_t>,
+                                           AdaptiveHistogram<int32_t>>;
 
 using hash_histogram_types = mp::mp_list<HashHistogram<uint32_t>,
                                          HashHistogram<int32_t>>;
@@ -102,7 +102,7 @@ size_t getTableSize(const map_T& resultsMap)
       const auto [minIter, maxIter] = std::minmax_element(std::begin(resultsMap), std::end(resultsMap), [](const auto& a, const auto& b) { return a.first < b.first; });
       return maxIter->first - minIter->first + std::is_signed_v<source_type>;
     }
-  } else if constexpr (isSparseContainer_v<histogram_T>) {
+  } else if constexpr (isAdaptiveContainer_v<histogram_T>) {
     std::vector<int32_t> buckets;
     for (const auto [key, value] : resultsMap) {
       buckets.push_back(key / histogram_T::container_type::getBucketSize());
@@ -128,7 +128,7 @@ auto getOffset(const map_T& resultsMap) -> typename map_T::key_type
       const auto [minIter, maxIter] = std::minmax_element(std::begin(resultsMap), std::end(resultsMap), [](const auto& a, const auto& b) { return a.first < b.first; });
       return minIter->first;
     }
-  } else if constexpr (isSparseContainer_v<histogram_T>) {
+  } else if constexpr (isAdaptiveContainer_v<histogram_T>) {
     return std::numeric_limits<source_type>::min();
   } else if constexpr (isHashContainer_v<histogram_T>) {
     return 0;
@@ -444,7 +444,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSignChange, histogram_T, histog
   BOOST_CHECK(histogram.cbegin() != histogram.cend());
 };
 
-using renorm_types = mp::mp_list<DenseHistogram<uint8_t>, DenseHistogram<uint32_t>, SparseHistogram<int32_t>, HashHistogram<int32_t>, SetHistogram<int32_t>>;
+using renorm_types = mp::mp_list<DenseHistogram<uint8_t>, DenseHistogram<uint32_t>, AdaptiveHistogram<int32_t>, HashHistogram<int32_t>, SetHistogram<int32_t>>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_renorm, histogram_T, renorm_types)
 {

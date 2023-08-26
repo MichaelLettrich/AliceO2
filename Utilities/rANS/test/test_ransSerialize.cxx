@@ -287,7 +287,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeSparseSymbolTable, T, spar
   auto h1 = makeHistogram::fromSamples(message.begin(), message.end());
   Metrics<source_type> metrics{h};
   auto srcRenormedHistogram = renorm(h, metrics);
-  SparseSymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
+  AdaptiveSymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
   DenseSymbolTable<source_type, internal::Symbol> srcCrossCheckSymbolTable{renorm(h1, metrics)};
 
   SizeEstimate sizeEstimate{metrics};

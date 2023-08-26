@@ -27,8 +27,8 @@
 #include "rANS/internal/containers/RenormedHistogram.h"
 #include "rANS/internal/containers/DenseSymbolTable.h"
 
-#include "rANS/internal/containers/SparseHistogram.h"
-#include "rANS/internal/containers/SparseSymbolTable.h"
+#include "rANS/internal/containers/AdaptiveHistogram.h"
+#include "rANS/internal/containers/AdaptiveSymbolTable.h"
 
 #include "rANS/internal/containers/HashHistogram.h"
 #include "rANS/internal/containers/HashSymbolTable.h"
@@ -104,7 +104,7 @@ struct makeSparseHistogram {
   [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end)
   {
     using source_type = typename std::iterator_traits<source_IT>::value_type;
-    using histogram_type = SparseHistogram<source_type>;
+    using histogram_type = AdaptiveHistogram<source_type>;
 
     histogram_type f{};
     f.addSamples(begin, end);
@@ -115,7 +115,7 @@ struct makeSparseHistogram {
   [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range)
   {
     using source_type = typename std::remove_cv_t<source_T>;
-    using histogram_type = SparseHistogram<source_type>;
+    using histogram_type = AdaptiveHistogram<source_type>;
 
     histogram_type f;
     f.addSamples(range);
@@ -197,14 +197,14 @@ class makeEncoder
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static constexpr decltype(auto) fromRenormed(const RenormedSparseHistogram<source_T>& renormed)
+  [[nodiscard]] inline static constexpr decltype(auto) fromRenormed(const RenormedAdaptiveHistogram<source_T>& renormed)
   {
     using namespace internal;
     constexpr CoderTag coderTag = coderTag_V;
     using source_type = source_T;
     using symbol_type = typename SymbolTraits<coderTag>::type;
     using coder_command = typename CoderTraits<coderTag>::template type<this_type::RenormingLowerBound>;
-    using symbolTable_type = SparseSymbolTable<source_type, symbol_type>;
+    using symbolTable_type = AdaptiveSymbolTable<source_type, symbol_type>;
     using encoderType = Encoder<coder_command, symbolTable_type, this_type::NStreams>;
 
     return encoderType{renormed};
@@ -239,21 +239,21 @@ class makeEncoder
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromHistogram(SparseHistogram<source_T> histogram, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
+  [[nodiscard]] inline static decltype(auto) fromHistogram(AdaptiveHistogram<source_T> histogram, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
   {
     const auto renormedHistogram = renorm(std::move(histogram), renormingPolicy);
     return this_type::fromRenormed(renormedHistogram);
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromHistogram(SparseHistogram<source_T> histogram, Metrics<source_T>& metrics, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
+  [[nodiscard]] inline static decltype(auto) fromHistogram(AdaptiveHistogram<source_T> histogram, Metrics<source_T>& metrics, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
   {
     const auto renormedHistogram = renorm(std::move(histogram), metrics, renormingPolicy);
     return this_type::fromRenormed(renormedHistogram);
   };
 
   template <typename source_T>
-  [[nodiscard]] inline static decltype(auto) fromHistogram(SparseHistogram<source_T> histogram, size_t renormingPrecision, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
+  [[nodiscard]] inline static decltype(auto) fromHistogram(AdaptiveHistogram<source_T> histogram, size_t renormingPrecision, RenormingPolicy renormingPolicy = RenormingPolicy::Auto)
   {
     const auto renormedHistogram = renorm(std::move(histogram), renormingPrecision, renormingPolicy);
     return this_type::fromRenormed(renormedHistogram);
@@ -414,7 +414,7 @@ template <typename source_T>
 using defaultEncoder_type = decltype(makeEncoder<>::fromRenormed(RenormedDenseHistogram<source_T>{}));
 
 template <typename source_T>
-using defaultSparseEncoder_type = decltype(makeEncoder<>::fromRenormed(RenormedSparseHistogram<source_T>{}));
+using defaultSparseEncoder_type = decltype(makeEncoder<>::fromRenormed(RenormedAdaptiveHistogram<source_T>{}));
 
 template <typename source_T>
 using defaultHashEncoder_type = decltype(makeEncoder<>::fromRenormed(RenormedHashHistogram<source_T>{}));

@@ -35,7 +35,7 @@ template <typename source_T>
 class InplaceEntropyCoder
 {
   using dense_histogram_type = rans::DenseHistogram<source_T>;
-  using adaptive_histogram_type = rans::SparseHistogram<source_T>;
+  using adaptive_histogram_type = rans::AdaptiveHistogram<source_T>;
   using sparse_histogram_type = rans::SetHistogram<source_T>;
 
   using dense_encoder_type = rans::defaultEncoder_type<source_T>;

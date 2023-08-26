@@ -79,7 +79,7 @@ template <typename source_T>
 using RenormedDenseHistogram = RenormedHistogramImpl<internal::VectorContainer<source_T, uint32_t>>;
 
 template <typename source_T>
-using RenormedSparseHistogram = RenormedHistogramImpl<internal::SparseVectorContainer<source_T, uint32_t>>;
+using RenormedAdaptiveHistogram = RenormedHistogramImpl<internal::SparseVectorContainer<source_T, uint32_t>>;
 
 template <typename source_T>
 using RenormedHashHistogram = RenormedHistogramImpl<internal::HashContainer<source_T, uint32_t>>;
