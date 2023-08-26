@@ -225,7 +225,7 @@ RenormedSparseHistogram<source_T> readRenormedSetDictionary(buffer_IT begin, buf
   }
 
   std::reverse(container.begin(), container.end());
-  container_type setContainer{std::move(container), value_type{}, OrderedSetState::ordered};
+  container_type setContainer{std::move(container), 0, OrderedSetState::ordered};
 
   const auto index = dictStream.getIndex();
   if (index != min) {

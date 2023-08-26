@@ -333,6 +333,9 @@ class EncodedBlocks
  public:
   typedef EncodedBlocks<H, N, W> base;
 
+  template <typename source_T>
+  using dictionaryType = std::variant<rans::RenormedSparseHistogram<source_T>, rans::RenormedDenseHistogram<source_T>>;
+
   void setHeader(const H& h) { mHeader = h; }
   const H& getHeader() const { return mHeader; }
   H& getHeader() { return mHeader; }
@@ -355,7 +358,7 @@ class EncodedBlocks
   }
 
   template <typename source_T>
-  rans::RenormedDenseHistogram<source_T> getFrequencyTable(int i, ANSHeader ansVersion = ANSVersionUnspecified) const
+  dictionaryType<source_T> getDictionary(int i, ANSHeader ansVersion = ANSVersionUnspecified) const
   {
     const auto& block = getBlock(i);
     const auto& metadata = getMetadata(i);
@@ -376,9 +379,15 @@ class EncodedBlocks
         return rans::renorm(std::move(histogram), renormingBits, rans::RenormingPolicy::ForceIncompressible);
       } else {
         // dictionary is elias-delta coded inside the block
-        return rans::readRenormedDictionary(block.getDict(), block.getDict() + block.getNDict(),
-                                            static_cast<source_T>(metadata.min), static_cast<source_T>(metadata.max),
-                                            metadata.probabilityBits);
+        if constexpr (sizeof(source_T) > 2) {
+          return rans::readRenormedSetDictionary(block.getDict(), block.getDict() + block.getNDict(),
+                                                 static_cast<source_T>(metadata.min), static_cast<source_T>(metadata.max),
+                                                 metadata.probabilityBits);
+        } else {
+          return rans::readRenormedDictionary(block.getDict(), block.getDict() + block.getNDict(),
+                                              static_cast<source_T>(metadata.min), static_cast<source_T>(metadata.max),
+                                              metadata.probabilityBits);
+        }
       }
     } else {
       throw std::runtime_error(fmt::format("Failed to load serialized Dictionary. Unsupported ANS Version: {}", static_cast<std::string>(ansVersion)));
@@ -596,7 +605,7 @@ class EncodedBlocks
   CTFIOSize decodeCopyImpl(dst_IT dest, int slot) const;
 
   ClassDefNV(EncodedBlocks, 3);
-}; // namespace ctf
+};
 
 ///_____________________________________________________________________________
 /// read from tree to non-flat object
@@ -919,7 +928,7 @@ CTFIOSize EncodedBlocks<H, N, W>::decodeCompatImpl(dst_IT dstBegin, int slot, co
 
   std::optional<decoder_type> inplaceDecoder{};
   if (md.nDictWords > 0) {
-    inplaceDecoder = decoder_type{this->getFrequencyTable<dst_type>(slot)};
+    inplaceDecoder = decoder_type{std::get<rans::RenormedDenseHistogram<dst_type>>(this->getDictionary<dst_type>(slot))};
   } else if (!decoderExt.has_value()) {
     throw std::runtime_error("neither dictionary nor external decoder provided");
   }
@@ -958,7 +967,7 @@ CTFIOSize EncodedBlocks<H, N, W>::decodeRansV1Impl(dst_IT dstBegin, int slot, co
 
   std::optional<decoder_type> inplaceDecoder{};
   if (md.nDictWords > 0) {
-    inplaceDecoder = decoder_type{this->getFrequencyTable<dst_type>(slot)};
+    std::visit([&](auto&& arg) { inplaceDecoder = decoder_type{arg}; }, this->getDictionary<dst_type>(slot));
   } else if (!decoderExt.has_value()) {
     throw std::runtime_error("no dictionary nor external decoder provided");
   }

@@ -98,7 +98,7 @@ class DecoderConcept
       const size_t nLoopRemainder = messageLength % nStreams;
 
       for (size_t i = 0; i < nLoops; ++i) {
-#pragma GCC unroll 2
+#pragma omp unroll partial(2)
         for (auto& decoder : decoders) {
           std::tie(*outputIter++, inputIter) = decode(decoder);
         }
