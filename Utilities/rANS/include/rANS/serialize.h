@@ -192,7 +192,7 @@ RenormedHistogram<source_T> readRenormedDictionary(buffer_IT begin, buffer_IT en
 
   const size_t dictExtent = getDictExtent(min, max, renormingPrecision);
 
-  container_type container{dictExtent, min};
+  container_type container(dictExtent, min);
 
   while (dictStream.hasNext()) {
     const auto [index, frequency] = dictStream.getNext();
@@ -205,6 +205,35 @@ RenormedHistogram<source_T> readRenormedDictionary(buffer_IT begin, buffer_IT en
   }
   return {std::move(container), renormingPrecision, dictStream.getIncompressibleSymbolFrequency()};
 };
+
+template <typename source_T, typename buffer_IT>
+RenormedSetHistogram<source_T> readRenormedSetDictionary(buffer_IT begin, buffer_IT end, source_T min, source_T max, size_t renormingPrecision)
+{
+  static_assert(std::is_pointer_v<buffer_IT>, "can only deserialize from raw pointers");
+
+  using namespace internal;
+  using streamParser_type = DictionaryStreamParser<source_T>;
+  using value_type = typename streamParser_type::value_type;
+  using container_type = typename RenormedSetHistogram<source_T>::container_type;
+  using base_container_type = typename container_type::container_type;
+
+  streamParser_type dictStream{begin, end, max};
+  base_container_type container{};
+
+  while (dictStream.hasNext()) {
+    container.emplace_back(dictStream.getNext());
+  }
+
+  std::reverse(container.begin(), container.end());
+  container_type setContainer{std::move(container), value_type{}, OrderedSetState::ordered};
+
+  const auto index = dictStream.getIndex();
+  if (index != min) {
+    throw ParsingError{fmt::format("failed to read renormed dictionary: reached EOS at index {} before parsing min {} ", index, min)};
+  }
+  return {std::move(setContainer), renormingPrecision, dictStream.getIncompressibleSymbolFrequency()};
+};
+
 } // namespace o2::rans
 
 #endif /* RANS_SERIALIZE_H_ */
