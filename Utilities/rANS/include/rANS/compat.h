@@ -167,10 +167,10 @@ class makeEncoder
 
  public:
   template <typename container_T>
-  [[nodiscard]] inline static constexpr decltype(auto) fromRenormed(const RenormedHistogramImpl<container_T>& renormed)
+  [[nodiscard]] inline static constexpr decltype(auto) fromRenormed(const RenormedHistogramConcept<container_T>& renormed)
   {
     using namespace o2::rans::internal;
-    using source_type = typename RenormedHistogramImpl<container_T>::source_type;
+    using source_type = typename RenormedHistogramConcept<container_T>::source_type;
     using symbol_type = internal::PrecomputedSymbol;
     using coder_command = SingleStreamEncoderImpl<mRenormingLowerBound>;
     using symbolTable_type = DenseSymbolTable<source_type, symbol_type>;
@@ -189,7 +189,7 @@ class makeEncoder
   template <typename source_IT>
   [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end, size_t renormingPrecision = 0)
   {
-    auto histogram = o2::rans::makeHistogram::fromSamples(begin, end);
+    auto histogram = makeDenseHistogram::fromSamples(begin, end);
 
     return makeEncoder::fromHistogram(std::move(histogram), renormingPrecision);
   };
@@ -197,7 +197,7 @@ class makeEncoder
   template <typename source_T>
   [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range, size_t renormingPrecision = 0)
   {
-    auto histogram = makeHistogram::template fromSamples(range);
+    auto histogram = makeDenseHistogram::template fromSamples(range);
     return makeEncoder::fromHistogram(std::move(histogram), renormingPrecision);
   };
 
@@ -214,11 +214,11 @@ class makeDecoder
 
  public:
   template <typename container_T>
-  [[nodiscard]] inline static constexpr decltype(auto) fromRenormed(const RenormedHistogramImpl<container_T>& renormed)
+  [[nodiscard]] inline static constexpr decltype(auto) fromRenormed(const RenormedHistogramConcept<container_T>& renormed)
   {
     using namespace internal;
 
-    using source_type = typename RenormedHistogramImpl<container_T>::source_type;
+    using source_type = typename RenormedHistogramConcept<container_T>::source_type;
     using coder_type = DecoderImpl<mRenormingLowerBound>;
     using decoder_type = Decoder<source_type, coder_type>;
 
@@ -235,14 +235,14 @@ class makeDecoder
   template <typename source_IT>
   [[nodiscard]] inline static decltype(auto) fromSamples(source_IT begin, source_IT end, size_t renormingPrecision = 0)
   {
-    auto histogram = makeHistogram::fromSamples(begin, end);
+    auto histogram = makeDenseHistogram::fromSamples(begin, end);
     return this_type::fromHistogram(std::move(histogram), renormingPrecision);
   };
 
   template <typename source_T>
   [[nodiscard]] inline static decltype(auto) fromSamples(gsl::span<const source_T> range, size_t renormingPrecision = 0)
   {
-    auto histogram = makeHistogram::fromSamples(range);
+    auto histogram = makeDenseHistogram::fromSamples(range);
     return this_type::fromHistogram(std::move(histogram), renormingPrecision);
   };
 

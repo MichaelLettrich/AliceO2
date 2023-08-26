@@ -48,7 +48,7 @@ class LowRangeDecoderTable
   LowRangeDecoderTable() noexcept = default;
 
   template <typename container_T>
-  explicit LowRangeDecoderTable(const RenormedHistogramImpl<container_T>& renormedHistogram) : mSymbolTable{renormedHistogram}, mRLUT{renormedHistogram} {};
+  explicit LowRangeDecoderTable(const RenormedHistogramConcept<container_T>& renormedHistogram) : mSymbolTable{renormedHistogram}, mRLUT{renormedHistogram} {};
 
   [[nodiscard]] inline size_type size() const noexcept { return mRLUT.size(); };
 

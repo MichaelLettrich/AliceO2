@@ -90,10 +90,10 @@ void ransCompressionBenchmark(benchmark::State& st)
   EncodeBuffer<source_type> encodeBuffer{inputData.size()};
   DecodeBuffer<source_type> decodeBuffer{inputData.size()};
 
-  const auto histogram = makeHistogram::fromSamples(gsl::span<const source_type>(inputData));
+  const auto histogram = makeDenseHistogram::fromSamples(gsl::span<const source_type>(inputData));
   Metrics<source_type> metrics{histogram};
   const auto renormedHistogram = renorm(histogram, metrics, RenormingPolicy::Auto, 10);
-  auto encoder = makeEncoder<coderTag_V>::fromRenormed(renormedHistogram);
+  auto encoder = makeDenseEncoder<coderTag_V>::fromRenormed(renormedHistogram);
 
 #ifdef ENABLE_VTUNE_PROFILER
   __itt_resume();
@@ -137,10 +137,10 @@ void ransLiteralCompressionBenchmark(benchmark::State& st)
   encodeBuffer.literalsEnd = encodeBuffer.literals.data();
   DecodeBuffer<source_type> decodeBuffer{inputData.size()};
 
-  const auto histogram = makeHistogram::fromSamples(gsl::span<const source_type>(inputData));
+  const auto histogram = makeDenseHistogram::fromSamples(gsl::span<const source_type>(inputData));
   Metrics<source_type> metrics{histogram};
   const auto renormedHistogram = renorm(histogram, metrics);
-  auto encoder = makeEncoder<coderTag_V>::fromRenormed(renormedHistogram);
+  auto encoder = makeDenseEncoder<coderTag_V>::fromRenormed(renormedHistogram);
 
 #ifdef ENABLE_VTUNE_PROFILER
   __itt_resume();
@@ -183,14 +183,14 @@ void ransAdaptiveCompressionBenchmark(benchmark::State& st)
   EncodeBuffer<source_type> encodeBuffer{inputData.size()};
   DecodeBuffer<source_type> decodeBuffer{inputData.size()};
 
-  const auto histogram = makeHistogram::fromSamples(gsl::span<const source_type>(inputData));
+  const auto histogram = makeDenseHistogram::fromSamples(gsl::span<const source_type>(inputData));
   auto adaptiveHistogram = makeAdaptiveHistogram::fromSamples(gsl::span<const source_type>(inputData));
   Metrics<source_type> metrics{histogram};
   Metrics<source_type> adaptiveMetrics{adaptiveHistogram};
   const auto renormedHistogram = renorm(histogram, metrics, RenormingPolicy::Auto, 10);
   const auto renormedAdaptiveHistogram = renorm(std::move(adaptiveHistogram), adaptiveMetrics, RenormingPolicy::Auto, 10);
 
-  auto encoder = makeEncoder<coderTag_V>::fromRenormed(renormedAdaptiveHistogram);
+  auto encoder = makeAdaptiveEncoder<coderTag_V>::fromRenormed(renormedAdaptiveHistogram);
 
 #ifdef ENABLE_VTUNE_PROFILER
   __itt_resume();
@@ -234,14 +234,14 @@ void ransAdaptiveLiteralCompressionBenchmark(benchmark::State& st)
   encodeBuffer.literalsEnd = encodeBuffer.literals.data();
   DecodeBuffer<source_type> decodeBuffer{inputData.size()};
 
-  const auto histogram = makeHistogram::fromSamples(gsl::span<const source_type>(inputData));
+  const auto histogram = makeDenseHistogram::fromSamples(gsl::span<const source_type>(inputData));
   auto adaptiveHistogram = makeAdaptiveHistogram::fromSamples(gsl::span<const source_type>(inputData));
   Metrics<source_type> metrics{histogram};
   Metrics<source_type> adaptiveMetrics{adaptiveHistogram};
   const auto renormedHistogram = renorm(histogram, metrics);
   const auto renormedAdaptiveHistogram = renorm(std::move(adaptiveHistogram), adaptiveMetrics);
 
-  auto encoder = makeEncoder<coderTag_V>::fromRenormed(renormedAdaptiveHistogram);
+  auto encoder = makeAdaptiveEncoder<coderTag_V>::fromRenormed(renormedAdaptiveHistogram);
 
 #ifdef ENABLE_VTUNE_PROFILER
   __itt_resume();

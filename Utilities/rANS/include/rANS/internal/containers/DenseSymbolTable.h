@@ -51,7 +51,7 @@ class DenseSymbolTable : public internal::VectorContainer<source_T, symbol_T>
   DenseSymbolTable() = default;
 
   template <typename container_T>
-  inline DenseSymbolTable(const RenormedHistogramImpl<container_T>& renormedHistogram);
+  inline DenseSymbolTable(const RenormedHistogramConcept<container_T>& renormedHistogram);
 
   [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const noexcept;
 
@@ -81,7 +81,7 @@ class DenseSymbolTable : public internal::VectorContainer<source_T, symbol_T>
 
 template <class source_T, class value_T>
 template <typename container_T>
-DenseSymbolTable<source_T, value_T>::DenseSymbolTable(const RenormedHistogramImpl<container_T>& renormedHistogram)
+DenseSymbolTable<source_T, value_T>::DenseSymbolTable(const RenormedHistogramConcept<container_T>& renormedHistogram)
 {
   using namespace utils;
   using namespace internal;

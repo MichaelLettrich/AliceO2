@@ -176,7 +176,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeHistogram, T, test_types)
   using buffer_type = boost::mp11::mp_second<T>;
 
   auto message = MessageProxy.getMessage<source_type>();
-  auto h = makeHistogram::fromSamples(message.begin(), message.end());
+  auto h = makeDenseHistogram::fromSamples(message.begin(), message.end());
   Metrics<source_type> metrics{h};
   auto srcRenormedHistogram = renorm(h, metrics);
   ;
@@ -210,7 +210,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeSymbolTable, T, test_types
   using buffer_type = boost::mp11::mp_second<T>;
 
   auto message = MessageProxy.getMessage<source_type>();
-  auto h = makeHistogram::fromSamples(message.begin(), message.end());
+  auto h = makeDenseHistogram::fromSamples(message.begin(), message.end());
   Metrics<source_type> metrics{h};
   auto srcRenormedHistogram = renorm(h, metrics);
   DenseSymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
@@ -251,7 +251,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeAdaptiveHistogram, T, adap
   auto h = makeSparseHistogram::fromSamples(message.begin(), message.end());
   Metrics<source_type> metrics{h};
   auto srcRenormedHistogram = renorm(h, metrics);
-  auto h1 = makeHistogram::fromSamples(message.begin(), message.end());
+  auto h1 = makeDenseHistogram::fromSamples(message.begin(), message.end());
   auto crossCheckRenormedHistogram = renorm(h1, metrics);
   SizeEstimate sizeEstimate{metrics};
   size_t bufferSize = sizeEstimate.getCompressedDictionarySize<buffer_type>();
@@ -284,7 +284,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeAdaptiveSymbolTable, T, ad
 
   auto message = MessageProxy.getMessage<source_type>();
   auto h = makeSparseHistogram::fromSamples(message.begin(), message.end());
-  auto h1 = makeHistogram::fromSamples(message.begin(), message.end());
+  auto h1 = makeDenseHistogram::fromSamples(message.begin(), message.end());
   Metrics<source_type> metrics{h};
   auto srcRenormedHistogram = renorm(h, metrics);
   AdaptiveSymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
@@ -324,7 +324,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeSparseHistogram, T, sparse
   auto h = makeSparseHistogram::fromSamples(message.begin(), message.end());
   Metrics<source_type> metrics{h};
   auto srcRenormedHistogram = renorm(h, metrics);
-  auto h1 = makeHistogram::fromSamples(message.begin(), message.end());
+  auto h1 = makeDenseHistogram::fromSamples(message.begin(), message.end());
   auto crossCheckRenormedHistogram = renorm(h1, metrics);
   SizeEstimate sizeEstimate{metrics};
   size_t bufferSize = sizeEstimate.getCompressedDictionarySize<buffer_type>();
@@ -357,7 +357,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeSparseSymbolTable, T, spar
 
   auto message = MessageProxy.getMessage<source_type>();
   auto h = makeSparseHistogram::fromSamples(message.begin(), message.end());
-  auto h1 = makeHistogram::fromSamples(message.begin(), message.end());
+  auto h1 = makeDenseHistogram::fromSamples(message.begin(), message.end());
   Metrics<source_type> metrics{h};
   auto srcRenormedHistogram = renorm(h, metrics);
   SparseSymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);

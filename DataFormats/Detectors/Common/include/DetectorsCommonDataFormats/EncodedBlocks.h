@@ -1131,7 +1131,7 @@ o2::ctf::CTFIOSize EncodedBlocks<H, N, W>::entropyCodeRANSCompat(const input_IT 
       if (encoderExt.has_value()) {
         return std::make_tuple(ransEncoder_t{}, rans::DenseHistogram<input_t>{});
       } else {
-        auto histogram = rans::makeHistogram::fromSamples(srcBegin, srcEnd);
+        auto histogram = rans::makeDenseHistogram::fromSamples(srcBegin, srcEnd);
         auto encoder = rans::compat::makeEncoder::fromHistogram(histogram, symbolTablePrecision);
         return std::make_tuple(std::move(encoder), std::move(histogram));
       }

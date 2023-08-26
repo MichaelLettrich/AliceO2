@@ -63,7 +63,7 @@ template <typename source_T>
 class SparseHistogram;
 
 template <typename container_T>
-class RenormedHistogramImpl;
+class RenormedHistogramConcept;
 
 template <typename source_T, typename value_T>
 class DenseSymbolTable;
@@ -75,13 +75,13 @@ template <typename source_T, typename value_T>
 class SparseSymbolTable;
 
 template <typename source_T>
-using RenormedDenseHistogram = RenormedHistogramImpl<internal::VectorContainer<source_T, uint32_t>>;
+using RenormedDenseHistogram = RenormedHistogramConcept<internal::VectorContainer<source_T, uint32_t>>;
 
 template <typename source_T>
-using RenormedAdaptiveHistogram = RenormedHistogramImpl<internal::SparseVectorContainer<source_T, uint32_t>>;
+using RenormedAdaptiveHistogram = RenormedHistogramConcept<internal::SparseVectorContainer<source_T, uint32_t>>;
 
 template <typename source_T>
-using RenormedSparseHistogram = RenormedHistogramImpl<internal::SetContainer<source_T, uint32_t>>;
+using RenormedSparseHistogram = RenormedHistogramConcept<internal::SetContainer<source_T, uint32_t>>;
 
 namespace internal
 {

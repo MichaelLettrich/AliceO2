@@ -252,7 +252,7 @@ template <typename source_T>
 template <typename source_IT, std::enable_if_t<(sizeof(typename std::iterator_traits<source_IT>::value_type) < 4), bool>>
 void InplaceEntropyCoder<source_T>::init(source_IT srcBegin, source_IT srcEnd, source_type min, source_type max)
 {
-  mHistogram.emplace(histogram_type{rans::makeHistogram::fromSamples(srcBegin, srcEnd)});
+  mHistogram.emplace(histogram_type{rans::makeDenseHistogram::fromSamples(srcBegin, srcEnd)});
   mMetrics = metrics_type{std::get<dense_histogram_type>(*mHistogram), min, max};
 };
 
@@ -266,7 +266,7 @@ void InplaceEntropyCoder<source_T>::init(source_IT srcBegin, source_IT srcEnd, s
   if ((rangeBits <= 18) || ((nSamples / rans::utils::pow2(rangeBits)) >= 0.80)) {
     // either the range of source symbols is distrubuted such that it fits into L3 Cache
     // Or it is possible for the data to cover a very significant fraction of the total [min,max] range
-    mHistogram = histogram_type{std::in_place_type<dense_histogram_type>, rans::makeHistogram::fromSamples(srcBegin, srcEnd, min, max)};
+    mHistogram = histogram_type{std::in_place_type<dense_histogram_type>, rans::makeDenseHistogram::fromSamples(srcBegin, srcEnd, min, max)};
     mMetrics = metrics_type{std::get<dense_histogram_type>(*mHistogram), min, max};
   } else if (nSamples / rans::utils::pow2(rangeBits) <= 0.3) {
     // or the range of source symbols is spread very thinly accross a large range
@@ -283,7 +283,7 @@ template <typename source_T>
 template <typename source_IT, std::enable_if_t<(sizeof(typename std::iterator_traits<source_IT>::value_type) < 4), bool>>
 void InplaceEntropyCoder<source_T>::init(source_IT srcBegin, source_IT srcEnd)
 {
-  mHistogram = histogram_type{std::in_place_type<dense_histogram_type>, rans::makeHistogram::fromSamples(srcBegin, srcEnd)};
+  mHistogram = histogram_type{std::in_place_type<dense_histogram_type>, rans::makeDenseHistogram::fromSamples(srcBegin, srcEnd)};
   mMetrics = metrics_type{std::get<dense_histogram_type>(*mHistogram)};
 };
 

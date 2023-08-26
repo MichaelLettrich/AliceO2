@@ -50,7 +50,7 @@ class AdaptiveSymbolTable : public internal::SparseVectorContainer<source_T, sym
   AdaptiveSymbolTable() = default;
 
   template <typename container_T>
-  explicit AdaptiveSymbolTable(const RenormedHistogramImpl<container_T>& renormedHistogram);
+  explicit AdaptiveSymbolTable(const RenormedHistogramConcept<container_T>& renormedHistogram);
 
   [[nodiscard]] inline const_reference operator[](source_type sourceSymbol) const noexcept
   {
@@ -92,7 +92,7 @@ class AdaptiveSymbolTable : public internal::SparseVectorContainer<source_T, sym
 
 template <class source_T, class value_T>
 template <typename container_T>
-AdaptiveSymbolTable<source_T, value_T>::AdaptiveSymbolTable(const RenormedHistogramImpl<container_T>& renormedHistogram)
+AdaptiveSymbolTable<source_T, value_T>::AdaptiveSymbolTable(const RenormedHistogramConcept<container_T>& renormedHistogram)
 {
   using namespace utils;
   using namespace internal;

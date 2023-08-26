@@ -51,7 +51,7 @@ class SparseSymbolTable : public internal::HashContainer<source_T, symbol_T>
   SparseSymbolTable() = default;
 
   template <typename container_T>
-  inline SparseSymbolTable(const RenormedHistogramImpl<container_T>& renormedHistogram);
+  inline SparseSymbolTable(const RenormedHistogramConcept<container_T>& renormedHistogram);
 
   [[nodiscard]] inline const_pointer lookupSafe(source_type sourceSymbol) const;
 
@@ -77,7 +77,7 @@ class SparseSymbolTable : public internal::HashContainer<source_T, symbol_T>
 
 template <class source_T, class value_T>
 template <typename container_T>
-SparseSymbolTable<source_T, value_T>::SparseSymbolTable(const RenormedHistogramImpl<container_T>& renormedHistogram)
+SparseSymbolTable<source_T, value_T>::SparseSymbolTable(const RenormedHistogramConcept<container_T>& renormedHistogram)
 {
   using namespace utils;
   using namespace internal;

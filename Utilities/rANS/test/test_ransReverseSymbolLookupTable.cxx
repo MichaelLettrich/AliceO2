@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE(test_buildRLUT)
   const size_t scaleBits = 17;
   const auto size = (1ull << scaleBits) - 1;
 
-  const auto renormedHistogram = renorm(makeHistogram::fromSamples(A.begin(), A.end()), scaleBits, RenormingPolicy::ForceIncompressible);
+  const auto renormedHistogram = renorm(makeDenseHistogram::fromSamples(A.begin(), A.end()), scaleBits, RenormingPolicy::ForceIncompressible);
   const ReverseSymbolLookupTable<int32_t> rLut{renormedHistogram};
 
   BOOST_CHECK_EQUAL(rLut.size(), size);

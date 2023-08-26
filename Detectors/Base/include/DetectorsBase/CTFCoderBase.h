@@ -97,7 +97,7 @@ class CTFCoderBase
     } else if (mANSVersion == ANSVersion1) {
       switch (op) {
         case OpType::Encoder:
-          mCoders[slot] = std::make_any<rans::denseEncoder_type<S>>(rans::makeEncoder<>::fromRenormed(renormedHistogram));
+          mCoders[slot] = std::make_any<rans::denseEncoder_type<S>>(rans::makeDenseEncoder<>::fromRenormed(renormedHistogram));
           break;
         case OpType::Decoder:
           mCoders[slot] = std::make_any<rans::defaultDecoder_type<S>>(rans::makeDecoder<>::fromRenormed(renormedHistogram));
