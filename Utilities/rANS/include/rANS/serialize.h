@@ -207,14 +207,14 @@ RenormedDenseHistogram<source_T> readRenormedDictionary(buffer_IT begin, buffer_
 };
 
 template <typename source_T, typename buffer_IT>
-RenormedSetHistogram<source_T> readRenormedSetDictionary(buffer_IT begin, buffer_IT end, source_T min, source_T max, size_t renormingPrecision)
+RenormedSparseHistogram<source_T> readRenormedSetDictionary(buffer_IT begin, buffer_IT end, source_T min, source_T max, size_t renormingPrecision)
 {
   static_assert(std::is_pointer_v<buffer_IT>, "can only deserialize from raw pointers");
 
   using namespace internal;
   using streamParser_type = DictionaryStreamParser<source_T>;
   using value_type = typename streamParser_type::value_type;
-  using container_type = typename RenormedSetHistogram<source_T>::container_type;
+  using container_type = typename RenormedSparseHistogram<source_T>::container_type;
   using base_container_type = typename container_type::container_type;
 
   streamParser_type dictStream{begin, end, max};

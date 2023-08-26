@@ -274,12 +274,12 @@ class ExternalEncoderDecoderProxy
   };
 
  private:
-  rans::defaultEncoder_type<uint8_t> encoder8u{};
-  rans::defaultEncoder_type<int8_t> encoder8{};
-  rans::defaultEncoder_type<uint16_t> encoder16u{};
-  rans::defaultEncoder_type<int16_t> encoder16{};
-  rans::defaultEncoder_type<uint32_t> encoder32u{};
-  rans::defaultEncoder_type<int32_t> encoder32{};
+  rans::denseEncoder_type<uint8_t> encoder8u{};
+  rans::denseEncoder_type<int8_t> encoder8{};
+  rans::denseEncoder_type<uint16_t> encoder16u{};
+  rans::denseEncoder_type<int16_t> encoder16{};
+  rans::denseEncoder_type<uint32_t> encoder32u{};
+  rans::denseEncoder_type<int32_t> encoder32{};
 
   rans::defaultDecoder_type<uint8_t> decoder8u{};
   rans::defaultDecoder_type<int8_t> decoder8{};

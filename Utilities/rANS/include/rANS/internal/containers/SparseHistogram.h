@@ -9,12 +9,12 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// @file   SetHistogram.h
+/// @file   SparseHistogram.h
 /// @author Michael Lettrich
 /// @brief Histogram to depict frequencies of source symbols for rANS compression, based on an ordered set
 
-#ifndef INCLUDE_RANS_INTERNAL_CONTAINERS_SETHISTOGRAM_H_
-#define INCLUDE_RANS_INTERNAL_CONTAINERS_SETHISTOGRAM_H_
+#ifndef INCLUDE_RANS_INTERNAL_CONTAINERS_SPARSEHISTOGRAM_H_
+#define INCLUDE_RANS_INTERNAL_CONTAINERS_SPARSEHISTOGRAM_H_
 
 #include "rANS/internal/common/utils.h"
 #include "rANS/internal/containers/HistogramConcept.h"
@@ -24,17 +24,17 @@ namespace o2::rans
 {
 
 template <typename source_T>
-class SetHistogram : public internal::SetContainer<source_T, uint32_t>,
-                     public internal::HistogramConcept<source_T,
-                                                       typename internal::SetContainer<source_T, uint32_t>::value_type,
-                                                       typename internal::SetContainer<source_T, uint32_t>::difference_type,
-                                                       SetHistogram<source_T>>
+class SparseHistogram : public internal::SetContainer<source_T, uint32_t>,
+                        public internal::HistogramConcept<source_T,
+                                                          typename internal::SetContainer<source_T, uint32_t>::value_type,
+                                                          typename internal::SetContainer<source_T, uint32_t>::difference_type,
+                                                          SparseHistogram<source_T>>
 {
   using containerBase_type = internal::SetContainer<source_T, uint32_t>;
   using HistogramConcept_type = internal::HistogramConcept<source_T,
                                                            typename internal::SetContainer<source_T, uint32_t>::value_type,
                                                            typename internal::SetContainer<source_T, uint32_t>::difference_type,
-                                                           SetHistogram<source_T>>;
+                                                           SparseHistogram<source_T>>;
 
   friend HistogramConcept_type;
 
@@ -50,10 +50,10 @@ class SetHistogram : public internal::SetContainer<source_T, uint32_t>,
   using const_pointer = typename containerBase_type::const_pointer;
   using const_iterator = typename containerBase_type::const_iterator;
 
-  SetHistogram() = default;
+  SparseHistogram() = default;
 
   template <typename freq_IT>
-  SetHistogram(freq_IT begin, freq_IT end, source_type offset) : containerBase_type(), HistogramConcept_type{begin, end, offset} {};
+  SparseHistogram(freq_IT begin, freq_IT end, source_type offset) : containerBase_type(), HistogramConcept_type{begin, end, offset} {};
 
   // operations
   using HistogramConcept_type::addSamples;
@@ -62,17 +62,17 @@ class SetHistogram : public internal::SetContainer<source_T, uint32_t>,
 
  protected:
   template <typename source_IT>
-  SetHistogram& addSamplesImpl(source_IT begin, source_IT end);
+  SparseHistogram& addSamplesImpl(source_IT begin, source_IT end);
 
-  inline SetHistogram& addSamplesImpl(gsl::span<const source_type> samples) { return addSamplesImpl(samples.data(), samples.data() + samples.size()); };
+  inline SparseHistogram& addSamplesImpl(gsl::span<const source_type> samples) { return addSamplesImpl(samples.data(), samples.data() + samples.size()); };
 
   template <typename freq_IT>
-  SetHistogram& addFrequenciesImpl(freq_IT begin, freq_IT end, source_type offset);
+  SparseHistogram& addFrequenciesImpl(freq_IT begin, freq_IT end, source_type offset);
 };
 
 template <typename source_T>
 template <typename source_IT>
-auto SetHistogram<source_T>::addSamplesImpl(source_IT begin, source_IT end) -> SetHistogram&
+auto SparseHistogram<source_T>::addSamplesImpl(source_IT begin, source_IT end) -> SparseHistogram&
 {
 
   absl::flat_hash_map<source_type, value_type> map;
@@ -101,7 +101,7 @@ auto SetHistogram<source_T>::addSamplesImpl(source_IT begin, source_IT end) -> S
 
 template <typename source_T>
 template <typename freq_IT>
-auto SetHistogram<source_T>::addFrequenciesImpl(freq_IT begin, freq_IT end, source_type offset) -> SetHistogram&
+auto SparseHistogram<source_T>::addFrequenciesImpl(freq_IT begin, freq_IT end, source_type offset) -> SparseHistogram&
 {
   if (begin != end) {
     // first build a map of the current list items
@@ -135,13 +135,13 @@ auto SetHistogram<source_T>::addFrequenciesImpl(freq_IT begin, freq_IT end, sour
 };
 
 template <typename source_T>
-size_t countNUsedAlphabetSymbols(const SetHistogram<source_T>& histogram)
+size_t countNUsedAlphabetSymbols(const SparseHistogram<source_T>& histogram)
 {
-  using value_type = typename SetHistogram<source_T>::value_type;
+  using value_type = typename SparseHistogram<source_T>::value_type;
 
   return std::count_if(histogram.begin(), histogram.end(), [](const auto& v) { return v.second != value_type{}; });
 }
 
 } // namespace o2::rans
 
-#endif /* INCLUDE_RANS_INTERNAL_CONTAINERS_SETHISTOGRAM_H_ */
+#endif /* INCLUDE_RANS_INTERNAL_CONTAINERS_SPARSEHISTOGRAM_H_ */

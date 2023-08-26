@@ -1289,7 +1289,7 @@ CTFIOSize EncodedBlocks<H, N, W>::encodeRANSV1Inplace(const input_IT srcBegin, c
 {
   using storageBuffer_t = W;
   using input_t = typename std::iterator_traits<input_IT>::value_type;
-  using ransEncoder_t = typename rans::defaultEncoder_type<input_t>;
+  using ransEncoder_t = typename rans::denseEncoder_type<input_t>;
   using ransState_t = typename ransEncoder_t::coder_type::state_type;
   using ransStream_t = typename ransEncoder_t::stream_type;
 

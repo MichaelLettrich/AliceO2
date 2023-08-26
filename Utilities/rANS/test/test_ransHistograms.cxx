@@ -26,9 +26,6 @@
 #include <fmt/format.h>
 
 #include "rANS/histogram.h"
-#include "rANS/internal/containers/AdaptiveHistogram.h"
-#include "rANS/internal/containers/HashHistogram.h"
-#include "rANS/internal/containers/SetHistogram.h"
 #include "rANS/internal/transform/algorithm.h"
 #include "rANS/internal/common/typetraits.h"
 #include "rANS/compat.h"
@@ -37,23 +34,20 @@ using namespace o2::rans;
 
 namespace mp = boost::mp11;
 
-using small_histogram_types = mp::mp_list<
+using small_dense_histogram_types = mp::mp_list<
   DenseHistogram<char>,
   DenseHistogram<uint8_t>,
   DenseHistogram<int8_t>,
   DenseHistogram<uint16_t>,
   DenseHistogram<int16_t>>;
 
-using large_histogram_types = mp::mp_list<DenseHistogram<int32_t>>;
+using large_dense_histogram_types = mp::mp_list<DenseHistogram<int32_t>>;
 
-using sparse_histogram_types = mp::mp_list<AdaptiveHistogram<uint32_t>,
-                                           AdaptiveHistogram<int32_t>>;
+using adaptive_histogram_types = mp::mp_list<AdaptiveHistogram<uint32_t>,
+                                             AdaptiveHistogram<int32_t>>;
 
-using hash_histogram_types = mp::mp_list<HashHistogram<uint32_t>,
-                                         HashHistogram<int32_t>>;
-
-using key_value_histograms = mp::mp_list<SetHistogram<uint32_t>,
-                                         SetHistogram<int32_t>>;
+using sparse_histograms = mp::mp_list<SparseHistogram<uint32_t>,
+                                      SparseHistogram<int32_t>>;
 
 namespace boost
 {
@@ -76,9 +70,9 @@ struct print_log_value<::std::pair<F, S>> {
 } // namespace test_tools
 } // namespace boost
 
-using histogram_types = mp::mp_flatten<mp::mp_list<small_histogram_types, large_histogram_types, sparse_histogram_types, hash_histogram_types, key_value_histograms>>;
+using histogram_types = mp::mp_flatten<mp::mp_list<small_dense_histogram_types, large_dense_histogram_types, adaptive_histogram_types, sparse_histograms>>;
 
-using variable_histograms_types = mp::mp_flatten<mp::mp_list<large_histogram_types, sparse_histogram_types, hash_histogram_types, key_value_histograms>>;
+using variable_histograms_types = mp::mp_flatten<mp::mp_list<large_dense_histogram_types, adaptive_histogram_types, sparse_histograms>>;
 
 template <typename histogram_T>
 void checkEquivalent(const histogram_T& a, const histogram_T& b)
@@ -145,7 +139,7 @@ auto getOffset(const map_T& resultsMap) -> typename map_T::key_type
   }
 };
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(test_emptyTablesSmall, histogram_T, small_histogram_types)
+BOOST_AUTO_TEST_CASE_TEMPLATE(test_emptyTablesSmall, histogram_T, small_dense_histogram_types)
 {
   using source_type = typename histogram_T::source_type;
   histogram_T histogram{};
@@ -444,7 +438,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_addFrequenciesSignChange, histogram_T, histog
   BOOST_CHECK(histogram.cbegin() != histogram.cend());
 };
 
-using renorm_types = mp::mp_list<DenseHistogram<uint8_t>, DenseHistogram<uint32_t>, AdaptiveHistogram<int32_t>, HashHistogram<int32_t>, SetHistogram<int32_t>>;
+using renorm_types = mp::mp_list<DenseHistogram<uint8_t>, DenseHistogram<uint32_t>, AdaptiveHistogram<int32_t>, SparseHistogram<int32_t>>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_renorm, histogram_T, renorm_types)
 {

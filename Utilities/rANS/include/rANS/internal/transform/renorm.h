@@ -21,8 +21,7 @@
 #include "rANS/internal/containers/RenormedHistogram.h"
 #include "rANS/internal/containers/DenseHistogram.h"
 #include "rANS/internal/containers/AdaptiveHistogram.h"
-#include "rANS/internal/containers/HashHistogram.h"
-#include "rANS/internal/containers/SetHistogram.h"
+#include "rANS/internal/containers/SparseHistogram.h"
 #include "rANS/internal/metrics/Metrics.h"
 #include "rANS/internal/common/utils.h"
 #include "rANS/internal/transform/algorithm.h"
@@ -54,15 +53,9 @@ inline size_t getNUsedAlphabetSymbols(const AdaptiveHistogram<source_T>& f)
 }
 
 template <typename source_T>
-inline size_t getNUsedAlphabetSymbols(const SetHistogram<source_T>& f)
+inline size_t getNUsedAlphabetSymbols(const SparseHistogram<source_T>& f)
 {
   return f.size();
-}
-
-template <typename source_T>
-inline size_t getNUsedAlphabetSymbols(const HashHistogram<source_T>& f)
-{
-  return countNUsedAlphabetSymbols(f);
 }
 
 template <typename histogram_T>
@@ -198,13 +191,9 @@ decltype(auto) renorm(histogram_T histogram, Metrics<typename histogram_T::sourc
     RenormedAdaptiveHistogram<source_type> ret{std::move(rescaledHistogram), renormingPrecisionBits, incompressibleSymbolFrequency};
     std::tie(*coderProperties.min, *coderProperties.max) = getMinMax(ret);
     return ret;
-  } else if constexpr (isHashContainer_v<histogram_type>) {
-    RenormedHashHistogram<source_type> ret{std::move(rescaledHistogram), renormingPrecisionBits, incompressibleSymbolFrequency};
-    std::tie(*coderProperties.min, *coderProperties.max) = getMinMax(ret);
-    return ret;
   } else {
     static_assert(isSetContainer_v<histogram_type>);
-    RenormedSetHistogram<source_type> ret{std::move(rescaledHistogram), renormingPrecisionBits, incompressibleSymbolFrequency};
+    RenormedSparseHistogram<source_type> ret{std::move(rescaledHistogram), renormingPrecisionBits, incompressibleSymbolFrequency};
     std::tie(*coderProperties.min, *coderProperties.max) = getMinMax(ret);
     return ret;
   }

@@ -60,10 +60,7 @@ template <typename source_T>
 class AdaptiveHistogram;
 
 template <typename source_T>
-class HashHistogram;
-
-template <typename source_T>
-class SetHistogram;
+class SparseHistogram;
 
 template <typename container_T>
 class RenormedHistogramImpl;
@@ -75,7 +72,7 @@ template <typename source_T, typename value_T>
 class AdaptiveSymbolTable;
 
 template <typename source_T, typename value_T>
-class HashSymbolTable;
+class SparseSymbolTable;
 
 template <typename source_T>
 using RenormedDenseHistogram = RenormedHistogramImpl<internal::VectorContainer<source_T, uint32_t>>;
@@ -84,10 +81,7 @@ template <typename source_T>
 using RenormedAdaptiveHistogram = RenormedHistogramImpl<internal::SparseVectorContainer<source_T, uint32_t>>;
 
 template <typename source_T>
-using RenormedHashHistogram = RenormedHistogramImpl<internal::HashContainer<source_T, uint32_t>>;
-
-template <typename source_T>
-using RenormedSetHistogram = RenormedHistogramImpl<internal::SetContainer<source_T, uint32_t>>;
+using RenormedSparseHistogram = RenormedHistogramImpl<internal::SetContainer<source_T, uint32_t>>;
 
 namespace internal
 {
@@ -112,7 +106,7 @@ struct isSymbolTable<AdaptiveSymbolTable<source_T, value_T>> : std::true_type {
 };
 
 template <typename source_T, typename value_T>
-struct isSymbolTable<HashSymbolTable<source_T, value_T>> : std::true_type {
+struct isSymbolTable<SparseSymbolTable<source_T, value_T>> : std::true_type {
 };
 
 template <typename T>
@@ -131,11 +125,7 @@ struct isHistogram<AdaptiveHistogram<source_T>> : std::true_type {
 };
 
 template <typename source_T>
-struct isHistogram<HashHistogram<source_T>> : std::true_type {
-};
-
-template <typename source_T>
-struct isHistogram<SetHistogram<source_T>> : std::true_type {
+struct isHistogram<SparseHistogram<source_T>> : std::true_type {
 };
 
 template <typename T>
@@ -154,11 +144,7 @@ struct isRenormedHistogram<RenormedAdaptiveHistogram<source_T>> : std::true_type
 };
 
 template <typename source_T>
-struct isRenormedHistogram<RenormedHashHistogram<source_T>> : std::true_type {
-};
-
-template <typename source_T>
-struct isRenormedHistogram<RenormedSetHistogram<source_T>> : std::true_type {
+struct isRenormedHistogram<RenormedSparseHistogram<source_T>> : std::true_type {
 };
 
 template <typename T>
@@ -218,16 +204,8 @@ template <typename key_T, typename value_T>
 struct isHashContainer<HashTable<key_T, value_T>> : std::true_type {
 };
 
-template <typename source_T>
-struct isHashContainer<HashHistogram<source_T>> : std::true_type {
-};
-
-template <typename source_T>
-struct isHashContainer<RenormedHashHistogram<source_T>> : std::true_type {
-};
-
 template <typename source_T, typename value_T>
-struct isHashContainer<HashSymbolTable<source_T, value_T>> : std::true_type {
+struct isHashContainer<SparseSymbolTable<source_T, value_T>> : std::true_type {
 };
 
 template <typename T>
@@ -242,11 +220,11 @@ struct isSetContainer<OrderedSet<key_T, value_T>> : std::true_type {
 };
 
 template <typename source_T>
-struct isSetContainer<SetHistogram<source_T>> : std::true_type {
+struct isSetContainer<SparseHistogram<source_T>> : std::true_type {
 };
 
 template <typename source_T>
-struct isSetContainer<RenormedSetHistogram<source_T>> : std::true_type {
+struct isSetContainer<RenormedSparseHistogram<source_T>> : std::true_type {
 };
 
 template <typename T>

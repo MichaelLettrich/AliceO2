@@ -238,9 +238,82 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeSymbolTable, T, test_types
   BOOST_CHECK_EQUAL_COLLECTIONS(srcSymbolTable.begin(), srcSymbolTable.end(), restoredSymbolTable.begin(), restoredSymbolTable.end());
 };
 
-using sparseSource_types = boost::mp11::mp_list<uint32_t, int32_t>;
+using adaptiveSource_types = boost::mp11::mp_list<uint32_t, int32_t>;
 
-using sparseTest_types = boost::mp11::mp_product<boost::mp11::mp_list, source_types, buffer_types>;
+using adaptiveTest_types = boost::mp11::mp_product<boost::mp11::mp_list, source_types, buffer_types>;
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeAdaptiveHistogram, T, adaptiveTest_types)
+{
+  using source_type = boost::mp11::mp_first<T>;
+  using buffer_type = boost::mp11::mp_second<T>;
+
+  auto message = MessageProxy.getMessage<source_type>();
+  auto h = makeSparseHistogram::fromSamples(message.begin(), message.end());
+  Metrics<source_type> metrics{h};
+  auto srcRenormedHistogram = renorm(h, metrics);
+  auto h1 = makeHistogram::fromSamples(message.begin(), message.end());
+  auto crossCheckRenormedHistogram = renorm(h1, metrics);
+  SizeEstimate sizeEstimate{metrics};
+  size_t bufferSize = sizeEstimate.getCompressedDictionarySize<buffer_type>();
+
+  std::vector<buffer_type> serializationBuffer(bufferSize, 0);
+  auto begin = serializationBuffer.data();
+  auto end = compressRenormedDictionary(srcRenormedHistogram, begin);
+
+  // fill the rest of the serialization buffer with 1s to test that we are not reading bits from the buffer that comes after.
+  for (auto iter = end; iter != begin + serializationBuffer.size(); ++iter) {
+    *iter = static_cast<buffer_type>(~0);
+  }
+
+  auto restoredRenormedHistogram = readRenormedDictionary(begin, end, *metrics.getCoderProperties().min, *metrics.getCoderProperties().max, srcRenormedHistogram.getRenormingBits());
+
+  BOOST_CHECK_EQUAL(srcRenormedHistogram.getIncompressibleSymbolFrequency(), restoredRenormedHistogram.getIncompressibleSymbolFrequency());
+  BOOST_CHECK_EQUAL(srcRenormedHistogram.getNumSamples(), restoredRenormedHistogram.getNumSamples());
+
+  DenseSymbolTable<source_type, internal::Symbol> srcSymbolTable(crossCheckRenormedHistogram);
+  DenseSymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
+
+  BOOST_CHECK_EQUAL(srcSymbolTable.getOffset(), restoredSymbolTable.getOffset());
+  BOOST_CHECK_EQUAL_COLLECTIONS(srcSymbolTable.begin(), srcSymbolTable.end(), restoredSymbolTable.begin(), restoredSymbolTable.end());
+};
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeAdaptiveSymbolTable, T, adaptiveTest_types)
+{
+  using source_type = boost::mp11::mp_first<T>;
+  using buffer_type = boost::mp11::mp_second<T>;
+
+  auto message = MessageProxy.getMessage<source_type>();
+  auto h = makeSparseHistogram::fromSamples(message.begin(), message.end());
+  auto h1 = makeHistogram::fromSamples(message.begin(), message.end());
+  Metrics<source_type> metrics{h};
+  auto srcRenormedHistogram = renorm(h, metrics);
+  AdaptiveSymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
+  DenseSymbolTable<source_type, internal::Symbol> srcCrossCheckSymbolTable{renorm(h1, metrics)};
+
+  SizeEstimate sizeEstimate{metrics};
+  size_t bufferSize = sizeEstimate.getCompressedDictionarySize<buffer_type>();
+
+  std::vector<buffer_type> serializationBuffer(bufferSize, 0);
+  auto begin = serializationBuffer.data();
+  auto end = compressRenormedDictionary(srcSymbolTable, begin);
+
+  // fill the rest of the serialization buffer with 1s to test that we are not reading bits from the buffer that comes after.
+  for (auto iter = end; iter != begin + serializationBuffer.size(); ++iter) {
+    *iter = static_cast<buffer_type>(~0);
+  }
+
+  auto restoredRenormedHistogram = readRenormedDictionary(begin, end, *metrics.getCoderProperties().min, *metrics.getCoderProperties().max, srcRenormedHistogram.getRenormingBits());
+
+  BOOST_CHECK_EQUAL(srcRenormedHistogram.getIncompressibleSymbolFrequency(), restoredRenormedHistogram.getIncompressibleSymbolFrequency());
+  BOOST_CHECK_EQUAL(srcRenormedHistogram.getNumSamples(), restoredRenormedHistogram.getNumSamples());
+
+  DenseSymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
+
+  BOOST_CHECK_EQUAL(srcCrossCheckSymbolTable.getOffset(), restoredSymbolTable.getOffset());
+  BOOST_CHECK_EQUAL_COLLECTIONS(srcCrossCheckSymbolTable.begin(), srcCrossCheckSymbolTable.end(), restoredSymbolTable.begin(), restoredSymbolTable.end());
+};
+
+using sparseTest_types = adaptiveTest_types;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeSparseHistogram, T, sparseTest_types)
 {
@@ -287,78 +360,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeSparseSymbolTable, T, spar
   auto h1 = makeHistogram::fromSamples(message.begin(), message.end());
   Metrics<source_type> metrics{h};
   auto srcRenormedHistogram = renorm(h, metrics);
-  AdaptiveSymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
-  DenseSymbolTable<source_type, internal::Symbol> srcCrossCheckSymbolTable{renorm(h1, metrics)};
-
-  SizeEstimate sizeEstimate{metrics};
-  size_t bufferSize = sizeEstimate.getCompressedDictionarySize<buffer_type>();
-
-  std::vector<buffer_type> serializationBuffer(bufferSize, 0);
-  auto begin = serializationBuffer.data();
-  auto end = compressRenormedDictionary(srcSymbolTable, begin);
-
-  // fill the rest of the serialization buffer with 1s to test that we are not reading bits from the buffer that comes after.
-  for (auto iter = end; iter != begin + serializationBuffer.size(); ++iter) {
-    *iter = static_cast<buffer_type>(~0);
-  }
-
-  auto restoredRenormedHistogram = readRenormedDictionary(begin, end, *metrics.getCoderProperties().min, *metrics.getCoderProperties().max, srcRenormedHistogram.getRenormingBits());
-
-  BOOST_CHECK_EQUAL(srcRenormedHistogram.getIncompressibleSymbolFrequency(), restoredRenormedHistogram.getIncompressibleSymbolFrequency());
-  BOOST_CHECK_EQUAL(srcRenormedHistogram.getNumSamples(), restoredRenormedHistogram.getNumSamples());
-
-  DenseSymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
-
-  BOOST_CHECK_EQUAL(srcCrossCheckSymbolTable.getOffset(), restoredSymbolTable.getOffset());
-  BOOST_CHECK_EQUAL_COLLECTIONS(srcCrossCheckSymbolTable.begin(), srcCrossCheckSymbolTable.end(), restoredSymbolTable.begin(), restoredSymbolTable.end());
-};
-
-BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeHashHistogram, T, sparseTest_types)
-{
-  using source_type = boost::mp11::mp_first<T>;
-  using buffer_type = boost::mp11::mp_second<T>;
-
-  auto message = MessageProxy.getMessage<source_type>();
-  auto h = makeHashHistogram::fromSamples(message.begin(), message.end());
-  Metrics<source_type> metrics{h};
-  auto srcRenormedHistogram = renorm(h, metrics);
-  auto h1 = makeHistogram::fromSamples(message.begin(), message.end());
-  auto crossCheckRenormedHistogram = renorm(h1, metrics);
-  SizeEstimate sizeEstimate{metrics};
-  size_t bufferSize = sizeEstimate.getCompressedDictionarySize<buffer_type>();
-
-  std::vector<buffer_type> serializationBuffer(bufferSize, 0);
-  auto begin = serializationBuffer.data();
-  auto end = compressRenormedDictionary(srcRenormedHistogram, begin);
-
-  // fill the rest of the serialization buffer with 1s to test that we are not reading bits from the buffer that comes after.
-  for (auto iter = end; iter != begin + serializationBuffer.size(); ++iter) {
-    *iter = static_cast<buffer_type>(~0);
-  }
-
-  auto restoredRenormedHistogram = readRenormedDictionary(begin, end, *metrics.getCoderProperties().min, *metrics.getCoderProperties().max, srcRenormedHistogram.getRenormingBits());
-
-  BOOST_CHECK_EQUAL(srcRenormedHistogram.getIncompressibleSymbolFrequency(), restoredRenormedHistogram.getIncompressibleSymbolFrequency());
-  BOOST_CHECK_EQUAL(srcRenormedHistogram.getNumSamples(), restoredRenormedHistogram.getNumSamples());
-
-  DenseSymbolTable<source_type, internal::Symbol> srcSymbolTable(crossCheckRenormedHistogram);
-  DenseSymbolTable<source_type, internal::Symbol> restoredSymbolTable(restoredRenormedHistogram);
-
-  BOOST_CHECK_EQUAL(srcSymbolTable.getOffset(), restoredSymbolTable.getOffset());
-  BOOST_CHECK_EQUAL_COLLECTIONS(srcSymbolTable.begin(), srcSymbolTable.end(), restoredSymbolTable.begin(), restoredSymbolTable.end());
-};
-
-BOOST_AUTO_TEST_CASE_TEMPLATE(testSerializeDeserializeHashSymbolTable, T, sparseTest_types)
-{
-  using source_type = boost::mp11::mp_first<T>;
-  using buffer_type = boost::mp11::mp_second<T>;
-
-  auto message = MessageProxy.getMessage<source_type>();
-  auto h = makeHashHistogram::fromSamples(message.begin(), message.end());
-  auto h1 = makeHistogram::fromSamples(message.begin(), message.end());
-  Metrics<source_type> metrics{h};
-  auto srcRenormedHistogram = renorm(h, metrics);
-  HashSymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
+  SparseSymbolTable<source_type, internal::Symbol> srcSymbolTable(srcRenormedHistogram);
   DenseSymbolTable<source_type, internal::Symbol> srcCrossCheckSymbolTable{renorm(h1, metrics)};
 
   SizeEstimate sizeEstimate{metrics};

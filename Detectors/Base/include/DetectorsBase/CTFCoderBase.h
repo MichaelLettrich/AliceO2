@@ -97,7 +97,7 @@ class CTFCoderBase
     } else if (mANSVersion == ANSVersion1) {
       switch (op) {
         case OpType::Encoder:
-          mCoders[slot] = std::make_any<rans::defaultEncoder_type<S>>(rans::makeEncoder<>::fromRenormed(renormedHistogram));
+          mCoders[slot] = std::make_any<rans::denseEncoder_type<S>>(rans::makeEncoder<>::fromRenormed(renormedHistogram));
           break;
         case OpType::Decoder:
           mCoders[slot] = std::make_any<rans::defaultDecoder_type<S>>(rans::makeDecoder<>::fromRenormed(renormedHistogram));
@@ -406,7 +406,7 @@ template <typename source_T>
         auto view = rans::trim(rans::makeHistogramView(encoder.getSymbolTable()));
         return rans::utils::getRangeBits(view.getMin(), view.getMax());
       } else if (mANSVersion == ANSVersion1) {
-        const auto& encoder = std::any_cast<const rans::defaultEncoder_type<source_T>&>(coder);
+        const auto& encoder = std::any_cast<const rans::denseEncoder_type<source_T>&>(coder);
         auto view = rans::trim(rans::makeHistogramView(encoder.getSymbolTable()));
         return rans::utils::getRangeBits(view.getMin(), view.getMax());
       } else {

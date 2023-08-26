@@ -26,7 +26,7 @@
 #include "rANS/histogram.h"
 #include "rANS/internal/containers/DenseSymbolTable.h"
 #include "rANS/internal/containers/AdaptiveSymbolTable.h"
-#include "rANS/internal/containers/HashSymbolTable.h"
+#include "rANS/internal/containers/SparseSymbolTable.h"
 #include "rANS/internal/containers/Symbol.h"
 
 using namespace o2::rans;
@@ -46,8 +46,8 @@ using histogram_t = boost::mpl::vector<DenseHistogram<uint8_t>,
                                        DenseHistogram<int32_t>,
                                        AdaptiveHistogram<uint32_t>,
                                        AdaptiveHistogram<int32_t>,
-                                       HashHistogram<uint32_t>,
-                                       HashHistogram<int32_t>>;
+                                       SparseHistogram<uint32_t>,
+                                       SparseHistogram<int32_t>>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_empty, histogram_T, histogram_t)
 {
@@ -65,8 +65,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_empty, histogram_T, histogram_t)
     } else if constexpr (std::is_same_v<histogram_T, AdaptiveHistogram<source_type>>) {
       return AdaptiveSymbolTable<source_type, Symbol>(renorm(hist));
     } else {
-      static_assert(std::is_same_v<histogram_T, HashHistogram<source_type>>);
-      return HashSymbolTable<source_type, Symbol>(renorm(hist));
+      static_assert(std::is_same_v<histogram_T, SparseHistogram<source_type>>);
+      return SparseSymbolTable<source_type, Symbol>(renorm(hist));
     }
   };
 
@@ -110,8 +110,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_symbolTable, histogram_T, histogram_t)
     } else if constexpr (std::is_same_v<histogram_T, AdaptiveHistogram<source_type>>) {
       return AdaptiveSymbolTable<source_type, Symbol>(renorm(std::move(hist), scaleBits, renormingPolicy, cutoff));
     } else {
-      static_assert(std::is_same_v<histogram_T, HashHistogram<source_type>>);
-      return HashSymbolTable<source_type, Symbol>(renorm(std::move(hist), scaleBits, renormingPolicy, cutoff));
+      static_assert(std::is_same_v<histogram_T, SparseHistogram<source_type>>);
+      return SparseSymbolTable<source_type, Symbol>(renorm(std::move(hist), scaleBits, renormingPolicy, cutoff));
     }
   };
 

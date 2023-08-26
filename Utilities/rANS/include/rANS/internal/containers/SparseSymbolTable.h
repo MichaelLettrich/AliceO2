@@ -31,7 +31,7 @@ namespace o2::rans
 {
 
 template <class source_T, class symbol_T>
-class HashSymbolTable : public internal::HashContainer<source_T, symbol_T>
+class SparseSymbolTable : public internal::HashContainer<source_T, symbol_T>
 {
   using base_type = internal::HashContainer<source_T, symbol_T>;
   friend base_type;
@@ -48,10 +48,10 @@ class HashSymbolTable : public internal::HashContainer<source_T, symbol_T>
   using const_pointer = typename base_type::const_pointer;
   using const_iterator = typename base_type::const_iterator;
 
-  HashSymbolTable() = default;
+  SparseSymbolTable() = default;
 
   template <typename container_T>
-  inline HashSymbolTable(const RenormedHistogramImpl<container_T>& renormedHistogram);
+  inline SparseSymbolTable(const RenormedHistogramImpl<container_T>& renormedHistogram);
 
   [[nodiscard]] inline const_pointer lookupSafe(source_type sourceSymbol) const;
 
@@ -77,7 +77,7 @@ class HashSymbolTable : public internal::HashContainer<source_T, symbol_T>
 
 template <class source_T, class value_T>
 template <typename container_T>
-HashSymbolTable<source_T, value_T>::HashSymbolTable(const RenormedHistogramImpl<container_T>& renormedHistogram)
+SparseSymbolTable<source_T, value_T>::SparseSymbolTable(const RenormedHistogramImpl<container_T>& renormedHistogram)
 {
   using namespace utils;
   using namespace internal;
@@ -105,7 +105,7 @@ HashSymbolTable<source_T, value_T>::HashSymbolTable(const RenormedHistogramImpl<
 };
 
 template <class source_T, class value_T>
-[[nodiscard]] inline auto HashSymbolTable<source_T, value_T>::lookupSafe(source_type sourceSymbol) const -> const_pointer
+[[nodiscard]] inline auto SparseSymbolTable<source_T, value_T>::lookupSafe(source_type sourceSymbol) const -> const_pointer
 {
   auto iter = this->mContainer.find(sourceSymbol);
   if (iter == this->mContainer.end()) {
@@ -116,13 +116,13 @@ template <class source_T, class value_T>
 };
 
 template <typename source_T, typename symbol_T>
-std::pair<source_T, source_T> getMinMax(const HashSymbolTable<source_T, symbol_T>& symbolTable)
+std::pair<source_T, source_T> getMinMax(const SparseSymbolTable<source_T, symbol_T>& symbolTable)
 {
   return internal::getMinMax(symbolTable, symbolTable.getEscapeSymbol());
 };
 
 template <typename source_T, typename symbol_T>
-size_t countNUsedAlphabetSymbols(const HashSymbolTable<source_T, symbol_T>& symbolTable)
+size_t countNUsedAlphabetSymbols(const SparseSymbolTable<source_T, symbol_T>& symbolTable)
 {
   return std::count_if(symbolTable.begin(), symbolTable.end(), [&symbolTable](const auto& v) { return !symbolTable.isEscapeSymbol(v.second); });
 }

@@ -221,9 +221,6 @@ BENCHMARK_CAPTURE(ransMakeHistogramBenchmark, makeHistogram_Vector_uniform_32, s
 BENCHMARK_CAPTURE(ransMakeHistogramBenchmark, makeHistogram_SparseVector_binomial_32, std::reference_wrapper(sourceMessageBinomial32), AdaptiveHistogram<uint32_t>{});
 BENCHMARK_CAPTURE(ransMakeHistogramBenchmark, makeHistogram_SparseVector_uniform_32, std::reference_wrapper(sourceMessageUniform32), AdaptiveHistogram<uint32_t>{});
 
-// BENCHMARK_CAPTURE(ransMakeHistogramBenchmark, makeHistogram_Hash_binomial_32, sourceMessageBinomial32, HashHistogram<uint32_t>{});
-// BENCHMARK_CAPTURE(ransMakeHistogramBenchmark, makeHistogram_Hash_uniform_32, sourceMessageUniform32, HashHistogram<uint32_t>{});
-
 BENCHMARK_CAPTURE(ransAccessHistogramBenchmark, accessHistogram_Vector_binomial_32, std::reference_wrapper(sourceMessageBinomial32), DenseHistogram<uint32_t>{});
 BENCHMARK_CAPTURE(ransAccessHistogramBenchmark, accessHistogram_Vector_uniform_32, std::reference_wrapper(sourceMessageUniform32), DenseHistogram<uint32_t>{});
 
