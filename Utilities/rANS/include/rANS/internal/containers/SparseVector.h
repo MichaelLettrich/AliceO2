@@ -51,8 +51,6 @@ class SparseVector
   using const_pointer = const value_type*;
   using iterator = SparseVectorIterator<this_type>;
   using const_iterator = SparseVectorIterator<const this_type>;
-  using reverse_iterator = std::reverse_iterator<iterator>;
-  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
  private:
   friend iterator;
@@ -142,18 +140,6 @@ class SparseVector
   [[nodiscard]] inline iterator begin() noexcept { return empty() ? iterator{*this} : iterator{*this, mBegin}; };
 
   [[nodiscard]] inline iterator end() noexcept { return empty() ? iterator{*this} : iterator{*this, mEnd}; };
-
-  [[nodiscard]] inline const_reverse_iterator crbegin() const noexcept { return std::reverse_iterator{this->cend()}; };
-
-  [[nodiscard]] inline const_reverse_iterator crend() const noexcept { return std::reverse_iterator{this->cbegin()}; };
-
-  [[nodiscard]] inline const_reverse_iterator rbegin() const noexcept { return crbegin(); };
-
-  [[nodiscard]] inline const_reverse_iterator rend() const noexcept { return crend(); };
-
-  [[nodiscard]] inline reverse_iterator rbegin() noexcept { return std::reverse_iterator{this->end()}; };
-
-  [[nodiscard]] inline reverse_iterator rend() noexcept { return std::reverse_iterator{this->begin()}; };
 
   [[nodiscard]] inline container_type release() && noexcept { return std::move(this->mContainer); };
 
