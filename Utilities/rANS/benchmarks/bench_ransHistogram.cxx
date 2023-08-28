@@ -43,9 +43,7 @@ template <typename source_T>
 class SourceMessageProxyBinomial
 {
  public:
-  SourceMessageProxyBinomial()
-  {
-  }
+  SourceMessageProxyBinomial() = default;
 
   const auto& get(size_t messageSize)
   {
@@ -78,9 +76,7 @@ template <typename source_T>
 class SourceMessageProxyUniform
 {
  public:
-  SourceMessageProxyUniform()
-  {
-  }
+  SourceMessageProxyUniform() = default;
 
   const auto& get(size_t messageSize)
   {
