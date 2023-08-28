@@ -98,7 +98,10 @@ class DecoderConcept
       const size_t nLoopRemainder = messageLength % nStreams;
 
       for (size_t i = 0; i < nLoops; ++i) {
+
+#if defined(RANS_OPENMP)
 #pragma omp unroll partial(2)
+#endif
         for (auto& decoder : decoders) {
           std::tie(*outputIter++, inputIter) = decode(decoder);
         }

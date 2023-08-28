@@ -260,8 +260,9 @@ inline auto DenseHistogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::a
       ++this->mNSamples;
       ++this->mContainer[*iter++];
     }
-
+#if defined(RANS_OPENMP) && defined(RANS_SIMD)
 #pragma omp simd
+#endif
     for (size_t i = 0; i < this->size(); ++i) {
       this->mContainer.data()[i] += histogram.data()[i];
     }
@@ -527,9 +528,13 @@ auto DenseHistogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addSampl
       ++this->mContainer[*iter++];
     }
 
-#pragma omp unroll partial(3)
+#if defined(RANS_OPENMP)
+#pragma omp unroll full
+#endif
     for (size_t j = 0; j < 3; ++j) {
+#if defined(RANS_OPENMP) && defined(RANS_SIMD)
 #pragma omp simd
+#endif
       for (size_t i = 0; i < 256; ++i) {
         this->mContainer(i) += histograms[j](i);
       }
@@ -559,8 +564,9 @@ auto DenseHistogram<source_T, std::enable_if_t<sizeof(source_T) <= 2>>::addSampl
       ++this->mNSamples;
       ++this->mContainer[*iter++];
     }
-
+#if defined(RANS_OPENMP) && defined(RANS_SIMD)
 #pragma omp simd
+#endif
     for (size_t i = 0; i < this->size(); ++i) {
       this->mContainer.data()[i] += histogram.data()[i];
     }
