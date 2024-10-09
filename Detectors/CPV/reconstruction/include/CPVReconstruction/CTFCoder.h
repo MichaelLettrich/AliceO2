@@ -148,7 +148,18 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VTRG& trigVec, VCLUSTER
   iosize += DECODECPV(energy,      CTF::BLC_energy);
   iosize += DECODECPV(status,      CTF::BLC_status);
   // clang-format on
-  //
+
+  mTreeSerializer.initTree();
+  TTree* t = mTreeSerializer.getTree();
+  t->Branch("bcIncTrig", &bcInc);
+  t->Branch("orbitIncTrig", &orbitInc);
+  t->Branch("entriesTrig", &entries);
+  t->Branch("posX", &posX);
+  t->Branch("posZ", &posZ);
+  t->Branch("energy", &energy);
+  t->Branch("status", &status);
+  mTreeSerializer.writeTree();
+
   trigVec.clear();
   cluVec.clear();
   trigVec.reserve(header.nTriggers);

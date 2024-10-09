@@ -21,6 +21,7 @@ o2_add_library(DetectorsBase
                        src/Ray.cxx
                        src/BaseDPLDigitizer.cxx
                        src/CTFCoderBase.cxx
+                       src/CTFTreeSerializer.cxx
                        src/Aligner.cxx
                        src/SimFieldUtils.cxx
                        src/TFIDInfoHelper.cxx

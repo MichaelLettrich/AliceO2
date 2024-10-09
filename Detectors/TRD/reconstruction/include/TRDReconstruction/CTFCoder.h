@@ -209,6 +209,26 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VTRG& trigVec, VTRK& tr
   iosize += DECODETRD(ADCDig,      CTF::BLC_ADCDig);
   // clang-format on
   //
+
+  mTreeSerializer.initTree();
+  TTree* t = mTreeSerializer.getTree();
+  t->Branch("bcIncTrig", &bcInc);
+  t->Branch("orbitIncTrig", &orbitInc);
+  t->Branch("entriesTrk", &entriesTrk);
+  t->Branch("entriesDig", &entriesDig);
+  t->Branch("HCIDTrk", &HCIDTrk);
+  t->Branch("padrowTrk", &padrowTrk);
+  t->Branch("colTrk", &colTrk);
+  t->Branch("posTrk", &posTrk);
+  t->Branch("slopeTrk", &slopeTrk);
+  t->Branch("pidTrk", &pidTrk);
+  t->Branch("CIDDig", &CIDDig);
+  t->Branch("ROBDig", &ROBDig);
+  t->Branch("MCMDig", &MCMDig);
+  t->Branch("chanDig", &chanDig);
+  t->Branch("ADCDig", &ADCDig);
+  mTreeSerializer.writeTree();
+
   trigVec.clear();
   trkVec.clear();
   digVec.clear();

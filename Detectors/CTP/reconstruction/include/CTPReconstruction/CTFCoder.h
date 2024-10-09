@@ -146,6 +146,15 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VTRG& data, LumiInfo& l
   iosize += DECODECTP(bytesClass,  CTF::BLC_bytesClass);
   // clang-format on
   //
+
+  mTreeSerializer.initTree();
+  TTree* t = mTreeSerializer.getTree();
+  t->Branch("bcIncTrig", &bcInc);
+  t->Branch("orbitIncTrig", &orbitInc);
+  t->Branch("bytesInput", &bytesInput);
+  t->Branch("bytesClass", &bytesClass);
+  mTreeSerializer.writeTree();
+
   data.clear();
   std::map<o2::InteractionRecord, CTPDigit> digitsMap;
   o2::InteractionRecord ir(header.firstBC, header.firstOrbit);
@@ -158,7 +167,7 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VTRG& data, LumiInfo& l
   lumi.inp2 = int(header.inp2);
   auto itInp = bytesInput.begin();
   auto itCls = bytesClass.begin();
-  bool checkIROK = (mBCShift == 0); // need to check if CTP offset correction does not make the local time negative ?
+  bool checkIROK = (mBCShift == 0);             // need to check if CTP offset correction does not make the local time negative ?
   bool checkIROKInputs = (mBCShiftInputs == 0); // need to check if CTP offset correction does not make the local time negative ?
   for (uint32_t itrig = 0; itrig < header.nTriggers; itrig++) {
     // restore TrigRecord

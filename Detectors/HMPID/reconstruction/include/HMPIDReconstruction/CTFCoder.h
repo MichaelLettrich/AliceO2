@@ -154,6 +154,19 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VTRG& trigVec, VDIG& di
   iosize += DECODEHMP(y,           CTF::BLC_Y);
   // clang-format on
   //
+
+  mTreeSerializer.initTree();
+  TTree* t = mTreeSerializer.getTree();
+  t->Branch("bcIncTrig", &bcInc);
+  t->Branch("orbitIncTrig", &orbitInc);
+  t->Branch("entriesDig", &entriesDig);
+  t->Branch("ChID", &chID);
+  t->Branch("Q", &q);
+  t->Branch("Ph", &ph);
+  t->Branch("X", &x);
+  t->Branch("Y", &y);
+  mTreeSerializer.writeTree();
+
   trigVec.clear();
   digVec.clear();
   trigVec.reserve(header.nTriggers);

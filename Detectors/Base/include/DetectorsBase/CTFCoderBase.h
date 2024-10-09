@@ -27,6 +27,7 @@
 #include "DetectorsCommonDataFormats/CTFIOSize.h"
 #include "DataFormatsCTP/TriggerOffsetsParam.h"
 #include "DetectorsCommonDataFormats/ANSHeader.h"
+#include "DetectorsBase/CTFTreeSerializer.h"
 #include "rANS/factory.h"
 #include "rANS/compat.h"
 #include "rANS/histogram.h"
@@ -189,6 +190,7 @@ class CTFCoderBase
   std::vector<char> loadDictionaryFromTree(TTree* tree);
   std::vector<std::any> mCoders; // encoders/decoders
   DetID mDet;
+  CTFTreeSerializer mTreeSerializer{mDet.getName()};
   std::string mDictBinding{"ctfdict"};
   std::string mTrigOffsBinding{"trigoffset"};
   CTFDictHeader mExtHeader;                    // external dictionary header

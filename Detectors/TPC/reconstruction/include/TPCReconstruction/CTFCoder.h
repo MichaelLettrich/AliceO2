@@ -408,6 +408,37 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VEC& buffVec, TRIGVEC& 
   decodeTPC(trigInfo.deltaOrbit.data(), CTF::BLCTrigOrbitInc);
   decodeTPC(trigInfo.deltaBC.data(), CTF::BLCTrigBCInc);
   decodeTPC(trigInfo.triggerType.data(), CTF::BLCTrigType);
+
+  mTreeSerializer.initTree();
+  TTree* t = mTreeSerializer.getTree();
+  t->Branch("qTotA", cc.qTotA, fmt::format("qTotA[{}]/s", cc.nAttachedClusters).c_str());
+  t->Branch("qMaxA", cc.qMaxA, fmt::format("qMaxA[{}]/s", cc.nAttachedClusters).c_str());
+  t->Branch("flagsA", cc.flagsA, fmt::format("flagsA[{}]/b", cc.nAttachedClusters).c_str());
+  t->Branch("rowDiffA", cc.rowDiffA, fmt::format("rowDiffA[{}]/b", cc.nAttachedClusters).c_str());
+  t->Branch("sliceLegDiffA", cc.sliceLegDiffA, fmt::format("sliceLegDiffA[{}]/b", cc.nAttachedClusters).c_str());
+  t->Branch("padResA", cc.padResA, fmt::format("padResA[{}]/s", cc.nAttachedClusters).c_str());
+  t->Branch("timeResA", cc.timeResA, fmt::format("timeResA[{}]/i", cc.nAttachedClusters).c_str());
+  t->Branch("sigmaPadA", cc.sigmaPadA, fmt::format("sigmaPadA[{}]/b", cc.nAttachedClusters).c_str());
+  t->Branch("sigmaTimeA", cc.sigmaTimeA, fmt::format("sigmaTimeA[{}]/b", cc.nAttachedClusters).c_str());
+  t->Branch("qPtA", cc.qPtA, fmt::format("qPtA[{}]/b", cc.nAttachedClusters).c_str());
+  t->Branch("rowA", cc.rowA, fmt::format("rowA[{}]/b", cc.nAttachedClusters).c_str());
+  t->Branch("sliceA", cc.sliceA, fmt::format("sliceA[{}]/b", cc.nAttachedClusters).c_str());
+  t->Branch("timeA", cc.timeA, fmt::format("timeA[{}]/i", cc.nAttachedClusters).c_str());
+  t->Branch("padA", cc.padA, fmt::format("padA[{}]/s", cc.nAttachedClusters).c_str());
+  t->Branch("qTotU", cc.qTotU, fmt::format("qTotU[{}]/s", cc.nUnattachedClusters).c_str());
+  t->Branch("qMaxU", cc.qMaxU, fmt::format("qMaxU[{}]/s", cc.nUnattachedClusters).c_str());
+  t->Branch("flagsU", cc.flagsU, fmt::format("flagsU[{}]/b", cc.nUnattachedClusters).c_str());
+  t->Branch("padDiffU", cc.padDiffU, fmt::format("padDiffU[{}]/s", cc.nUnattachedClusters).c_str());
+  t->Branch("timeDiffU", cc.timeDiffU, fmt::format("timeDiffU[{}]/i", cc.nUnattachedClusters).c_str());
+  t->Branch("sigmaPadU", cc.sigmaPadU, fmt::format("sigmaPadU[{}]/b", cc.nUnattachedClusters).c_str());
+  t->Branch("sigmaTimeU", cc.sigmaTimeU, fmt::format("sigmaTimeU[{}]/b", cc.nUnattachedClusters).c_str());
+  t->Branch("nTrackClusters", cc.nTrackClusters, fmt::format("nTrackClusters[{}]/s", cc.nTracks).c_str());
+  t->Branch("nSliceRowClusters", cc.nSliceRowClusters, fmt::format("nSliceRowClusters[{}]/i", cc.nSliceRows).c_str());
+  t->Branch("TrigOrbitInc", &trigInfo.deltaOrbit);
+  t->Branch("TrigBCInc", &trigInfo.deltaBC);
+  t->Branch("TrigType", &trigInfo.triggerType);
+  mTreeSerializer.writeTree();
+
   // convert trigger info to output format
   uint32_t prevOrbit = header.firstOrbitTrig;
   uint16_t prevBC = 0;
