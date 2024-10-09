@@ -183,6 +183,23 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VTRG& trigVec, VCHAN& c
   iosize += DECODEZDC(scalerInc,      CTF::BLC_sclInc);
   // clang-format on
   //
+
+  mTreeSerializer.initTree();
+  TTree* t = mTreeSerializer.getTree();
+  t->Branch("bcIncTrig", &bcIncTrig);
+  t->Branch("orbitIncTrig", &orbitIncTrig);
+  t->Branch("moduleTrig", &moduleTrig);
+  t->Branch("channelsHL", &channelsHL);
+  t->Branch("triggersHL", &triggersHL);
+  t->Branch("extTriggers", &extTriggers);
+  t->Branch("nchanTrig", &nchanTrig);
+  t->Branch("chanID", &chanID);
+  t->Branch("chanData", &chanData);
+  t->Branch("orbitIncEOD", &orbitIncEOD);
+  t->Branch("pedData", &pedData);
+  t->Branch("sclInc", &scalerInc);
+  mTreeSerializer.writeTree();
+
   trigVec.clear();
   chanVec.clear();
   pedVec.clear();

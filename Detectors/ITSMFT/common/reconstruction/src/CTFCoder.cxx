@@ -254,5 +254,20 @@ CompressedClusters CTFCoder::decodeCompressedClusters(const CTF::base& ec, o2::c
   iosize += DECODEITSMFT(cc.pattID,       CTF::BLCpattID);
   iosize += DECODEITSMFT(cc.pattMap,      CTF::BLCpattMap);
   // clang-format on
+
+  mTreeSerializer.initTree();
+  TTree* t = mTreeSerializer.getTree();
+  t->Branch("firstChipROF", &cc.firstChipROF);
+  t->Branch("bcIncROF", &cc.bcIncROF);
+  t->Branch("orbitIncROF", &cc.orbitIncROF);
+  t->Branch("nclusROF", &cc.nclusROF);
+  t->Branch("chipInc", &cc.chipInc);
+  t->Branch("chipMul", &cc.chipMul);
+  t->Branch("row", &cc.row);
+  t->Branch("colInc", &cc.colInc);
+  t->Branch("pattID", &cc.pattID);
+  t->Branch("pattMap", &cc.pattMap);
+  mTreeSerializer.writeTree();
+
   return cc;
 }

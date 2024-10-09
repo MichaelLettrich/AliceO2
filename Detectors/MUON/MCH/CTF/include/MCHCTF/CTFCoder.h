@@ -159,6 +159,20 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VROF& rofVec, VCOL& dig
   iosize += DECODEMCH(ADC,         CTF::BLC_ADC);
   // clang-format on
   //
+
+  mTreeSerializer.initTree();
+  TTree* t = mTreeSerializer.getTree();
+  t->Branch("bcIncROF", &bcInc);
+  t->Branch("orbitIncROF", &orbitInc);
+  t->Branch("nDigitsROF", &nDigits);
+  t->Branch("tfTime", &tfTime);
+  t->Branch("nSamples", &nSamples);
+  t->Branch("isSaturated", &isSaturated);
+  t->Branch("detID", &detID);
+  t->Branch("padID", &padID);
+  t->Branch("ADC", &ADC);
+  mTreeSerializer.writeTree();
+
   rofVec.clear();
   digVec.clear();
   rofVec.reserve(header.nROFs);
