@@ -117,6 +117,84 @@ struct MergedColumnsDecoder {
   }
 };
 
+/**
+ * Dump CTF data into a ROOT tree for debugging/inspection
+ *
+ * Dumps all fields of CompressedClusters and TriggerInfo into a TTree.
+ * Copies data from raw arrays in CompressedClusters into std::vectors
+ * for easier handling by ROOT.
+ *
+ * @param cc CompressedClusters object containing cluster data
+ * @param trigInfo TriggerInfo object containing trigger data
+ * @param serializer CTFTreeSerializer object to manage the TTree
+ */
+inline void dumpCTFData(CompressedClusters& cc, TriggerInfo& trigInfo, o2::ctf::CTFTreeSerializer& serializer)
+{
+  serializer.initTree();
+  TTree* t = serializer.getTree();
+
+  using vecu8_t = std::vector<uint8_t>;
+  using vecu16_t = std::vector<uint16_t>;
+  using vecu32_t = std::vector<uint32_t>;
+
+  // Attached Clusters
+  vecu8_t v_flagsA, v_rowDiffA, v_sliceLegDiffA, v_sigmaPadA, v_sigmaTimeA, v_qPtA, v_rowA, v_sliceA;
+  vecu16_t v_qTotA, v_qMaxA, v_padResA, v_padA;
+  vecu32_t v_timeResA, v_timeA;
+
+  // Unattached Clusters
+  vecu8_t v_flagsU, v_sigmaPadU, v_sigmaTimeU;
+  vecu16_t v_qTotU, v_qMaxU, v_padDiffU;
+  vecu32_t v_timeDiffU;
+
+  // Misc
+  vecu16_t v_nTrackClusters;
+  vecu32_t v_nSliceRowClusters;
+
+  auto bind = [&](const char* name, auto* ptr, size_t size, auto& vec) {
+    if (ptr && size > 0) {
+      vec.assign(ptr, ptr + size);
+    }
+    t->Branch(name, &vec);
+  };
+
+  // bind attached clusters
+  bind("qTotA", cc.qTotA, cc.nAttachedClusters, v_qTotA);
+  bind("qMaxA", cc.qMaxA, cc.nAttachedClusters, v_qMaxA);
+  bind("flagsA", cc.flagsA, cc.nAttachedClusters, v_flagsA);
+  bind("rowDiffA", cc.rowDiffA, cc.nAttachedClustersReduced, v_rowDiffA);
+  bind("sliceLegDiffA", cc.sliceLegDiffA, cc.nAttachedClustersReduced, v_sliceLegDiffA);
+  bind("padResA", cc.padResA, cc.nAttachedClustersReduced, v_padResA);
+  bind("timeResA", cc.timeResA, cc.nAttachedClustersReduced, v_timeResA);
+  bind("sigmaPadA", cc.sigmaPadA, cc.nAttachedClusters, v_sigmaPadA);
+  bind("sigmaTimeA", cc.sigmaTimeA, cc.nAttachedClusters, v_sigmaTimeA);
+  bind("qPtA", cc.qPtA, cc.nAttachedClusters, v_qPtA);
+  bind("rowA", cc.rowA, cc.nAttachedClusters, v_rowA);
+  bind("sliceA", cc.sliceA, cc.nAttachedClusters, v_sliceA);
+  bind("timeA", cc.timeA, cc.nAttachedClusters, v_timeA);
+  bind("padA", cc.padA, cc.nAttachedClusters, v_padA);
+
+  // bind unattached clusters
+  bind("qTotU", cc.qTotU, cc.nUnattachedClusters, v_qTotU);
+  bind("qMaxU", cc.qMaxU, cc.nUnattachedClusters, v_qMaxU);
+  bind("flagsU", cc.flagsU, cc.nUnattachedClusters, v_flagsU);
+  bind("padDiffU", cc.padDiffU, cc.nUnattachedClusters, v_padDiffU);
+  bind("timeDiffU", cc.timeDiffU, cc.nUnattachedClusters, v_timeDiffU);
+  bind("sigmaPadU", cc.sigmaPadU, cc.nUnattachedClusters, v_sigmaPadU);
+  bind("sigmaTimeU", cc.sigmaTimeU, cc.nUnattachedClusters, v_sigmaTimeU);
+
+  // bind misc
+  bind("nTrackClusters", cc.nTrackClusters, cc.nTracks, v_nTrackClusters);
+  bind("nSliceRowClusters", cc.nSliceRowClusters, cc.nSliceRows, v_nSliceRowClusters);
+
+  // bind triggers
+  t->Branch("TrigOrbitInc", &trigInfo.deltaOrbit);
+  t->Branch("TrigBCInc", &trigInfo.deltaBC);
+  t->Branch("TrigType", &trigInfo.triggerType);
+
+  serializer.writeTree();
+}
+
 } // namespace detail
 
 class CTFCoder : public o2::ctf::CTFCoderBase
@@ -408,6 +486,9 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VEC& buffVec, TRIGVEC& 
   decodeTPC(trigInfo.deltaOrbit.data(), CTF::BLCTrigOrbitInc);
   decodeTPC(trigInfo.deltaBC.data(), CTF::BLCTrigBCInc);
   decodeTPC(trigInfo.triggerType.data(), CTF::BLCTrigType);
+
+  detail::dumpCTFData(cc, trigInfo, mTreeSerializer);
+
   // convert trigger info to output format
   uint32_t prevOrbit = header.firstOrbitTrig;
   uint16_t prevBC = 0;

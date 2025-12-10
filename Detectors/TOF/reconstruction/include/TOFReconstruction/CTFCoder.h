@@ -139,6 +139,22 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VROF& rofRecVec, VDIG& 
   iosize += DECODETOF(cc.pattMap,      CTF::BLCpattMap);
   // clang-format on
   //
+
+  mTreeSerializer.initTree();
+  TTree* t = mTreeSerializer.getTree();
+  t->Branch("bcIncROF", &cc.bcIncROF);
+  t->Branch("orbitIncROF", &cc.orbitIncROF);
+  t->Branch("ndigROF", &cc.ndigROF);
+  t->Branch("ndiaROF", &cc.ndiaROF);
+  t->Branch("ndiaCrate", &cc.ndiaCrate);
+  t->Branch("timeFrameInc", &cc.timeFrameInc);
+  t->Branch("timeTDCInc", &cc.timeTDCInc);
+  t->Branch("stripID", &cc.stripID);
+  t->Branch("chanInStrip", &cc.chanInStrip);
+  t->Branch("tot", &cc.tot);
+  t->Branch("pattMap", &cc.pattMap);
+  mTreeSerializer.writeTree();
+
   decompress(cc, rofRecVec, cdigVec, pattVec);
   iosize.rawIn = sizeof(ReadoutWindowData) * rofRecVec.size() + sizeof(Digit) * cdigVec.size() + sizeof(uint8_t) * pattVec.size();
   return iosize;
@@ -189,7 +205,7 @@ void CTFCoder::decompress(const CompressedInfos& cc, VROF& rofRecVec, VDIG& cdig
 
     digCopy.resize(cc.ndigROF[irof]);
     for (uint32_t idig = 0; idig < cc.ndigROF[irof]; idig++) {
-      auto& digit = digCopy[idig]; //cdigVec[digCount];
+      auto& digit = digCopy[idig]; // cdigVec[digCount];
       LOGF(debug, "%d) TF=%d, TDC=%d, STRIP=%d, CH=%d", idig, cc.timeFrameInc[digCount], cc.timeTDCInc[digCount], cc.stripID[digCount], cc.chanInStrip[digCount]);
       if (cc.timeFrameInc[digCount]) { // new time frame
         ctdc = cc.timeTDCInc[digCount];

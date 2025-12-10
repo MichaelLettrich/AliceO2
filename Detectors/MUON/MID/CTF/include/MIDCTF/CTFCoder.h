@@ -126,6 +126,18 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, std::array<VROF, NEvTyp
   iosize += DECODEMID(colId,       CTF::BLC_colId);
   // clang-format on
   //
+
+  mTreeSerializer.initTree();
+  TTree* t = mTreeSerializer.getTree();
+  t->Branch("bcIncROF", &bcInc);
+  t->Branch("orbitIncROF", &orbitInc);
+  t->Branch("entriesROF", &entries);
+  t->Branch("evtypeROF", &evType);
+  t->Branch("pattern", &pattern);
+  t->Branch("deId", &deId);
+  t->Branch("colId", &colId);
+  mTreeSerializer.writeTree();
+
   for (uint32_t i = 0; i < NEvTypes; i++) {
     rofVec[i].clear();
     colVec[i].clear();
