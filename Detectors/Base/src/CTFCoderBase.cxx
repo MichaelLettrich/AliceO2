@@ -49,6 +49,8 @@ void CTFCoderBase::assignDictVersion(CTFDictHeader& h) const
 void CTFCoderBase::updateTimeDependentParams(ProcessingContext& pc, bool askTree)
 {
   setFirstTFOrbit(pc.services().get<o2::framework::TimingInfo>().firstTForbit);
+  mTreeSerializer.updateTimingInfo(pc.services().get<o2::framework::TimingInfo>());
+
   if (pc.services().get<o2::framework::TimingInfo>().globalRunNumberChanged) { // this params need to be queried only once
     if (mOpType == OpType::Decoder) {
       pc.inputs().get<o2::ctp::TriggerOffsetsParam*>(mTrigOffsBinding); // this is a configurable param

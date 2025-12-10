@@ -145,6 +145,19 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VDIG& digitVec, VCHAN& 
   iosize += DECODEFDD(cd.feeBits,   CTF::BLC_feeBits);
   // clang-format on
   //
+
+  mTreeSerializer.initTree();
+  TTree* t = mTreeSerializer.getTree();
+  t->Branch("trigger", &cd.trigger);
+  t->Branch("bcInc", &cd.bcInc);
+  t->Branch("orbitInc", &cd.orbitInc);
+  t->Branch("nChan", &cd.nChan);
+  t->Branch("idChan", &cd.idChan);
+  t->Branch("time", &cd.time);
+  t->Branch("charge", &cd.charge);
+  t->Branch("feeBits", &cd.feeBits);
+  mTreeSerializer.writeTree();
+
   if (hd.minorVersion == 0 && hd.majorVersion == 1) {
     decompress<1, 0>(cd, digitVec, channelVec);
   } else {

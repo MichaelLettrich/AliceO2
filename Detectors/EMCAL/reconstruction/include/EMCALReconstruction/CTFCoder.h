@@ -161,6 +161,19 @@ o2::ctf::CTFIOSize CTFCoder::decode(const CTF::base& ec, VTRG& trigVec, VCELL& c
   //
   // clang-format on
   //
+
+  mTreeSerializer.initTree();
+  TTree* t = mTreeSerializer.getTree();
+  t->Branch("bcIncTrig", &bcInc);
+  t->Branch("orbitIncTrig", &orbitInc);
+  t->Branch("entriesTrig", &entries);
+  t->Branch("towerID", &tower);
+  t->Branch("time", &cellTime);
+  t->Branch("energy", &energy);
+  t->Branch("status", &status);
+  t->Branch("trigger", &trigger);
+  mTreeSerializer.writeTree();
+
   trigVec.clear();
   cellVec.clear();
   trigVec.reserve(header.nTriggers);
