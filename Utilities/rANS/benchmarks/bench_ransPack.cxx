@@ -32,7 +32,7 @@
 #include <ittnotify.h>
 #endif
 
-#include "helpers.h"
+#include "utils/Buffers.h"
 
 using namespace o2::rans;
 

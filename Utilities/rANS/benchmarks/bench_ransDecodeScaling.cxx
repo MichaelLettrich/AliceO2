@@ -33,7 +33,7 @@
 #include <ittnotify.h>
 #endif
 
-#include "helpers.h"
+#include "utils/Buffers.h"
 
 using namespace o2::rans;
 
@@ -76,9 +76,9 @@ void ransDecodeBenchmark(benchmark::State& st)
     sourceMessage = SourceMessageUniform<uint32_t>{MessageSize, max};
   }
   const auto& inputData = sourceMessage.get();
-  EncodeBuffer<source_type>
+  benchmarks::EncodeBuffer<source_type>
     encodeBuffer{inputData.size()};
-  DecodeBuffer<source_type> decodeBuffer{inputData.size()};
+  benchmarks::DecodeBuffer<source_type> decodeBuffer{inputData.size()};
 
   const auto histogram = makeDenseHistogram::fromSamples(gsl::span<const source_type>(inputData));
   Metrics<source_type> metrics{histogram};

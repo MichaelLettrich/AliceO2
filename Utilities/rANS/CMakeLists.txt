@@ -188,80 +188,80 @@ o2_add_test(Serialize
             target_compile_options(${TEST_SERIALIZE} PRIVATE ${RANS_TEST_ARCH})
 
 if (TARGET benchmark::benchmark)
-    o2_add_header_only_library(libransBenchmark
-                  TARGETVARNAME LIB_RANS_BENCHMARK
-                  INTERFACE_LINK_LIBRARIES O2::rANS benchmark::benchmark)
-    target_compile_options(${LIB_RANS_BENCHMARK} INTERFACE -O3 ${RANS_OPTIONS})
+    o2_add_library(ransBenchmark
+                   SOURCES benchmarks/utils/TPCData.cxx
+                   PRIVATE_LINK_LIBRARIES ROOT::ROOTDataFrame
+                   PUBLIC_LINK_LIBRARIES O2::rANS benchmark::benchmark Boost::boost
+                   TARGETVARNAME RANS_BENCHMARK)
+    target_compile_options(${RANS_BENCHMARK} PUBLIC -O3 ${RANS_OPTIONS})
     if(TARGET TBB::tbb)
-    target_compile_definitions(${LIB_RANS_BENCHMARK} INTERFACE RANS_ENABLE_PARALLEL_STL)
-    target_link_libraries(${LIB_RANS_BENCHMARK} INTERFACE TBB::tbb)
+    target_compile_definitions(${RANS_BENCHMARK} PUBLIC RANS_ENABLE_PARALLEL_STL)
+    target_link_libraries(${RANS_BENCHMARK} PUBLIC TBB::tbb)
     endif()
     if(${ENABLE_VTUNE_PROFILER})
-      target_compile_definitions(${LIB_RANS_BENCHMARK} INTERFACE ENABLE_VTUNE_PROFILER)
-      target_link_libraries(${LIB_RANS_BENCHMARK} INTERFACE PkgConfig::Vtune)
+      target_compile_definitions(${RANS_BENCHMARK} PUBLIC ENABLE_VTUNE_PROFILER)
+      target_link_libraries(${RANS_BENCHMARK} PUBLIC PkgConfig::Vtune)
     endif()
 
     o2_add_executable(CombinedIterator
                       SOURCES benchmarks/bench_ransCombinedIterator.cxx
                       COMPONENT_NAME rANS
                       IS_BENCHMARK
-                      PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+                      PUBLIC_LINK_LIBRARIES O2::ransBenchmark)
 
     o2_add_executable(Histogram
                       SOURCES benchmarks/bench_ransHistogram.cxx
                       COMPONENT_NAME rANS
                       IS_BENCHMARK
-                      PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+                      PUBLIC_LINK_LIBRARIES O2::ransBenchmark)
 
     o2_add_executable(Encode
                       SOURCES benchmarks/bench_ransEncode.cxx
                       COMPONENT_NAME rANS
                       IS_BENCHMARK
-                      PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+                      PUBLIC_LINK_LIBRARIES O2::ransBenchmark)
 
     o2_add_executable(Decode
                       SOURCES benchmarks/bench_ransDecode.cxx
                       COMPONENT_NAME rANS
                       IS_BENCHMARK
-                      PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+                      PUBLIC_LINK_LIBRARIES O2::ransBenchmark)
 
     o2_add_executable(DecodeScaling
                       SOURCES benchmarks/bench_ransDecodeScaling.cxx
                       COMPONENT_NAME rANS
                       IS_BENCHMARK
-                      PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+                      PUBLIC_LINK_LIBRARIES O2::ransBenchmark)
 
     o2_add_executable(EncodeImpl
                       SOURCES benchmarks/bench_ransEncodeImpl.cxx
                       COMPONENT_NAME rANS
                       IS_BENCHMARK
-                      PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+                      PUBLIC_LINK_LIBRARIES O2::ransBenchmark)
 
     o2_add_executable(Streaming
                       SOURCES benchmarks/bench_ransStreaming.cxx
                       COMPONENT_NAME rANS
                       IS_BENCHMARK
-                      PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+                      PUBLIC_LINK_LIBRARIES O2::ransBenchmark)
 
     o2_add_executable(Pack
                       SOURCES benchmarks/bench_ransPack.cxx
                       COMPONENT_NAME rANS
                       IS_BENCHMARK
-                      PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+                      PUBLIC_LINK_LIBRARIES O2::ransBenchmark)
 
     o2_add_executable(UnPack
                       SOURCES benchmarks/bench_ransUnpack.cxx
                       COMPONENT_NAME rANS
                       IS_BENCHMARK
-                      PUBLIC_LINK_LIBRARIES O2::libransBenchmark)
+                      PUBLIC_LINK_LIBRARIES O2::ransBenchmark)
 
-  if(${RANS_ENABLE_JSON})
-    o2_add_executable(TPCEncodeDecode
-                      SOURCES benchmarks/bench_ransTPC.cxx
-                      COMPONENT_NAME rANS
-                      IS_BENCHMARK
-                      PUBLIC_LINK_LIBRARIES O2::libransBenchmark Boost::program_options)
-  endif()
+    o2_add_executable(TPC
+                       SOURCES benchmarks/bench_ransTPC.cxx
+                       COMPONENT_NAME rANS
+                       IS_BENCHMARK
+                       PUBLIC_LINK_LIBRARIES O2::ransBenchmark Boost::program_options)
 endif()
 
 o2_add_executable(rans-encode-decode-8

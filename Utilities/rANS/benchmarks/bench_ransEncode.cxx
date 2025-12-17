@@ -33,7 +33,7 @@
 #include <ittnotify.h>
 #endif
 
-#include "helpers.h"
+#include "utils/Buffers.h"
 
 using namespace o2::rans;
 
@@ -88,8 +88,8 @@ void ransCompressionBenchmark(benchmark::State& st)
   using source_type = source_T;
 
   const auto& inputData = getMessage<source_type>();
-  EncodeBuffer<source_type> encodeBuffer{inputData.size()};
-  DecodeBuffer<source_type> decodeBuffer{inputData.size()};
+  benchmarks::EncodeBuffer<source_type> encodeBuffer{inputData.size()};
+  benchmarks::DecodeBuffer<source_type> decodeBuffer{inputData.size()};
 
   const auto histogram = makeDenseHistogram::fromSamples(gsl::span<const source_type>(inputData));
   Metrics<source_type> metrics{histogram};
@@ -133,10 +133,10 @@ void ransLiteralCompressionBenchmark(benchmark::State& st)
   using source_type = source_T;
 
   const auto& inputData = getMessage<source_type>();
-  EncodeBuffer<source_type> encodeBuffer{inputData.size()};
+  benchmarks::EncodeBuffer<source_type> encodeBuffer{inputData.size()};
   encodeBuffer.literals.resize(inputData.size(), 0);
   encodeBuffer.literalsEnd = encodeBuffer.literals.data();
-  DecodeBuffer<source_type> decodeBuffer{inputData.size()};
+  benchmarks::DecodeBuffer<source_type> decodeBuffer{inputData.size()};
 
   const auto histogram = makeDenseHistogram::fromSamples(gsl::span<const source_type>(inputData));
   Metrics<source_type> metrics{histogram};
@@ -181,8 +181,8 @@ void ransAdaptiveCompressionBenchmark(benchmark::State& st)
   using source_type = source_T;
 
   const auto& inputData = getMessage<source_type>();
-  EncodeBuffer<source_type> encodeBuffer{inputData.size()};
-  DecodeBuffer<source_type> decodeBuffer{inputData.size()};
+  benchmarks::EncodeBuffer<source_type> encodeBuffer{inputData.size()};
+  benchmarks::DecodeBuffer<source_type> decodeBuffer{inputData.size()};
 
   const auto histogram = makeDenseHistogram::fromSamples(gsl::span<const source_type>(inputData));
   auto adaptiveHistogram = makeAdaptiveHistogram::fromSamples(gsl::span<const source_type>(inputData));
@@ -230,10 +230,10 @@ void ransAdaptiveLiteralCompressionBenchmark(benchmark::State& st)
   using source_type = source_T;
 
   const auto& inputData = getMessage<source_type>();
-  EncodeBuffer<source_type> encodeBuffer{inputData.size()};
+  benchmarks::EncodeBuffer<source_type> encodeBuffer{inputData.size()};
   encodeBuffer.literals.resize(inputData.size(), 0);
   encodeBuffer.literalsEnd = encodeBuffer.literals.data();
-  DecodeBuffer<source_type> decodeBuffer{inputData.size()};
+  benchmarks::DecodeBuffer<source_type> decodeBuffer{inputData.size()};
 
   const auto histogram = makeDenseHistogram::fromSamples(gsl::span<const source_type>(inputData));
   auto adaptiveHistogram = makeAdaptiveHistogram::fromSamples(gsl::span<const source_type>(inputData));
@@ -281,7 +281,7 @@ BENCHMARK(ransCompressionBenchmark<uint16_t, CoderTag::Compat>);
 BENCHMARK(ransCompressionBenchmark<uint32_t, CoderTag::Compat>);
 
 BENCHMARK(ransAdaptiveCompressionBenchmark<uint32_t, CoderTag::Compat>);
-//########################################################################################
+// ########################################################################################
 
 #ifdef RANS_SINGLE_STREAM
 BENCHMARK(ransCompressionBenchmark<uint8_t, CoderTag::SingleStream>);
@@ -291,7 +291,7 @@ BENCHMARK(ransCompressionBenchmark<uint32_t, CoderTag::SingleStream>);
 BENCHMARK(ransAdaptiveCompressionBenchmark<uint32_t, CoderTag::SingleStream>);
 #endif /* RANS_SINGLE_STREAM */
 
-//########################################################################################
+// ########################################################################################
 
 #ifdef RANS_SSE
 BENCHMARK(ransCompressionBenchmark<uint8_t, CoderTag::SSE>);
@@ -311,7 +311,7 @@ BENCHMARK(ransCompressionBenchmark<uint32_t, CoderTag::AVX2>);
 BENCHMARK(ransAdaptiveCompressionBenchmark<uint32_t, CoderTag::AVX2>);
 #endif /* RANS_AVX2 */
 
-//########################################################################################
+// ########################################################################################
 
 BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, CoderTag::Compat>);
 BENCHMARK(ransLiteralCompressionBenchmark<uint16_t, CoderTag::Compat>);
@@ -319,7 +319,7 @@ BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, CoderTag::Compat>);
 
 BENCHMARK(ransAdaptiveLiteralCompressionBenchmark<uint32_t, CoderTag::Compat>);
 
-//########################################################################################
+// ########################################################################################
 
 #ifdef RANS_SINGLE_STREAM
 BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, CoderTag::SingleStream>);
@@ -329,7 +329,7 @@ BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, CoderTag::SingleStream>);
 BENCHMARK(ransAdaptiveLiteralCompressionBenchmark<uint32_t, CoderTag::SingleStream>);
 #endif /* RANS_SINGLE_STREAM */
 
-//########################################################################################
+// ########################################################################################
 
 #ifdef RANS_SSE
 BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, CoderTag::SSE>);
@@ -339,7 +339,7 @@ BENCHMARK(ransLiteralCompressionBenchmark<uint32_t, CoderTag::SSE>);
 BENCHMARK(ransAdaptiveLiteralCompressionBenchmark<uint32_t, CoderTag::SSE>);
 #endif /* RANS_SSE */
 
-//########################################################################################
+// ########################################################################################
 
 #ifdef RANS_AVX2
 BENCHMARK(ransLiteralCompressionBenchmark<uint8_t, CoderTag::AVX2>);

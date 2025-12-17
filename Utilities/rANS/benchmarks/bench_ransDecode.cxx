@@ -33,7 +33,7 @@
 #include <ittnotify.h>
 #endif
 
-#include "helpers.h"
+#include "utils/Buffers.h"
 
 using namespace o2::rans;
 
@@ -114,8 +114,8 @@ void ransDecodeBenchmark(benchmark::State& st, Args&&... args)
 
 #pragma GCC diagnostic push // TODO: Remove me when fixed in GCC
 #pragma GCC diagnostic ignored "-Walloc-size-larger-than="
-  EncodeBuffer<source_type> encodeBuffer{inputData.size()};
-  DecodeBuffer<source_type> decodeBuffer{inputData.size()};
+  benchmarks::EncodeBuffer<source_type> encodeBuffer{inputData.size()};
+  benchmarks::DecodeBuffer<source_type> decodeBuffer{inputData.size()};
 #pragma GCC diagnostic pop
 
   const auto histogram = makeDenseHistogram::fromSamples(gsl::span<const source_type>(inputData));
