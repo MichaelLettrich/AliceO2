@@ -38,12 +38,13 @@ double_t computeExpectedCodewordLength(const DenseHistogram<source_T>& histogram
   using namespace internal;
   using namespace utils;
 
-  using value_type = typename DenseHistogram<source_T>::value_type;
+  using source_type = source_T;
+  using value_type = typename DenseHistogram<source_type>::value_type;
 
   const auto histogramView = makeHistogramView(histogram);
   const auto renormedView = makeHistogramView(rescaledHistogram);
 
-  auto getRescaledFrequency = [&renormedView](source_T sourceSymbol) -> value_type {
+  auto getRescaledFrequency = [&renormedView](source_type sourceSymbol) -> value_type {
     if (sourceSymbol >= renormedView.getMin() && sourceSymbol <= renormedView.getMax()) {
       return renormedView[sourceSymbol];
     } else {
@@ -51,16 +52,18 @@ double_t computeExpectedCodewordLength(const DenseHistogram<source_T>& histogram
     }
   };
 
-  double_t expectedCodewordLength = 0;
-  value_type trueIncompressibleFrequency = 0;
+  double_t expectedCodewordLength{0.0};
+  value_type trueIncompressibleFrequency{0};
 
   assert(countNUsedAlphabetSymbols(histogram) >= countNUsedAlphabetSymbols(rescaledHistogram));
 
-  double_t reciprocalNumSamples = 1.0 / histogram.getNumSamples();
-  double_t reciprocalNumSamplesRescaled = 1.0 / rescaledHistogram.getNumSamples();
+  const double_t reciprocalNumSamples = 1.0 / histogram.getNumSamples();
+  const double_t reciprocalNumSamplesRescaled = 1.0 / rescaledHistogram.getNumSamples();
+  source_type incompressibleMin = std::numeric_limits<source_type>::max();
+  source_type incompressibleMax = std::numeric_limits<source_type>::min();
 
-  // all "normal symbols"
-  for (value_type sourceSymbol = histogramView.getMin(); sourceSymbol <= histogramView.getMax(); ++sourceSymbol) {
+  // all "normal symbols"t
+  for (int64_t sourceSymbol = histogramView.getMin(); sourceSymbol < histogramView.getMax() + 1; ++sourceSymbol) {
 
     const value_type frequency = histogramView[sourceSymbol];
     if (frequency) {
@@ -72,6 +75,8 @@ double_t computeExpectedCodewordLength(const DenseHistogram<source_T>& histogram
         expectedCodewordLength -= trueProbability * fastlog2(rescaledProbability);
       } else {
         trueIncompressibleFrequency += frequency;
+        incompressibleMin = std::min<source_type>(incompressibleMin, sourceSymbol);
+        incompressibleMax = std::max<source_type>(incompressibleMax, sourceSymbol);
       }
     }
   }
@@ -81,7 +86,7 @@ double_t computeExpectedCodewordLength(const DenseHistogram<source_T>& histogram
   if (trueIncompressibleProbability) {
     const double_t rescaledProbability = static_cast<double_t>(rescaledHistogram.getIncompressibleSymbolFrequency()) * reciprocalNumSamplesRescaled;
     expectedCodewordLength -= trueIncompressibleProbability * fastlog2(rescaledProbability);
-    expectedCodewordLength += trueIncompressibleProbability * fastlog2(numBitsForNSymbols(renormedView.size()));
+    expectedCodewordLength += trueIncompressibleProbability * fastlog2(static_cast<double_t>(incompressibleMax - incompressibleMin) + 1.0);
   }
 
   return expectedCodewordLength;
