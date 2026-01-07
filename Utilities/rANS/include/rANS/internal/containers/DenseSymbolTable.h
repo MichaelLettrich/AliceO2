@@ -100,7 +100,7 @@ DenseSymbolTable<source_T, value_T>::DenseSymbolTable(const RenormedHistogramCon
   // then first reserve to increase the capacity
   // finally use resize to set size of the vector. this does not change capacity and retains the padding.
   constexpr size_t padding = nBytesTo<symbol_type>(toBytes(512));
-  const size_t symbolTableSize = trimmedBegin == trimmedEnd ? 0 : (max - min + 1);
+  const size_t symbolTableSize = trimmedBegin == trimmedEnd ? 0 : static_cast<size_t>(max - min) + 1;
   const source_type offset = min;
   this->mContainer.reserve(symbolTableSize + padding);
   this->mContainer.resize(symbolTableSize, offset, this->mEscapeSymbol);

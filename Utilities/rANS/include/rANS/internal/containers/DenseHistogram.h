@@ -382,7 +382,7 @@ auto DenseHistogram<source_T, std::enable_if_t<sizeof(source_T) == 4>>::resize(s
     throw HistogramError(fmt::format("{} failed: min {} > max {} ", __func__, min, max));
   }
 
-  const size_type newSize = max - min + 1;
+  const size_type newSize = static_cast<size_type>(max - min) + 1;
   const source_type oldOffset = this->getOffset();
   this->mNSamples = 0;
 
