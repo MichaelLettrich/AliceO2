@@ -13,8 +13,8 @@
 /// @author Michael Lettrich
 /// @brief  common functionality for rANS benchmarks.
 
-#ifndef RANS_BENCHMARKS_HELPERS_TPCDATA_H_
-#define RANS_BENCHMARKS_HELPERS_TPCDATA_H_
+#ifndef RANS_BENCHMARKS_UTILS_TPCDATA_H_
+#define RANS_BENCHMARKS_UTILS_TPCDATA_H_
 
 #include <cstdint>
 #include <stdexcept>
@@ -24,6 +24,7 @@
 #include <tuple>
 #include <utility>
 #include <type_traits>
+#include <filesystem>
 
 #include <boost/mp11.hpp>
 
@@ -114,7 +115,7 @@ struct TPCData {
  * @param fileName  name of the ROOT file
  * @return TPCData populated TPCData struct
  */
-TPCData loadTPCData(std::string_view fileName);
+TPCData loadTPCData(const std::filesystem::path& fileName);
 
 /**
  * @brief Enumeration of TPC fields

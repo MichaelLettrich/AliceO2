@@ -169,7 +169,7 @@ class DenseHistogram<source_T, std::enable_if_t<sizeof(source_T) == 4>> : public
   DenseHistogram& addFrequenciesImpl(freq_IT begin, freq_IT end, difference_type offset);
 
  private:
-  inline static constexpr size_t MaxSize{utils::pow2(30)}; // 4GB per histogram size limit;
+  inline static constexpr size_t MaxSize{utils::pow2(32)}; // 4GB per histogram size limit;
 
   bool isValidRange(difference_type min, difference_type max);
 };

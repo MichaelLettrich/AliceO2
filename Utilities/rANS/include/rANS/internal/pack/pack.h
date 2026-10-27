@@ -343,7 +343,11 @@ inline constexpr BitPtr pack(input_IT inputBegin, size_t extent, output_T* __res
 }
 
 template <typename input_T, typename output_IT>
-inline void unpack(const input_T* __restrict inputBegin, size_t extent, output_IT outputBegin, size_t packingWidth, typename std::iterator_traits<output_IT>::value_type offset = static_cast<typename std::iterator_traits<output_IT>::value_type>(0))
+inline void unpack(const input_T* __restrict inputBegin,
+                   size_t extent,
+                   output_IT outputBegin,
+                   size_t packingWidth,
+                   typename std::iterator_traits<output_IT>::value_type offset = static_cast<typename std::iterator_traits<output_IT>::value_type>(0))
 {
   using namespace internal;
   using namespace utils;

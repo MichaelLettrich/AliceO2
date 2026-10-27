@@ -202,6 +202,7 @@ if (TARGET benchmark::benchmark)
       target_compile_definitions(${RANS_BENCHMARK} PUBLIC ENABLE_VTUNE_PROFILER)
       target_link_libraries(${RANS_BENCHMARK} PUBLIC PkgConfig::Vtune)
     endif()
+    target_link_libraries(${RANS_BENCHMARK} INTERFACE O2::DetectorsCommonDataFormats)
 
     o2_add_executable(CombinedIterator
                       SOURCES benchmarks/bench_ransCombinedIterator.cxx
@@ -256,6 +257,12 @@ if (TARGET benchmark::benchmark)
                       COMPONENT_NAME rANS
                       IS_BENCHMARK
                       PUBLIC_LINK_LIBRARIES O2::ransBenchmark)
+
+    o2_add_executable(TPCCompressionMetrics
+                       SOURCES benchmarks/bench_ransTPCCompressionMetrics.cxx
+                       COMPONENT_NAME rANS
+                       IS_BENCHMARK
+                       PUBLIC_LINK_LIBRARIES O2::ransBenchmark Boost::program_options)
 
     o2_add_executable(TPC
                        SOURCES benchmarks/bench_ransTPC.cxx

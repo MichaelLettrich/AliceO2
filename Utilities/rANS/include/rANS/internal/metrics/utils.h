@@ -22,15 +22,13 @@
 #include <numeric>
 
 #include "rANS/internal/common/utils.h"
-#include "rANS/internal/containers/DenseHistogram.h"
-#include "rANS/internal/containers/RenormedHistogram.h"
 #include "rANS/internal/containers/HistogramView.h"
 
 namespace o2::rans
 {
 
-template <typename source_T>
-double_t computeExpectedCodewordLength(const DenseHistogram<source_T>& histogram, const RenormedDenseHistogram<source_T>& rescaledHistogram)
+template <class container_T, typename renormed_container_T>
+double_t computeExpectedCodewordLength(const container_T& histogram, const renormed_container_T& rescaledHistogram)
 {
   assert(histogram.getNumSamples() > 0);
   assert(rescaledHistogram.getNumSamples() > 0);
@@ -38,8 +36,8 @@ double_t computeExpectedCodewordLength(const DenseHistogram<source_T>& histogram
   using namespace internal;
   using namespace utils;
 
-  using source_type = source_T;
-  using value_type = typename DenseHistogram<source_type>::value_type;
+  using source_type = typename container_T::source_type;
+  using value_type = typename container_T::value_type;
 
   const auto histogramView = makeHistogramView(histogram);
   const auto renormedView = makeHistogramView(rescaledHistogram);
@@ -62,7 +60,7 @@ double_t computeExpectedCodewordLength(const DenseHistogram<source_T>& histogram
   source_type incompressibleMin = std::numeric_limits<source_type>::max();
   source_type incompressibleMax = std::numeric_limits<source_type>::min();
 
-  // all "normal symbols"t
+  // all "normal symbols"
   for (int64_t sourceSymbol = histogramView.getMin(); sourceSymbol < histogramView.getMax() + 1; ++sourceSymbol) {
 
     const value_type frequency = histogramView[sourceSymbol];

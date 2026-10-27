@@ -2,7 +2,7 @@
 
 #include <cassert>
 #include <tuple>
-#include <string_view>
+#include <filesystem>
 
 #include <ROOT/RDataFrame.hxx>
 #include <boost/mp11.hpp>
@@ -81,10 +81,10 @@ void TPCData::resizeTriggers(size_t n)
   triggerType.resize(this->nTriggers);
 }
 
-TPCData loadTPCData(std::string_view fileName)
+TPCData loadTPCData(const std::filesystem::path& fileName)
 {
   TPCData data;
-  ROOT::RDataFrame df("TPC", fileName.data());
+  ROOT::RDataFrame df("TPC", fileName.c_str());
 
   // makes a tuple of RResultPtrs, with one entry per field
   auto result_ptrs = []<auto... Field>(bmp::mp_list_v<Field...>, ROOT::RDataFrame& df) {

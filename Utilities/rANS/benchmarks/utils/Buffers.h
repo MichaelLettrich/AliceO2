@@ -16,16 +16,10 @@
 #ifndef RANS_BENCHMARKS_UTILS_BUFFERS_H_
 #define RANS_BENCHMARKS_UTILS_BUFFERS_H_
 
-#include "rANS/internal/common/defines.h"
-
-#ifdef ENABLE_VTUNE_PROFILER
-#include <ittnotify.h>
-#endif
-
-#include <fairlogger/Logger.h>
 #include <algorithm>
-
-#include "rANS/internal/common/exceptions.h"
+#include <vector>
+#include <concepts>
+#include <cstdint>
 
 #ifdef RANS_PARALLEL_STL
 #include <execution>
@@ -34,7 +28,7 @@
 namespace o2::rans::benchmarks
 {
 
-template <typename source_T, typename stream_T = uint32_t>
+template <std::integral source_T, std::integral stream_T = uint32_t>
 struct EncodeBuffer {
 
   EncodeBuffer() = default;
@@ -51,7 +45,7 @@ struct EncodeBuffer {
   source_T* literalsEnd{literals.data()};
 };
 
-template <typename source_T>
+template <std::integral source_T>
 struct DecodeBuffer {
 
   DecodeBuffer() = default;

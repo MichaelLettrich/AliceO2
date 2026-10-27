@@ -1,370 +1,781 @@
-// Copyright 2019-2023 CERN and copyright holders of ALICE O2.
-// See https://alice-o2.web.cern.ch/copyright for details of the copyright holders.
-// All rights not expressly granted are reserved.
-//
-// This software is distributed under the terms of the GNU General Public
-// License v3 (GPL Version 3), copied verbatim in the file "COPYING".
-//
-// In applying this license CERN does not waive the privileges and immunities
-// granted to it by virtue of its status as an Intergovernmental Organization
-// or submit itself to any jurisdiction.
+// // Copyright 2019-2023 CERN and copyright holders of ALICE O2.
+// // See https://alice-o2.web.cern.ch/copyright for details of the copyright holders.
+// // All rights not expressly granted are reserved.
+// //
+// // This software is distributed under the terms of the GNU General Public
+// // License v3 (GPL Version 3), copied verbatim in the file "COPYING".
+// //
+// // In applying this license CERN does not waive the privileges and immunities
+// // granted to it by virtue of its status as an Intergovernmental Organization
+// // or submit itself to any jurisdiction.
 
-/// @file   bench_ransTPC.h
-/// @author Michael Lettrich
-/// @brief  main benchmark executable that performs compression/decompression of TPC data while taking detailed metrics.
+// /// @file   bench_ransTPC.h
+// /// @author Michael Lettrich
+// /// @brief  main benchmark executable that performs compression/decompression of TPC data while taking detailed metrics.
 
-#include <vector>
-#include <cstring>
-#include <execution>
-#include <iterator>
-#include <iostream>
+// #include <vector>
+// #include <cstring>
+// #include <execution>
+// #include <iterator>
+// #include <iostream>
 
-#include <boost/program_options.hpp>
-#include <boost/mp11.hpp>
-#include <rapidjson/document.h>
-#include <rapidjson/writer.h>
-#include <rapidjson/istreamwrapper.h>
-#include <rapidjson/ostreamwrapper.h>
-#include <fairlogger/Logger.h>
+// #include <boost/program_options.hpp>
+// #include <boost/mp11.hpp>
+// #include <rapidjson/document.h>
+// #include <rapidjson/writer.h>
+// #include <rapidjson/istreamwrapper.h>
+// #include <rapidjson/ostreamwrapper.h>
+// #include <fairlogger/Logger.h>
 
-#include "rANS/factory.h"
-#include "rANS/histogram.h"
-#include "rANS/serialize.h"
+// #include "rANS/factory.h"
+// #include "rANS/histogram.h"
+// #include "rANS/serialize.h"
+// #include "rANS/metrics.h"
+// #include "rANS/internal/common/utils.h"
+// #include "rANS/pack.h"
 
-#include "utils/TPCData.h"
-#include "utils/Buffers.h"
+// #include "DetectorsCommonDataFormats/internal/InplaceEntropyCoder.h"
+// #include "DetectorsCommonDataFormats/internal/Packer.h"
 
-#ifdef ENABLE_VTUNE_PROFILER
-#include <ittnotify.h>
-#endif
+// #include "utils/TPCData.h"
+// #include "utils/Buffers.h"
 
-namespace bpo = boost::program_options;
-namespace bmp = boost::mp11;
-namespace rbm = o2::rans::benchmarks;
+// #ifdef ENABLE_VTUNE_PROFILER
+// #include <ittnotify.h>
+// #endif
 
-using json_writer_type = rapidjson::Writer<rapidjson::OStreamWrapper>;
+// namespace bpo = boost::program_options;
+// namespace bmp = boost::mp11;
+// namespace rbm = o2::rans::benchmarks;
 
-static json_writer_type writer;
+// using json_writer_type = rapidjson::Writer<rapidjson::OStreamWrapper>;
 
-using namespace o2::rans;
+// static json_writer_type writer;
 
-using coder_types = bmp::mp_list<std::integral_constant<CoderTag, CoderTag::Compat>
-#ifdef RANS_SINGLE_STREAM
-                                 ,
-                                 std::integral_constant<CoderTag, CoderTag::SingleStream>
-#endif /* RANS_SINGLE_STREAM */
-#ifdef RANS_SSE
-                                 ,
-                                 std::integral_constant<CoderTag, CoderTag::SSE>
-#endif /* RANS_SSE */
-#ifdef RANS_AVX2
-                                 ,
-                                 std::integral_constant<CoderTag, CoderTag::AVX2>
-#endif /* RANS_AVX2 */
-                                 >;
+// using namespace o2::rans;
 
-std::string toString(CoderTag tag)
-{
-  switch (tag) {
-    case CoderTag::Compat:
-      return {"Compat"};
-      break;
-    case CoderTag::SingleStream:
-      return {"SingleStream"};
-      break;
-    case CoderTag::SSE:
-      return {"SSE"};
-      break;
-    case CoderTag::AVX2:
-      return {"AVX2"};
-      break;
-    default:
-      throw Exception("Invalid");
-      break;
-  };
-};
+// using CoderTags = bmp::mp_list_v<CoderTag::Compat
+// #ifdef RANS_SINGLE_STREAM
+//                                  ,
+//                                  CoderTag::SingleStream
+// #endif /* RANS_SINGLE_STREAM */
+// #ifdef RANS_SSE
+//                                  ,
+//                                  CoderTag::SSE
+// #endif /* RANS_SSE */
+// #ifdef RANS_AVX2
+//                                  ,
+//                                  CoderTag::AVX2
+// #endif /* RANS_AVX2 */
+//                                  >;
 
-class TimingDecorator
-{
- public:
-  using jsonWriter_type = rapidjson::Writer<rapidjson::OStreamWrapper>;
+// std::string toString(CoderTag tag)
+// {
+//   switch (tag) {
+//     case CoderTag::Compat:
+//       return {"Compat"};
+//       break;
+//     case CoderTag::SingleStream:
+//       return {"SingleStream"};
+//       break;
+//     case CoderTag::SSE:
+//       return {"SSE"};
+//       break;
+//     case CoderTag::AVX2:
+//       return {"AVX2"};
+//       break;
+//     default:
+//       throw Exception("Invalid");
+//       break;
+//   };
+// };
 
-  TimingDecorator() = default;
-  TimingDecorator(jsonWriter_type& writer) : mWriter{&writer} {};
+// class Strategy
+// {
+//  public:
+//   Strategy(std::string_view name, std::ofstream& logFile) : mName(name)
+//   {
+//     mWriter.SetStream(rapidjson::OStreamWrapper{logFile});
+//   };
 
-  template <typename F, std::enable_if_t<!std::is_void_v<std::invoke_result_t<F>>, bool> = true>
-  decltype(auto) timeAndLog(const std::string& keyName, const std::string& logMessage, F functor)
-  {
-    mTimer.start();
-    decltype(auto) ret = functor();
-    mTimer.stop();
-    mWriter->Key(keyName.c_str());
-    const double_t msDuration = mTimer.getDurationMS();
-    mWriter->Double(msDuration);
-    LOGP(info, "{} in {} ms", logMessage, msDuration);
+//   std::string_view getName() const { return {mName}; };
 
-    return ret;
-  };
+//   virtual ~Strategy() { mWriter.Flush(); };
 
-  template <typename F, std::enable_if_t<std::is_void_v<std::invoke_result_t<F>>, bool> = true>
-  void timeAndLog(const std::string& keyName, const std::string& logMessage, F functor)
-  {
-    mTimer.start();
-    functor();
-    mTimer.stop();
-    mWriter->Key(keyName.c_str());
-    const double_t msDuration = mTimer.getDurationMS();
-    mWriter->Double(msDuration);
-    LOGP(info, "{} in {} ms", logMessage, msDuration);
-  };
+//   virtual void setup() { mWriter.StartObject(); }
+//   virtual void teardown()
+//   {
+//     mWriter.EndObject();
+//     mWriter.Flush();
+//   }
 
- private:
-  jsonWriter_type* mWriter{};
-  utils::RANSTimer mTimer{};
-};
+//   virtual void encode(const rbm::TPCData& dataIn) = 0;
+//   virtual void decode(rbm::TPCData& dataOut) = 0;
+//   virtual bool validate(const rbm::TPCData& dataIn, const rbm::TPCData& dataOut) const
+//   {
+//     return dataIn == dataOut;
+//   };
 
-template <rbm::TPCField field_V, CoderTag coderTag_V>
-void ransEncodeDecode(const rbm::TPCData& dataIn, rbm::TPCData& dataOut)
-{
-  static constexpr auto fieldTrait = rbm::traits::FieldTrait<field_V>{};
-  using source_type = typename decltype(fieldTrait)::value_type;
+//  protected:
+//   std::string mName{};
+//   json_writer_type mWriter{};
+// };
 
-  auto [inputBegin, inputEnd] = rbm::getIter<field_V>(dataIn);
-  const size_t inputSize = std::distance(inputBegin, inputEnd);
+// class BenchmarkRunner
+// {
 
-  if (inputSize == 0) {
-    LOG(warning) << "Skipping 0 Byte field " << fieldTrait.name;
-    return;
-  }
+//  public:
+//   BenchmarkRunner();
 
-  utils::RANSTimer timer{};
-  TimingDecorator t{writer};
+//   template <typename... Args>
+//   Strategy* emplaceStrategy(Args&&... args)
+//   {
+//     mStrategies.emplace_back(std::make_unique<Strategy>(std::forward<Args>(args)...));
+//     return mStrategies.back().get();
+//   }
 
-  writer.Key(fieldTrait.name.data());
-  writer.StartObject();
+//   void run(Strategy& strategy, size_t nReps = 1);
 
-  rbm::EncodeBuffer<source_type> encodeBuffer{inputSize};
-  encodeBuffer.literals.resize(inputSize, 0);
-  encodeBuffer.literalsEnd = encodeBuffer.literals.data();
+//   void run(size_t nReps = 1);
 
-  auto [outputBegin, outputEnd] = rbm::getIter<field_V>(dataOut);
+//  private:
+//   rbm::TPCData mDataIn;
+//   rbm::TPCData mDataOut;
 
-  writer.Key("Timing");
-  writer.StartObject();
+//   std::vector<std::unique_ptr<Strategy>> mStrategies{};
+// };
 
-  LOGP(info, "processing: {} (nItems: {}, size: {} MiB)", fieldTrait.name, inputSize, inputSize * sizeof(source_type) / 1024.0 / 1024.0);
-  auto histogram = t.timeAndLog(
-    "FrequencyTable", "Built Frequency Table", [&]() { return makeDenseHistogram::fromSamples(inputBegin, inputEnd); });
+// BenchmarkRunner::BenchmarkRunner() {};
 
-  auto tmpHist = histogram;
-  Metrics<source_type> metrics{};
-  RenormedDenseHistogram<source_type> renormedHistogram{};
-  t.timeAndLog("Renorming", "Renormed Frequency Table", [&]() mutable {
-    metrics = Metrics<source_type>{histogram};
-    renormedHistogram = renorm(std::move(tmpHist), metrics);
-  });
+// void BenchmarkRunner::run(Strategy& strategy, size_t nReps)
+// {
+//   LOGP(info, "Running Strategy: {}", strategy.getName());
+//   strategy.setup();
+//   for (size_t i = 0; i < nReps; ++i) {
+//     LOGP(info, "Run {}/{}", i + 1, nReps);
+//     strategy.encode(mDataIn);
+//     strategy.decode(mDataOut);
+//   }
+//   if (!strategy.validate(mDataIn, mDataOut)) {
+//     LOGP(error, "Validation failed for strategy: {}", strategy.getName());
+//   } else {
+//     LOGP(info, "Validation succeeded for strategy: {}", strategy.getName());
+//   }
+//   strategy.teardown();
+// }
 
-  auto encoder = t.timeAndLog("Encoder", "Built Encoder", [&]() { return makeDenseEncoder<coderTag_V>::fromRenormed(renormedHistogram); });
+// void BenchmarkRunner::run(size_t nReps)
+// {
+//   for (auto& strategy : mStrategies) {
+//     run(*strategy, nReps);
+//   }
+// }
 
-  t.timeAndLog("Encoding", "Encoded", [&]() mutable {
-#ifdef ENABLE_VTUNE_PROFILER
-    __itt_resume();
-#endif
-    if (renormedHistogram.hasIncompressibleSymbol()) {
-      std::tie(encodeBuffer.encodeBufferEnd, encodeBuffer.literalsEnd) = encoder.process(inputBegin, inputEnd, encodeBuffer.buffer.data(), encodeBuffer.literalsEnd);
-    } else {
-      encodeBuffer.encodeBufferEnd = encoder.process(inputBegin, inputEnd, encodeBuffer.buffer.data());
-    }
-#ifdef ENABLE_VTUNE_PROFILER
-    __itt_pause();
-#endif
-  });
-  LOGP(info, "Encoded {} Bytes", inputSize * sizeof(source_type));
+// class MetricsStrategy : public Strategy
+// {
+//  public:
+//   MetricsStrategy(std::string_view name, std::ofstream& logFile) : Strategy(name, logFile) {};
 
-  std::vector<uint8_t> dict(histogram.size() * sizeof(uint64_t), 0);
-  auto dictEnd = t.timeAndLog("WriteDict", "Serialized Dict", [&]() { return compressRenormedDictionary(encoder.getSymbolTable(), dict.data()); });
-  LOGP(info, "Serialized Dict of {} Bytes", std::distance(dict.data(), dictEnd));
-  auto recoveredHistogram = t.timeAndLog("ReadDict", "Read Dict", [&]() {
-    const source_type min =  encoder.getSymbolTable().getOffset();
-    const source_type max =  min + std::max<source_type>(static_cast<int64_t>(encoder.getSymbolTable().size())-1,0);
-    return readRenormedDictionary(dict.data(), dictEnd,min,max,renormedHistogram.getRenormingBits()); });
-  auto decoder = makeDecoder<>::fromRenormed(renormedHistogram);
-  auto recoveredDecoder = t.timeAndLog("MakeDecoder", "Built Decoder", [&]() { return makeDecoder<>::fromRenormed(recoveredHistogram); });
+//   void encode(const rbm::TPCData& dataIn) final;
 
-  t.timeAndLog("Decoding", "Decoded", [&]() mutable {
-    if (encodeBuffer.literalsEnd == encodeBuffer.literals.data()) {
-      decoder.process(encodeBuffer.encodeBufferEnd, outputBegin, inputSize, encoder.getNStreams());
-    } else {
-      decoder.process(encodeBuffer.encodeBufferEnd, outputBegin, inputSize, encoder.getNStreams(), encodeBuffer.literalsEnd);
-    }
-  });
+//   void decode(rbm::TPCData& dataOut) final;
 
-  // Verify correctness
-  auto [checkBegin, checkEnd] = rbm::getIter<field_V>(static_cast<const rbm::TPCData&>(dataOut));
+//  private:
+//   template <rbm::TPCField field_V>
+//   void encodeField(const rbm::TPCData& dataIn);
 
-  if (!(std::equal(inputBegin, inputEnd, checkBegin))) {
-    LOGP(warning, "Missmatch between original and decoded Message");
-  }
-  LOG(info) << "finished: " << fieldTrait.name;
+//   template <rbm::TPCField field_V>
+//   void decodeField(rbm::TPCData& dataOut);
+// };
 
-  writer.EndObject(); // Timing
+// template <rbm::TPCField field_V>
+// MetricsStrategy::endcodeField(const rbm::TPCData& dataIn)
+// {
 
-  const auto& datasetProperties = metrics.getDatasetProperties();
+//   auto& writer = mWriter;
 
-  // Frequency Table
-  // ##########################
-  writer.Key("FrequencyTable");
-  writer.StartObject();
-  writer.Key("nSamples");
-  writer.Uint64(histogram.getNumSamples());
-  writer.Key("Min");
-  writer.Int(datasetProperties.min);
-  writer.Key("Max");
-  writer.Int(datasetProperties.max);
-  writer.Key("alphabetRangeBits");
-  writer.Int(datasetProperties.alphabetRangeBits);
-  writer.Key("nUsedAlphabetSymbols");
-  writer.Uint(datasetProperties.nUsedAlphabetSymbols);
-  writer.Key("IncompressibleFrequency");
-  writer.Uint(0);
-  writer.EndObject(); // FrequencyTable
+//   static constexpr auto fieldTrait = rbm::traits::FieldTrait<field_V>{};
+//   using source_type = typename decltype(fieldTrait)::value_type;
 
-  // RescaledFrequencies
-  // ##########################
-  const Metrics<source_type> renormedMetrics{histogram};
-  const auto& renormedDatasetProperties = renormedMetrics.getDatasetProperties();
+//   auto [inputBegin, inputEnd] = rbm::getIter<field_V>(dataIn);
+//   const size_t inputSize = std::distance(inputBegin, inputEnd);
 
-  writer.Key("RescaledFrequencies");
-  writer.StartObject();
-  writer.Key("nSamples");
-  writer.Uint64(renormedHistogram.getNumSamples());
-  writer.Key("Min");
-  writer.Int(renormedDatasetProperties.min);
-  writer.Key("Max");
-  writer.Int(renormedDatasetProperties.max);
-  writer.Key("alphabetRangeBits");
-  writer.Int(renormedDatasetProperties.alphabetRangeBits);
-  writer.Key("nUsedAlphabetSymbols");
-  writer.Uint(renormedDatasetProperties.nUsedAlphabetSymbols);
-  writer.Key("IncompressibleFrequency");
-  writer.Uint(renormedHistogram.getIncompressibleSymbolFrequency());
-  writer.Key("RenormingBits");
-  writer.Uint(renormedHistogram.getRenormingBits());
-  writer.EndObject(); // RescaledFrequencies
+//   if (inputSize == 0) {
+//     LOG(warning) << "Skipping 0 Byte field " << fieldTrait.name;
+//     return;
+//   }
 
-  // Message Properties
-  // ##########################
-  writer.Key("Message");
-  writer.StartObject();
-  writer.Key("Size");
-  writer.Uint64(inputSize);
-  writer.Key("SymbolSize");
-  writer.Uint(sizeof(source_type));
-  writer.Key("Entropy");
-  writer.Double(datasetProperties.entropy);
-  writer.Key("ExpectedCodewordLength");
-  writer.Double(computeExpectedCodewordLength<>(histogram, renormedHistogram));
-  writer.EndObject(); // Message
+//   writer.Key(fieldTrait.name.data());
+//   writer.StartObject();
 
-  // Compression Properties
-  // ##########################
-  writer.Key("Compression");
-  writer.StartObject();
-  writer.Key("EncodeBufferSize");
-  writer.Uint64(std::distance(encodeBuffer.buffer.data(), encodeBuffer.encodeBufferEnd) * sizeof(uint32_t));
-  writer.Key("LiteralSize");
-  writer.Uint64(std::distance(encodeBuffer.literals.data(), encodeBuffer.literalsEnd) * sizeof(source_type));
-  writer.Key("DictSize");
-  writer.Uint64(std::distance(dict.data(), dictEnd));
-  writer.EndObject(); // Compression
+//   rbm::EncodeBuffer<source_type> encodeBuffer{inputSize};
+//   encodeBuffer.literals.resize(inputSize, 0);
+//   encodeBuffer.literalsEnd = encodeBuffer.literals.data();
 
-  writer.EndObject(); // Encode/Decode Run
-};
+//   auto [outputBegin, outputEnd] = rbm::getIter<field_V>(dataOut);
 
-template <CoderTag coderTag_V, rbm::TPCField... fields_V>
-void tpcEncodeDecode(const std::string& name, const rbm::TPCData& dataIn, rbm::TPCData& dataOut, bmp::mp_list_v<fields_V...>)
-{
-  writer.Key(name.c_str());
-  writer.StartObject();
+//   auto histogram = makeDenseHistogram::fromSamples(inputBegin, inputEnd);
+//   Metrics<source_type> metrics{histogram};
+//   auto renormedHistogram = renorm(histogram, metrics);
+//   auto encoder = makeDenseEncoder<CoderTag::AVX2>::fromRenormed(renormedHistogram);
 
-  (ransEncodeDecode<fields_V, coderTag_V>(dataIn, dataOut), ...);
+//   if (renormedHistogram.hasIncompressibleSymbol()) {
+//     std::tie(encodeBuffer.encodeBufferEnd,
+//              encodeBuffer.literalsEnd) = encoder.process(inputBegin,
+//                                                          inputEnd,
+//                                                          encodeBuffer.buffer.data(),
+//                                                          encodeBuffer.literalsEnd);
+//   } else {
+//     encodeBuffer.encodeBufferEnd = encoder.process(inputBegin, inputEnd, encodeBuffer.buffer.data());
+//   }
 
-  writer.EndObject();
-};
+//   std::vector<uint8_t> dict(histogram.size() * sizeof(uint64_t), 0);
+//   auto dictEnd = compressRenormedDictionary(encoder.getSymbolTable(), dict.data());
 
-using encoder_types = bmp::mp_product<bmp::mp_list, coder_types>;
+//   std::vector<uint8_t> packedIncompressible(encodeBuffer.literals.size() * sizeof(source_type), 0);
 
-int main(int argc, char* argv[])
-{
-  bpo::options_description options("Allowed options");
-  // clang-format off
-  options.add_options()
-    ("help,h", "print usage message")
-    ("in,i",bpo::value<std::string>(), "file to process")
-    ("out,o",bpo::value<std::string>(), "json output file")
-    ("log_severity,l",bpo::value<std::string>(), "severity of FairLogger");
-  // clang-format on
+//   Packer<source_type> packer{metrics};
+//   auto packedIncompressibleEnd = packer.pack(encodeBuffer.literals.data(),
+//                                              encodeBuffer.literalsEnd,
+//                                              packedIncompressible.data(),
+//                                              packedIncompressible.data() + packedIncompressible.size());
 
-  bpo::variables_map vm;
-  bpo::store(bpo::parse_command_line(argc, argv, options), vm);
-  bpo::notify(vm);
+//   auto metadata = o2::ctf::detail::makeMetadataRansV1 < source_type,
+//        const auto &datasetProperties = metrics.getDatasetProperties();
 
-  if (vm.count("help")) {
-    std::cout << options << "\n";
-    return 0;
-  }
+//   // Frequency Table
+//   // ##########################
+//   writer.Key("FrequencyTable");
+//   writer.StartObject();
+//   writer.Key("nSamples");
+//   writer.Uint64(histogram.getNumSamples());
+//   writer.Key("Min");
+//   writer.Int(datasetProperties.min);
+//   writer.Key("Max");
+//   writer.Int(datasetProperties.max);
+//   writer.Key("alphabetRangeBits");
+//   writer.Int(datasetProperties.alphabetRangeBits);
+//   writer.Key("nUsedAlphabetSymbols");
+//   writer.Uint(datasetProperties.nUsedAlphabetSymbols);
+//   writer.Key("IncompressibleFrequency");
+//   writer.Uint(0);
+//   writer.EndObject(); // FrequencyTable
 
-  const std::string inFile = [&]() {
-    if (vm.count("in")) {
-      return vm["in"].as<std::string>();
-    } else {
-      LOG(error) << "missing path to input file";
-      exit(1);
-    }
-  }();
+//   // RescaledFrequencies
+//   // ##########################
+//   const Metrics<source_type> renormedMetrics{histogram};
+//   const auto& renormedDatasetProperties = renormedMetrics.getDatasetProperties();
 
-  const std::string outFile = [&]() {
-    if (vm.count("out")) {
-      return vm["out"].as<std::string>();
-    } else {
-      return std::string("out.json");
-    }
-  }();
+//   writer.Key("RescaledFrequencies");
+//   writer.StartObject();
+//   writer.Key("nSamples");
+//   writer.Uint64(renormedHistogram.getNumSamples());
+//   writer.Key("Min");
+//   writer.Int(renormedDatasetProperties.min);
+//   writer.Key("Max");
+//   writer.Int(renormedDatasetProperties.max);
+//   writer.Key("alphabetRangeBits");
+//   writer.Int(renormedDatasetProperties.alphabetRangeBits);
+//   writer.Key("nUsedAlphabetSymbols");
+//   writer.Uint(renormedDatasetProperties.nUsedAlphabetSymbols);
+//   writer.Key("IncompressibleFrequency");
+//   writer.Uint(renormedHistogram.getIncompressibleSymbolFrequency());
+//   writer.Key("RenormingBits");
+//   writer.Uint(renormedHistogram.getRenormingBits());
+//   writer.EndObject(); // RescaledFrequencies
 
-  if (vm.count("log_severity")) {
-    fair::Logger::SetConsoleSeverity(vm["log_severity"].as<std::string>().c_str());
-  }
+//   // Message Properties
+//   // ##########################
+//   writer.Key("Message");
+//   writer.StartObject();
+//   writer.Key("Size");
+//   writer.Uint64(inputSize);
+//   writer.Key("SymbolSize");
+//   writer.Uint(sizeof(source_type));
+//   writer.Key("Entropy");
+//   writer.Double(datasetProperties.entropy);
+//   writer.Key("ExpectedCodewordLength");
+//   writer.Double(computeExpectedCodewordLength<>(histogram, renormedHistogram));
+//   writer.EndObject(); // Message
 
-  std::ofstream of{outFile};
-  if (!of) {
-    std::runtime_error(fmt::format("could not open output file at path {}", inFile));
-  }
+//   // Compression Properties
+//   // ##########################
+//   writer.Key("Compression");
+//   writer.StartObject();
+//   writer.Key("EncodeBufferSize");
+//   writer.Uint64(std::distance(encodeBuffer.buffer.data(), encodeBuffer.encodeBufferEnd) * sizeof(uint32_t));
+//   writer.Key("LiteralSize");
+//   writer.Uint64(std::distance(encodeBuffer.literals.data(), encodeBuffer.literalsEnd) * sizeof(source_type));
+//   writer.Key("DictSize");
+//   writer.Uint64(std::distance(dict.data(), dictEnd));
+//   writer.EndObject(); // Compression
 
-  rapidjson::OStreamWrapper stream{of};
-  writer.Reset(stream);
-  writer.StartObject();
+//   writer.EndObject(); // Encode/Decode Run
+// };
 
-  rbm::TPCData tpcDataIn = rbm::loadTPCData(inFile);
-  rbm::TPCData tpcDataOut = rbm::TPCData{tpcDataIn.nTracks,
-                                         tpcDataIn.nAttachedClusters,
-                                         tpcDataIn.nUnattachedClusters,
-                                         tpcDataIn.nAttachedClustersReduced,
-                                         tpcDataIn.nTriggers};
+// MetricsStrategy::encode(const rbm::TPCData& dataIn)
+// {
+//   RansMetrics ransMetrics{mWriter};
 
-  LOGP(info, "loaded Compressed Clusters from {}", inFile);
-  LOG(info) << "######################################################";
-  bmp::mp_for_each<encoder_types>([&](auto L) {
-    using coder_type = bmp::mp_at_c<decltype(L), 0>;
-    constexpr CoderTag coderTag = coder_type::value;
-    const std::string encoderTitle = toString(coderTag);
+//   bmp::mp_for_each<CoderTags>([&](auto coderTagConstant) {
+//     using coderTag_V = decltype(coderTagConstant)::value;
+//     ransMetrics.collect<coderTag_V>(dataIn);
+//   });
+// }
 
-    LOGP(info, "start rANS {}/Decode", encoderTitle);
+// class RansMetrics
+// {
+//  public:
+//   RansMetrics(json_writer_type& writer) : mWriter{&writer} {};
 
-    tpcEncodeDecode<coderTag>(encoderTitle, tpcDataIn, tpcDataOut, rbm::traits::TPCFieldsAll{});
+//   template <rbm::TPCField field_V>
+//   void collect(const rbm::TPCData& data)
+//   {
+//     auto& writer = *mWriter;
 
-    LOG(info) << "######################################################";
-  });
-  writer.EndObject();
-  stream.Flush();
-  of.close();
-};
+//     static constexpr auto fieldTrait = rbm::traits::FieldTrait<field_V>{};
+//     using source_type = typename decltype(fieldTrait)::value_type;
+
+//     auto [inputBegin, inputEnd] = rbm::getIter<field_V>(dataIn);
+//     const size_t inputSize = std::distance(inputBegin, inputEnd);
+
+//     if (inputSize == 0) {
+//       LOG(warning) << "Skipping 0 Byte field " << fieldTrait.name;
+//       return;
+//     }
+
+//     writer.Key(fieldTrait.name.data());
+//     writer.StartObject();
+
+//     rbm::EncodeBuffer<source_type> encodeBuffer{inputSize};
+//     encodeBuffer.literals.resize(inputSize, 0);
+//     encodeBuffer.literalsEnd = encodeBuffer.literals.data();
+
+//     auto [outputBegin, outputEnd] = rbm::getIter<field_V>(dataOut);
+
+//     writer.Key("Timing");
+//     writer.StartObject();
+
+//     LOGP(info, "processing: {} (nItems: {}, size: {} MiB)", fieldTrait.name, inputSize, inputSize * sizeof(source_type) / 1024.0 / 1024.0);
+//     auto histogram = t.timeAndLog(
+//       "FrequencyTable", "Built Frequency Table", [&]() { return makeDenseHistogram::fromSamples(inputBegin, inputEnd); });
+
+//     auto tmpHist = histogram;
+//     Metrics<source_type> metrics{};
+//     RenormedDenseHistogram<source_type> renormedHistogram{};
+//     t.timeAndLog("Renorming", "Renormed Frequency Table", [&]() mutable {
+//       metrics = Metrics<source_type>{histogram};
+//       renormedHistogram = renorm(std::move(tmpHist), metrics);
+//     });
+
+//     auto encoder = t.timeAndLog("Encoder", "Built Encoder", [&]() { return makeDenseEncoder<coderTag_V>::fromRenormed(renormedHistogram); });
+
+//     t.timeAndLog("Encoding", "Encoded", [&]() mutable {
+// #ifdef ENABLE_VTUNE_PROFILER
+//       __itt_resume();
+// #endif
+//       if (renormedHistogram.hasIncompressibleSymbol()) {
+//         std::tie(encodeBuffer.encodeBufferEnd, encodeBuffer.literalsEnd) = encoder.process(inputBegin, inputEnd, encodeBuffer.buffer.data(), encodeBuffer.literalsEnd);
+//       } else {
+//         encodeBuffer.encodeBufferEnd = encoder.process(inputBegin, inputEnd, encodeBuffer.buffer.data());
+//       }
+// #ifdef ENABLE_VTUNE_PROFILER
+//       __itt_pause();
+// #endif
+//     });
+//     LOGP(info, "Encoded {} Bytes", inputSize * sizeof(source_type));
+
+//     std::vector<uint8_t> dict(histogram.size() * sizeof(uint64_t), 0);
+//     auto dictEnd = t.timeAndLog("WriteDict", "Serialized Dict", [&]() { return compressRenormedDictionary(encoder.getSymbolTable(), dict.data()); });
+//     LOGP(info, "Serialized Dict of {} Bytes", std::distance(dict.data(), dictEnd));
+//     auto recoveredHistogram = t.timeAndLog("ReadDict", "Read Dict", [&]() {
+//     const source_type min =  encoder.getSymbolTable().getOffset();
+//     const source_type max =  min + std::max<source_type>(static_cast<int64_t>(encoder.getSymbolTable().size())-1,0);
+//     return readRenormedDictionary(dict.data(), dictEnd,min,max,renormedHistogram.getRenormingBits()); });
+//     auto decoder = makeDecoder<>::fromRenormed(renormedHistogram);
+//     auto recoveredDecoder = t.timeAndLog("MakeDecoder", "Built Decoder", [&]() { return makeDecoder<>::fromRenormed(recoveredHistogram); });
+
+//     t.timeAndLog("Decoding", "Decoded", [&]() mutable {
+//       if (encodeBuffer.literalsEnd == encodeBuffer.literals.data()) {
+//         decoder.process(encodeBuffer.encodeBufferEnd, outputBegin, inputSize, encoder.getNStreams());
+//       } else {
+//         decoder.process(encodeBuffer.encodeBufferEnd, outputBegin, inputSize, encoder.getNStreams(), encodeBuffer.literalsEnd);
+//       }
+//     });
+
+//     // Verify correctness
+//     auto [checkBegin, checkEnd] = rbm::getIter<field_V>(static_cast<const rbm::TPCData&>(dataOut));
+
+//     if (!(std::equal(inputBegin, inputEnd, checkBegin))) {
+//       LOGP(warning, "Missmatch between original and decoded Message");
+//     }
+//     LOG(info) << "finished: " << fieldTrait.name;
+
+//     writer.EndObject(); // Timing
+
+//     const auto& datasetProperties = metrics.getDatasetProperties();
+
+//     // Frequency Table
+//     // ##########################
+//     writer.Key("FrequencyTable");
+//     writer.StartObject();
+//     writer.Key("nSamples");
+//     writer.Uint64(histogram.getNumSamples());
+//     writer.Key("Min");
+//     writer.Int(datasetProperties.min);
+//     writer.Key("Max");
+//     writer.Int(datasetProperties.max);
+//     writer.Key("alphabetRangeBits");
+//     writer.Int(datasetProperties.alphabetRangeBits);
+//     writer.Key("nUsedAlphabetSymbols");
+//     writer.Uint(datasetProperties.nUsedAlphabetSymbols);
+//     writer.Key("IncompressibleFrequency");
+//     writer.Uint(0);
+//     writer.EndObject(); // FrequencyTable
+
+//     // RescaledFrequencies
+//     // ##########################
+//     const Metrics<source_type> renormedMetrics{histogram};
+//     const auto& renormedDatasetProperties = renormedMetrics.getDatasetProperties();
+
+//     writer.Key("RescaledFrequencies");
+//     writer.StartObject();
+//     writer.Key("nSamples");
+//     writer.Uint64(renormedHistogram.getNumSamples());
+//     writer.Key("Min");
+//     writer.Int(renormedDatasetProperties.min);
+//     writer.Key("Max");
+//     writer.Int(renormedDatasetProperties.max);
+//     writer.Key("alphabetRangeBits");
+//     writer.Int(renormedDatasetProperties.alphabetRangeBits);
+//     writer.Key("nUsedAlphabetSymbols");
+//     writer.Uint(renormedDatasetProperties.nUsedAlphabetSymbols);
+//     writer.Key("IncompressibleFrequency");
+//     writer.Uint(renormedHistogram.getIncompressibleSymbolFrequency());
+//     writer.Key("RenormingBits");
+//     writer.Uint(renormedHistogram.getRenormingBits());
+//     writer.EndObject(); // RescaledFrequencies
+
+//     // Message Properties
+//     // ##########################
+//     writer.Key("Message");
+//     writer.StartObject();
+//     writer.Key("Size");
+//     writer.Uint64(inputSize);
+//     writer.Key("SymbolSize");
+//     writer.Uint(sizeof(source_type));
+//     writer.Key("Entropy");
+//     writer.Double(datasetProperties.entropy);
+//     writer.Key("ExpectedCodewordLength");
+//     writer.Double(computeExpectedCodewordLength<>(histogram, renormedHistogram));
+//     writer.EndObject(); // Message
+
+//     // Compression Properties
+//     // ##########################
+//     writer.Key("Compression");
+//     writer.StartObject();
+//     writer.Key("EncodeBufferSize");
+//     writer.Uint64(std::distance(encodeBuffer.buffer.data(), encodeBuffer.encodeBufferEnd) * sizeof(uint32_t));
+//     writer.Key("LiteralSize");
+//     writer.Uint64(std::distance(encodeBuffer.literals.data(), encodeBuffer.literalsEnd) * sizeof(source_type));
+//     writer.Key("DictSize");
+//     writer.Uint64(std::distance(dict.data(), dictEnd));
+//     writer.EndObject(); // Compression
+
+//     writer.EndObject(); // Encode/Decode Run
+//   };
+
+//  private:
+//   json_writer_type* mWriter{};
+// };
+
+// class BenchmarkManager;
+
+// struct TimingMetrics;
+
+// class TimingDecorator
+// {
+//  public:
+//   using jsonWriter_type = rapidjson::Writer<rapidjson::OStreamWrapper>;
+
+//   TimingDecorator() = default;
+//   TimingDecorator(jsonWriter_type& writer) : mWriter{&writer} {};
+
+//   template <typename F, std::enable_if_t<!std::is_void_v<std::invoke_result_t<F>>, bool> = true>
+//   decltype(auto) timeAndLog(const std::string& keyName, const std::string& logMessage, F functor)
+//   {
+//     mTimer.start();
+//     decltype(auto) ret = functor();
+//     mTimer.stop();
+//     mWriter->Key(keyName.c_str());
+//     const double_t msDuration = mTimer.getDurationMS();
+//     mWriter->Double(msDuration);
+//     LOGP(info, "{} in {} ms", logMessage, msDuration);
+
+//     return ret;
+//   };
+
+//   template <typename F, std::enable_if_t<std::is_void_v<std::invoke_result_t<F>>, bool> = true>
+//   void timeAndLog(const std::string& keyName, const std::string& logMessage, F functor)
+//   {
+//     mTimer.start();
+//     functor();
+//     mTimer.stop();
+//     mWriter->Key(keyName.c_str());
+//     const double_t msDuration = mTimer.getDurationMS();
+//     mWriter->Double(msDuration);
+//     LOGP(info, "{} in {} ms", logMessage, msDuration);
+//   };
+
+//  private:
+//   jsonWriter_type* mWriter{};
+//   utils::RANSTimer mTimer{};
+// };
+
+// template <rbm::TPCField field_V, CoderTag coderTag_V>
+// void ransEncodeDecode(const rbm::TPCData& dataIn, rbm::TPCData& dataOut)
+// {
+//   static constexpr auto fieldTrait = rbm::traits::FieldTrait<field_V>{};
+//   using source_type = typename decltype(fieldTrait)::value_type;
+
+//   auto [inputBegin, inputEnd] = rbm::getIter<field_V>(dataIn);
+//   const size_t inputSize = std::distance(inputBegin, inputEnd);
+
+//   if (inputSize == 0) {
+//     LOG(warning) << "Skipping 0 Byte field " << fieldTrait.name;
+//     return;
+//   }
+
+//   utils::RANSTimer timer{};
+//   TimingDecorator t{writer};
+
+//   writer.Key(fieldTrait.name.data());
+//   writer.StartObject();
+
+//   rbm::EncodeBuffer<source_type> encodeBuffer{inputSize};
+//   encodeBuffer.literals.resize(inputSize, 0);
+//   encodeBuffer.literalsEnd = encodeBuffer.literals.data();
+
+//   auto [outputBegin, outputEnd] = rbm::getIter<field_V>(dataOut);
+
+//   writer.Key("Timing");
+//   writer.StartObject();
+
+//   LOGP(info, "processing: {} (nItems: {}, size: {} MiB)", fieldTrait.name, inputSize, inputSize * sizeof(source_type) / 1024.0 / 1024.0);
+//   auto histogram = t.timeAndLog(
+//     "FrequencyTable", "Built Frequency Table", [&]() { return makeDenseHistogram::fromSamples(inputBegin, inputEnd); });
+
+//   auto tmpHist = histogram;
+//   Metrics<source_type> metrics{};
+//   RenormedDenseHistogram<source_type> renormedHistogram{};
+//   t.timeAndLog("Renorming", "Renormed Frequency Table", [&]() mutable {
+//     metrics = Metrics<source_type>{histogram};
+//     renormedHistogram = renorm(std::move(tmpHist), metrics);
+//   });
+
+//   auto encoder = t.timeAndLog("Encoder", "Built Encoder", [&]() { return makeDenseEncoder<coderTag_V>::fromRenormed(renormedHistogram); });
+
+//   t.timeAndLog("Encoding", "Encoded", [&]() mutable {
+// #ifdef ENABLE_VTUNE_PROFILER
+//     __itt_resume();
+// #endif
+//     if (renormedHistogram.hasIncompressibleSymbol()) {
+//       std::tie(encodeBuffer.encodeBufferEnd, encodeBuffer.literalsEnd) = encoder.process(inputBegin, inputEnd, encodeBuffer.buffer.data(), encodeBuffer.literalsEnd);
+//     } else {
+//       encodeBuffer.encodeBufferEnd = encoder.process(inputBegin, inputEnd, encodeBuffer.buffer.data());
+//     }
+// #ifdef ENABLE_VTUNE_PROFILER
+//     __itt_pause();
+// #endif
+//   });
+//   LOGP(info, "Encoded {} Bytes", inputSize * sizeof(source_type));
+
+//   std::vector<uint8_t> dict(histogram.size() * sizeof(uint64_t), 0);
+//   auto dictEnd = t.timeAndLog("WriteDict", "Serialized Dict", [&]() { return compressRenormedDictionary(encoder.getSymbolTable(), dict.data()); });
+//   LOGP(info, "Serialized Dict of {} Bytes", std::distance(dict.data(), dictEnd));
+//   auto recoveredHistogram = t.timeAndLog("ReadDict", "Read Dict", [&]() {
+//     const source_type min =  encoder.getSymbolTable().getOffset();
+//     const source_type max =  min + std::max<source_type>(static_cast<int64_t>(encoder.getSymbolTable().size())-1,0);
+//     return readRenormedDictionary(dict.data(), dictEnd,min,max,renormedHistogram.getRenormingBits()); });
+//   auto decoder = makeDecoder<>::fromRenormed(renormedHistogram);
+//   auto recoveredDecoder = t.timeAndLog("MakeDecoder", "Built Decoder", [&]() { return makeDecoder<>::fromRenormed(recoveredHistogram); });
+
+//   t.timeAndLog("Decoding", "Decoded", [&]() mutable {
+//     if (encodeBuffer.literalsEnd == encodeBuffer.literals.data()) {
+//       decoder.process(encodeBuffer.encodeBufferEnd, outputBegin, inputSize, encoder.getNStreams());
+//     } else {
+//       decoder.process(encodeBuffer.encodeBufferEnd, outputBegin, inputSize, encoder.getNStreams(), encodeBuffer.literalsEnd);
+//     }
+//   });
+
+//   // Verify correctness
+//   auto [checkBegin, checkEnd] = rbm::getIter<field_V>(static_cast<const rbm::TPCData&>(dataOut));
+
+//   if (!(std::equal(inputBegin, inputEnd, checkBegin))) {
+//     LOGP(warning, "Missmatch between original and decoded Message");
+//   }
+//   LOG(info) << "finished: " << fieldTrait.name;
+
+//   writer.EndObject(); // Timing
+
+//   const auto& datasetProperties = metrics.getDatasetProperties();
+
+//   // Frequency Table
+//   // ##########################
+//   writer.Key("FrequencyTable");
+//   writer.StartObject();
+//   writer.Key("nSamples");
+//   writer.Uint64(histogram.getNumSamples());
+//   writer.Key("Min");
+//   writer.Int(datasetProperties.min);
+//   writer.Key("Max");
+//   writer.Int(datasetProperties.max);
+//   writer.Key("alphabetRangeBits");
+//   writer.Int(datasetProperties.alphabetRangeBits);
+//   writer.Key("nUsedAlphabetSymbols");
+//   writer.Uint(datasetProperties.nUsedAlphabetSymbols);
+//   writer.Key("IncompressibleFrequency");
+//   writer.Uint(0);
+//   writer.EndObject(); // FrequencyTable
+
+//   // RescaledFrequencies
+//   // ##########################
+//   const Metrics<source_type> renormedMetrics{histogram};
+//   const auto& renormedDatasetProperties = renormedMetrics.getDatasetProperties();
+
+//   writer.Key("RescaledFrequencies");
+//   writer.StartObject();
+//   writer.Key("nSamples");
+//   writer.Uint64(renormedHistogram.getNumSamples());
+//   writer.Key("Min");
+//   writer.Int(renormedDatasetProperties.min);
+//   writer.Key("Max");
+//   writer.Int(renormedDatasetProperties.max);
+//   writer.Key("alphabetRangeBits");
+//   writer.Int(renormedDatasetProperties.alphabetRangeBits);
+//   writer.Key("nUsedAlphabetSymbols");
+//   writer.Uint(renormedDatasetProperties.nUsedAlphabetSymbols);
+//   writer.Key("IncompressibleFrequency");
+//   writer.Uint(renormedHistogram.getIncompressibleSymbolFrequency());
+//   writer.Key("RenormingBits");
+//   writer.Uint(renormedHistogram.getRenormingBits());
+//   writer.EndObject(); // RescaledFrequencies
+
+//   // Message Properties
+//   // ##########################
+//   writer.Key("Message");
+//   writer.StartObject();
+//   writer.Key("Size");
+//   writer.Uint64(inputSize);
+//   writer.Key("SymbolSize");
+//   writer.Uint(sizeof(source_type));
+//   writer.Key("Entropy");
+//   writer.Double(datasetProperties.entropy);
+//   writer.Key("ExpectedCodewordLength");
+//   writer.Double(computeExpectedCodewordLength<>(histogram, renormedHistogram));
+//   writer.EndObject(); // Message
+
+//   // Compression Properties
+//   // ##########################
+//   writer.Key("Compression");
+//   writer.StartObject();
+//   writer.Key("EncodeBufferSize");
+//   writer.Uint64(std::distance(encodeBuffer.buffer.data(), encodeBuffer.encodeBufferEnd) * sizeof(uint32_t));
+//   writer.Key("LiteralSize");
+//   writer.Uint64(std::distance(encodeBuffer.literals.data(), encodeBuffer.literalsEnd) * sizeof(source_type));
+//   writer.Key("DictSize");
+//   writer.Uint64(std::distance(dict.data(), dictEnd));
+//   writer.EndObject(); // Compression
+
+//   writer.EndObject(); // Encode/Decode Run
+// };
+
+// template <CoderTag coderTag_V, rbm::TPCField... fields_V>
+// void tpcEncodeDecode(const std::string& name, const rbm::TPCData& dataIn, rbm::TPCData& dataOut, bmp::mp_list_v<fields_V...>)
+// {
+//   writer.Key(name.c_str());
+//   writer.StartObject();
+
+//   (ransEncodeDecode<fields_V, coderTag_V>(dataIn, dataOut), ...);
+
+//   writer.EndObject();
+// };
+
+// using encoder_types = bmp::mp_product<bmp::mp_list, coder_types>;
+
+// int main(int argc, char* argv[])
+// {
+//   bpo::options_description options("Allowed options");
+//   // clang-format off
+//   options.add_options()
+//     ("help,h", "print usage message")
+//     ("in,i",bpo::value<std::string>(), "file to process")
+//     ("out,o",bpo::value<std::string>(), "json output file")
+//     ("log_severity,l",bpo::value<std::string>(), "severity of FairLogger");
+//   // clang-format on
+
+//   bpo::variables_map vm;
+//   bpo::store(bpo::parse_command_line(argc, argv, options), vm);
+//   bpo::notify(vm);
+
+//   if (vm.count("help")) {
+//     std::cout << options << "\n";
+//     return 0;
+//   }
+
+//   const std::string inFile = [&]() {
+//     if (vm.count("in")) {
+//       return vm["in"].as<std::string>();
+//     } else {
+//       LOG(error) << "missing path to input file";
+//       exit(1);
+//     }
+//   }();
+
+//   const std::string outFile = [&]() {
+//     if (vm.count("out")) {
+//       return vm["out"].as<std::string>();
+//     } else {
+//       return std::string("out.json");
+//     }
+//   }();
+
+//   if (vm.count("log_severity")) {
+//     fair::Logger::SetConsoleSeverity(vm["log_severity"].as<std::string>().c_str());
+//   }
+
+//   std::ofstream of{outFile};
+//   if (!of) {
+//     std::runtime_error(fmt::format("could not open output file at path {}", inFile));
+//   }
+
+//   rapidjson::OStreamWrapper stream{of};
+//   writer.Reset(stream);
+//   writer.StartObject();
+
+//   rbm::TPCData tpcDataIn = rbm::loadTPCData(inFile);
+//   rbm::TPCData tpcDataOut = rbm::TPCData{tpcDataIn.nTracks,
+//                                          tpcDataIn.nAttachedClusters,
+//                                          tpcDataIn.nUnattachedClusters,
+//                                          tpcDataIn.nAttachedClustersReduced,
+//                                          tpcDataIn.nTriggers};
+
+//   LOGP(info, "loaded Compressed Clusters from {}", inFile);
+//   LOG(info) << "######################################################";
+//   bmp::mp_for_each<encoder_types>([&](auto L) {
+//     using coder_type = bmp::mp_at_c<decltype(L), 0>;
+//     constexpr CoderTag coderTag = coder_type::value;
+//     const std::string encoderTitle = toString(coderTag);
+
+//     LOGP(info, "start rANS {}/Decode", encoderTitle);
+
+//     tpcEncodeDecode<coderTag>(encoderTitle, tpcDataIn, tpcDataOut, rbm::traits::TPCFieldsAll{});
+
+//     LOG(info) << "######################################################";
+//   });
+//   writer.EndObject();
+//   stream.Flush();
+//   of.close();
+// };
+
+int main() {};
